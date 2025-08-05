@@ -294,8 +294,12 @@ pub fn initialize_mint2<'info>(
         freeze_authority,
         decimals,
     )?;
-    satellite_lang::arch_program::program::invoke_signed(&ix, &[ctx.accounts.mint], ctx.signer_seeds)
-        .map_err(Into::into)
+    satellite_lang::arch_program::program::invoke_signed(
+        &ix,
+        &[ctx.accounts.mint],
+        ctx.signer_seeds,
+    )
+    .map_err(Into::into)
 }
 
 pub fn set_authority<'info>(
@@ -460,6 +464,14 @@ impl satellite_lang::Owner for TokenAccount {
     }
 }
 
+static TOKEN_ACCOUNT_OWNERS: [Pubkey; 1] = [apl_token::ID];
+
+impl satellite_lang::Owners for TokenAccount {
+    fn owners() -> &'static [Pubkey] {
+        &TOKEN_ACCOUNT_OWNERS
+    }
+}
+
 impl Deref for TokenAccount {
     type Target = apl_token::state::Account;
 
@@ -491,6 +503,14 @@ impl satellite_lang::Owner for Mint {
     }
 }
 
+static MINT_OWNERS: [Pubkey; 1] = [apl_token::ID];
+
+impl satellite_lang::Owners for Mint {
+    fn owners() -> &'static [Pubkey] {
+        &MINT_OWNERS
+    }
+}
+
 impl Deref for Mint {
     type Target = apl_token::state::Mint;
 
@@ -499,12 +519,20 @@ impl Deref for Mint {
     }
 }
 
+static IDS: [Pubkey; 1] = [Pubkey::new_from_array(*b"apl-token00000000000000000000000")];
+
 #[derive(Clone)]
 pub struct Token;
 
 impl satellite_lang::Id for Token {
     fn id() -> Pubkey {
         apl_token::id()
+    }
+}
+
+impl satellite_lang::Ids for Token {
+    fn ids() -> &'static [Pubkey] {
+        &IDS
     }
 }
 
