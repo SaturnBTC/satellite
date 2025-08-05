@@ -6,6 +6,7 @@ use satellite_lang::{context::CpiContext, Accounts};
 use std::ops::Deref;
 
 pub use apl_token;
+pub use apl_token::ID;
 
 pub fn transfer<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, Transfer<'info>>,

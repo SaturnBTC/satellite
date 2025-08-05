@@ -612,13 +612,13 @@ fn generate_constraint_init_group(
 
                         // Initialize the token account.
                         let cpi_program = #token_program.to_account_info();
-                        let accounts = ::satellite_apl::token_interface::InitializeAccount3 {
+                        let accounts = ::satellite_apl::token::InitializeAccount3 {
                             account: #field.to_account_info(),
                             mint: #mint.to_account_info(),
                             authority: #owner.to_account_info(),
                         };
                         let cpi_ctx = satellite_lang::context::CpiContext::new(cpi_program, accounts);
-                        ::satellite_apl::token_interface::initialize_account3(cpi_ctx)?;
+                        ::satellite_apl::token::initialize_account3(cpi_ctx)?;
                     }
 
                     let pa: #ty_decl = #from_account_info_unchecked;
@@ -704,7 +704,7 @@ fn generate_constraint_init_group(
                             return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintAssociatedTokenTokenProgram).with_account_name(#name_str).with_pubkeys((*owner_program, #token_program.key())));
                         }
 
-                        if pa.key() != ::satellite_apl::associated_token::get_associated_token_address_with_program_id(&#owner.key(), &#mint.key(), &#token_program.key()) {
+                        if pa.key() != ::satellite_apl::associated_token::get_associated_token_address_and_bump_seed(&#owner.key(), &#mint.key(), &#token_program.key()).0 {
                             return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::AccountNotAssociatedTokenAccount).with_account_name(#name_str));
                         }
                     }
@@ -815,104 +815,103 @@ fn generate_constraint_init_group(
 
             let payer_optional_check = check_scope.generate_check(payer);
 
-            // // let mut extensions = vec![];
-            // // if group_pointer_authority.is_some() || group_pointer_group_address.is_some() {
-            // //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::GroupPointer});
-            // // }
+            // let mut extensions = vec![];
+            // if group_pointer_authority.is_some() || group_pointer_group_address.is_some() {
+            //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::GroupPointer});
+            // }
 
-            // // if group_member_pointer_authority.is_some()
-            // //     || group_member_pointer_member_address.is_some()
-            // // {
-            // //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::GroupMemberPointer});
-            // // }
+            // if group_member_pointer_authority.is_some()
+            //     || group_member_pointer_member_address.is_some()
+            // {
+            //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::GroupMemberPointer});
+            // }
 
-            // // if metadata_pointer_authority.is_some() || metadata_pointer_metadata_address.is_some() {
-            // //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::MetadataPointer});
-            // // }
+            // if metadata_pointer_authority.is_some() || metadata_pointer_metadata_address.is_some() {
+            //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::MetadataPointer});
+            // }
 
-            // // if close_authority.is_some() {
-            // //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::MintCloseAuthority});
-            // // }
+            // if close_authority.is_some() {
+            //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::MintCloseAuthority});
+            // }
 
-            // // if transfer_hook_authority.is_some() || transfer_hook_program_id.is_some() {
-            // //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::TransferHook});
-            // // }
+            // if transfer_hook_authority.is_some() || transfer_hook_program_id.is_some() {
+            //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::TransferHook});
+            // }
 
-            // // if permanent_delegate.is_some() {
-            // //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::PermanentDelegate});
-            // // }
+            // if permanent_delegate.is_some() {
+            //     extensions.push(quote! {::satellite_apl::token_interface::spl_token_2022::extension::ExtensionType::PermanentDelegate});
+            // }
 
-            // // let mint_space = if extensions.is_empty() {
-            // //     quote! { ::satellite_apl::token::Mint::LEN }
-            // // } else {
-            // //     quote! { ::satellite_apl::token_interface::find_mint_account_size(Some(&vec![#(#extensions),*]))? }
-            // // };
-            // // let mint_space = quote! { satellite_lang::arch_program::account::MIN_ACCOUNT_LAMPORTS };
+            // let mint_space = if extensions.is_empty() {
+            //     quote! { ::satellite_apl::token::Mint::LEN }
+            // } else {
+            //     quote! { ::satellite_apl::token_interface::find_mint_account_size(Some(&vec![#(#extensions),*]))? }
+            // };
 
-            // // let extensions = if extensions.is_empty() {
-            // //     quote! {Option::<&::satellite_apl::token_interface::ExtensionsVec>::None}
-            // // } else {
-            // //     quote! {Option::<&::satellite_apl::token_interface::ExtensionsVec>::Some(&vec![#(#extensions),*])}
-            // // };
+            // let extensions = if extensions.is_empty() {
+            //     quote! {Option::<&::satellite_apl::token_interface::ExtensionsVec>::None}
+            // } else {
+            //     quote! {Option::<&::satellite_apl::token_interface::ExtensionsVec>::Some(&vec![#(#extensions),*])}
+            // };
 
-            // // let freeze_authority = match freeze_authority {
-            // //     Some(fa) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#fa.key()) },
-            // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
-            // // };
+            let freeze_authority = match freeze_authority {
+                Some(fa) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#fa.key()) },
+                None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
+            };
 
-            // // let group_pointer_authority = match group_pointer_authority {
-            // //     Some(gpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gpa.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let group_pointer_authority = match group_pointer_authority {
+            //     Some(gpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gpa.key()) },
+            //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let group_pointer_group_address = match group_pointer_group_address {
-            // //     Some(gpga) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gpga.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let group_pointer_group_address = match group_pointer_group_address {
+            //     Some(gpga) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gpga.key()) },
+            //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let group_member_pointer_authority = match group_member_pointer_authority {
-            // //     Some(gmpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gmpa.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let group_member_pointer_authority = match group_member_pointer_authority {
+            //     Some(gmpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gmpa.key()) },
+            //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let group_member_pointer_member_address = match group_member_pointer_member_address {
-            // //     Some(gmpma) => {
-            // //         quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gmpma.key()) }
-            // //     }
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let group_member_pointer_member_address = match group_member_pointer_member_address {
+            //     Some(gmpma) => {
+            //         quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gmpma.key()) }
+            //     }
+            //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let metadata_pointer_authority = match metadata_pointer_authority {
-            // //     Some(mpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#mpa.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let metadata_pointer_authority = match metadata_pointer_authority {
+            //     Some(mpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#mpa.key()) },
+            //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let metadata_pointer_metadata_address = match metadata_pointer_metadata_address {
-            // //     Some(mpma) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#mpma.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let metadata_pointer_metadata_address = match metadata_pointer_metadata_address {
+            //     Some(mpma) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#mpma.key()) },
+            //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let close_authority = match close_authority {
-            // //     Some(ca) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#ca.key()) },
-            // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let close_authority = match close_authority {
+            //     Some(ca) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#ca.key()) },
+            //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let permanent_delegate = match permanent_delegate {
-            // //     Some(pd) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#pd.key()) },
-            // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let permanent_delegate = match permanent_delegate {
+            //     Some(pd) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#pd.key()) },
+            //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let transfer_hook_authority = match transfer_hook_authority {
-            // //     Some(tha) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#tha.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let transfer_hook_authority = match transfer_hook_authority {
+            //     Some(tha) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#tha.key()) },
+            //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+            // };
 
-            // // let transfer_hook_program_id = match transfer_hook_program_id {
-            // //     Some(thpid) => {
-            // //         quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#thpid.key()) }
-            // //     }
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+            // let transfer_hook_program_id = match transfer_hook_program_id {
+            //     Some(thpid) => {
+            //         quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#thpid.key()) }
+            //     }
+            //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+            // };
 
             let mint_space = quote! { ::satellite_apl::token::Mint::LEN };
             let create_account = generate_create_account(
@@ -994,11 +993,11 @@ fn generate_constraint_init_group(
 
                         // Initialize the mint account.
                         let cpi_program = #token_program.to_account_info();
-                        let accounts = ::satellite_apl::token_interface::InitializeMint2 {
+                        let accounts = ::satellite_apl::token::InitializeMint2 {
                             mint: #field.to_account_info(),
                         };
                         let cpi_ctx = satellite_lang::context::CpiContext::new(cpi_program, accounts);
-                        ::satellite_apl::token_interface::initialize_mint2(cpi_ctx, #decimals, &#owner.key(), #freeze_authority)?;
+                        ::satellite_apl::token::initialize_mint2(cpi_ctx, #decimals, &#owner.key(), #freeze_authority)?;
                     }
 
                     let pa: #ty_decl = #from_account_info_unchecked;
@@ -1223,10 +1222,10 @@ fn generate_constraint_associated_token(
     };
     let get_associated_token_address = match &c.token_program {
         Some(token_program) => quote! {
-            ::satellite_apl::associated_token::get_associated_token_address_with_program_id(&wallet_address, &#spl_token_mint_address.key(), &#token_program.key())
+            ::satellite_apl::associated_token::get_associated_token_address_and_bump_seed(&wallet_address, &#spl_token_mint_address.key(), &#token_program.key()).0
         },
         None => quote! {
-            ::satellite_apl::associated_token::get_associated_token_address(&wallet_address, &#spl_token_mint_address.key())
+            ::satellite_apl::associated_token::get_associated_token_address_and_bump_seed(&wallet_address, &#spl_token_mint_address.key(), &::satellite_apl::associated_token::id()).0
         },
     };
 
