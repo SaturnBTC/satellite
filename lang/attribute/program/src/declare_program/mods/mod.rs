@@ -3,7 +3,7 @@ pub mod client;
 pub mod constants;
 pub mod cpi;
 pub mod errors;
-pub mod events;
+// pub mod events;
 pub mod internal;
 pub mod program;
 pub mod types;

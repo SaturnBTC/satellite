@@ -47,8 +47,8 @@ mod legacy {
         pub accounts: Vec<IdlTypeDefinition>,
         #[serde(skip_serializing_if = "Vec::is_empty", default)]
         pub types: Vec<IdlTypeDefinition>,
-        #[serde(skip_serializing_if = "Option::is_none", default)]
-        pub events: Option<Vec<IdlEvent>>,
+        // #[serde(skip_serializing_if = "Option::is_none", default)]
+        // pub events: Option<Vec<IdlEvent>>,
         #[serde(skip_serializing_if = "Option::is_none", default)]
         pub errors: Option<Vec<IdlErrorCode>>,
         #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -290,13 +290,13 @@ mod legacy {
                 docs: idl.docs.unwrap_or_default(),
                 instructions: idl.instructions.into_iter().map(Into::into).collect(),
                 accounts: idl.accounts.clone().into_iter().map(Into::into).collect(),
-                events: idl
-                    .events
-                    .clone()
-                    .unwrap_or_default()
-                    .into_iter()
-                    .map(Into::into)
-                    .collect(),
+                // events: idl
+                //     .events
+                //     .clone()
+                //     .unwrap_or_default()
+                //     .into_iter()
+                //     .map(Into::into)
+                //     .collect(),
                 errors: idl
                     .errors
                     .unwrap_or_default()
@@ -308,7 +308,7 @@ mod legacy {
                     .into_iter()
                     .map(Into::into)
                     .chain(idl.accounts.into_iter().map(Into::into))
-                    .chain(idl.events.unwrap_or_default().into_iter().map(Into::into))
+                    // .chain(idl.events.unwrap_or_default().into_iter().map(Into::into))
                     .collect(),
                 constants: idl.constants.into_iter().map(Into::into).collect(),
             })

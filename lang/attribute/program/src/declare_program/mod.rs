@@ -3,16 +3,17 @@ mod mods;
 
 use std::{env, fs, path::PathBuf};
 
-use satellite_lang_idl::{convert::convert_idl, types::Idl};
 use anyhow::anyhow;
 use quote::{quote, ToTokens};
+use satellite_lang_idl::{convert::convert_idl, types::Idl};
 use syn::parse::{Parse, ParseStream};
 
 use common::gen_docs;
 use mods::{
     accounts::gen_accounts_mod, client::gen_client_mod, constants::gen_constants_mod,
-    cpi::gen_cpi_mod, errors::gen_errors_mod, events::gen_events_mod, internal::gen_internal_mod,
-    program::gen_program_mod, types::gen_types_mod, utils::gen_utils_mod,
+    cpi::gen_cpi_mod, errors::gen_errors_mod,
+    /*events::gen_events_mod,*/ internal::gen_internal_mod, program::gen_program_mod,
+    types::gen_types_mod, utils::gen_utils_mod,
 };
 
 pub struct DeclareProgram {
@@ -59,7 +60,7 @@ fn gen_program(idl: &Idl, name: &syn::Ident) -> proc_macro2::TokenStream {
     // Defined
     let constants_mod = gen_constants_mod(idl);
     let accounts_mod = gen_accounts_mod(idl);
-    let events_mod = gen_events_mod(idl);
+    // let events_mod = gen_events_mod(idl);
     let types_mod = gen_types_mod(idl);
     let errors_mod = gen_errors_mod(idl);
 
@@ -84,7 +85,7 @@ fn gen_program(idl: &Idl, name: &syn::Ident) -> proc_macro2::TokenStream {
 
             #constants_mod
             #accounts_mod
-            #events_mod
+            // #events_mod
             #types_mod
             #errors_mod
 

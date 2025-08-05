@@ -187,13 +187,13 @@ fn build(
         Pass,
         Address,
         Constants(Vec<String>),
-        Events(Vec<String>),
+        // Events(Vec<String>),
         Errors(Vec<String>),
         Program(Vec<String>),
     }
 
     let mut address = String::new();
-    let mut events = vec![];
+    // let mut events = vec![];
     let mut error_codes = vec![];
     let mut constants = vec![];
     let mut types = BTreeMap::new();
@@ -205,7 +205,7 @@ fn build(
             State::Pass => match line {
                 "--- IDL begin address ---" => state = State::Address,
                 "--- IDL begin const ---" => state = State::Constants(vec![]),
-                "--- IDL begin event ---" => state = State::Events(vec![]),
+                // "--- IDL begin event ---" => state = State::Events(vec![]),
                 "--- IDL begin errors ---" => state = State::Errors(vec![]),
                 "--- IDL begin program ---" => state = State::Program(vec![]),
                 _ => {
@@ -215,7 +215,7 @@ fn build(
                         if let Some(idl) = idl.as_mut() {
                             idl.address = mem::take(&mut address);
                             idl.constants = mem::take(&mut constants);
-                            idl.events = mem::take(&mut events);
+                            // idl.events = mem::take(&mut events);
                             idl.errors = mem::take(&mut error_codes);
                             idl.types = {
                                 let prog_ty = mem::take(&mut idl.types);
@@ -242,23 +242,23 @@ fn build(
 
                 lines.push(line.to_owned());
             }
-            State::Events(lines) => {
-                if line == "--- IDL end event ---" {
-                    #[derive(Deserialize)]
-                    struct IdlBuildEventPrint {
-                        event: IdlEvent,
-                        types: Vec<IdlTypeDef>,
-                    }
+            // State::Events(lines) => {
+            //     if line == "--- IDL end event ---" {
+            //         #[derive(Deserialize)]
+            //         struct IdlBuildEventPrint {
+            //             event: IdlEvent,
+            //             types: Vec<IdlTypeDef>,
+            //         }
 
-                    let event = serde_json::from_str::<IdlBuildEventPrint>(&lines.join("\n"))?;
-                    events.push(event.event);
-                    types.extend(event.types.into_iter().map(|ty| (ty.name.clone(), ty)));
-                    state = State::Pass;
-                    continue;
-                }
+            //         let event = serde_json::from_str::<IdlBuildEventPrint>(&lines.join("\n"))?;
+            //         events.push(event.event);
+            //         types.extend(event.types.into_iter().map(|ty| (ty.name.clone(), ty)));
+            //         state = State::Pass;
+            //         continue;
+            //     }
 
-                lines.push(line.to_owned());
-            }
+            //     lines.push(line.to_owned());
+            // }
             State::Errors(lines) => {
                 if line == "--- IDL end errors ---" {
                     error_codes = serde_json::from_str(&lines.join("\n"))?;
@@ -331,7 +331,7 @@ fn convert_module_paths(idl: Idl) -> Idl {
 fn sort(mut idl: Idl) -> Idl {
     idl.accounts.sort_by(|a, b| a.name.cmp(&b.name));
     idl.constants.sort_by(|a, b| a.name.cmp(&b.name));
-    idl.events.sort_by(|a, b| a.name.cmp(&b.name));
+    // idl.events.sort_by(|a, b| a.name.cmp(&b.name));
     idl.instructions.sort_by(|a, b| a.name.cmp(&b.name));
     idl.types.sort_by(|a, b| a.name.cmp(&b.name));
 
@@ -366,7 +366,7 @@ fn verify(idl: &Idl) -> Result<()> {
         };
     }
     check_empty_discriminators!(accounts);
-    check_empty_discriminators!(events);
+    // check_empty_discriminators!(events);
     check_empty_discriminators!(instructions);
 
     // Check potential discriminator collisions
@@ -389,7 +389,7 @@ fn verify(idl: &Idl) -> Result<()> {
         };
     }
     check_discriminator_collision!(accounts);
-    check_discriminator_collision!(events);
+    // check_discriminator_collision!(events);
     check_discriminator_collision!(instructions);
 
     // Disallow all zero account discriminators
