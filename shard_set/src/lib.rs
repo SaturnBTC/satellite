@@ -224,7 +224,6 @@
 #[cfg(test)]
 mod tests;
 
-mod account_loader;
 mod error;
 mod select;
 mod shard;
