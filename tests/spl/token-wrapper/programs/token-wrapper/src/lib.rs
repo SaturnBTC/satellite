@@ -11,7 +11,7 @@
 //! 2. Users can call the unwrap function to burn Y and withdraw X unwrapped tokens
 
 use satellite_lang::prelude::*;
-use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface};
+use satellite_apl::token_interface::{self, Mint, TokenAccount, TokenInterface};
 
 declare_id!("4ZPcGU8MX8oL2u1EtErHzixAbgNBNeE9yoYq3kKMqnAy");
 

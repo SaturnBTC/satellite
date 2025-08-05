@@ -7,7 +7,7 @@
 
 use {
     satellite_lang::prelude::*,
-    anchor_spl::{
+    satellite_apl::{
         token_2022::{
             spl_token_2022::{
                 extension::{

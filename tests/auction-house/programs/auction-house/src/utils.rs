@@ -9,7 +9,7 @@ use {
             system_instruction,
         },
     },
-    anchor_spl::{
+    satellite_apl::{
         associated_token::spl_associated_token_account::{
             create_associated_token_account, get_associated_token_address,
         },

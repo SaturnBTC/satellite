@@ -51,14 +51,14 @@ details about this mint account on
 
 ## Usage
 
-Use the `token_interface` module from the `anchor-spl` crate to interact with
+Use the `token_interface` module from the `satellite-apl` crate to interact with
 both the Token Program and Token Extension Program. This module provides types
 for working with both token programs, allowing you to write code that's
 compatible with either program.
 
 ```rust title="snippet"
 // [!code highlight]
-use anchor_spl::token_interface::{Mint, TokenInterface};
+use satellite_apl::token_interface::{Mint, TokenInterface};
 
 // --snip--
 
@@ -173,7 +173,7 @@ Create a new mint account in using a generated Keypair.
 
 ```rust title="lib.rs"
 use satellite_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface};
+use satellite_apl::token_interface::{Mint, TokenInterface};
 
 declare_id!("3pX5NKLru1UBDVckynWQxsgnJeUN3N1viy36Gk9TSn8d");
 
@@ -257,7 +257,7 @@ of the mint account.
 
 ```rust title="lib.rs"
 use satellite_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface};
+use satellite_apl::token_interface::{Mint, TokenInterface};
 
 declare_id!("3pX5NKLru1UBDVckynWQxsgnJeUN3N1viy36Gk9TSn8d");
 

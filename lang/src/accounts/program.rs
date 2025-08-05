@@ -66,12 +66,12 @@ use std::ops::Deref;
 ///
 /// # Out of the Box Types
 ///
-/// Between the [`satellite_lang`](https://docs.rs/satellite-lang/latest/satellite_lang) and [`anchor_spl`](https://docs.rs/anchor_spl/latest/anchor_spl) crates,
+/// Between the [`satellite_lang`](https://docs.rs/satellite-lang/latest/satellite_lang) and [`satellite_apl`](https://docs.rs/satellite_apl/latest/satellite_apl) crates,
 /// the following `Program` types are provided out of the box:
 ///
 /// - [`System`](https://docs.rs/satellite-lang/latest/satellite_lang/struct.System.html)
-/// - [`AssociatedToken`](https://docs.rs/anchor-spl/latest/anchor_spl/associated_token/struct.AssociatedToken.html)
-/// - [`Token`](https://docs.rs/anchor-spl/latest/anchor_spl/token/struct.Token.html)
+/// - [`AssociatedToken`](https://docs.rs/satellite-apl/latest/satellite_apl/associated_token/struct.AssociatedToken.html)
+/// - [`Token`](https://docs.rs/satellite-apl/latest/satellite_apl/token/struct.Token.html)
 ///
 #[derive(Clone)]
 pub struct Program<'info, T> {

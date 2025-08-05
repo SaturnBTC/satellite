@@ -4,7 +4,7 @@
 //! the check can cancel the check at any time to get back the funds.
 
 use satellite_lang::prelude::*;
-use anchor_spl::token::{self, TokenAccount, Transfer};
+use satellite_apl::token::{self, TokenAccount, Transfer};
 use std::convert::Into;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");

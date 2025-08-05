@@ -2,7 +2,7 @@
 
 use account::*;
 use satellite_lang::prelude::*;
-use anchor_spl::token::TokenAccount;
+use satellite_apl::token::TokenAccount;
 use context::*;
 
 mod account;

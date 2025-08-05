@@ -3,7 +3,7 @@
 //! If you are making a change to this program, run `anchor run sync`.
 
 use satellite_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use satellite_apl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 declare_id!("Bench11111111111111111111111111111111111111");
 

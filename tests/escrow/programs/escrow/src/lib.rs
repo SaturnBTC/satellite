@@ -15,14 +15,14 @@
 //! 2. If no one has exchanged, the initializer can close the escrow account
 //! - Initializer will get back ownership of their token X account
 
-use anchor_spl::token::{self, Mint, SetAuthority, Token, TokenAccount, TransferChecked};
+use satellite_apl::token::{self, Mint, SetAuthority, Token, TokenAccount, TransferChecked};
 use satellite_lang::prelude::*;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
 pub mod escrow {
-    use anchor_spl::token::apl_token::instruction::AuthorityType;
+    use satellite_apl::token::apl_token::instruction::AuthorityType;
 
     use super::*;
 

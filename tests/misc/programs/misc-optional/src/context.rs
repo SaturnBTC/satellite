@@ -1,8 +1,8 @@
 use crate::account::*;
 use satellite_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{Mint, Token, TokenAccount};
-use anchor_spl::token_interface::{Mint as MintInterface, TokenAccount as TokenAccountInterface};
+use satellite_apl::associated_token::AssociatedToken;
+use satellite_apl::token::{Mint, Token, TokenAccount};
+use satellite_apl::token_interface::{Mint as MintInterface, TokenAccount as TokenAccountInterface};
 
 #[derive(Accounts)]
 pub struct TestTokenSeedsInit<'info> {
@@ -514,7 +514,7 @@ pub struct InitIfNeededChecksRentExemption<'info> {
 pub struct TestProgramIdConstraint<'info> {
     // not a real associated token account
     // just deriving like this for testing purposes
-    #[account(seeds = [b"seed"], bump = bump, seeds::program = anchor_spl::associated_token::ID)]
+    #[account(seeds = [b"seed"], bump = bump, seeds::program = satellite_apl::associated_token::ID)]
     /// CHECK:
     first: Option<AccountInfo<'info>>,
 
@@ -527,7 +527,7 @@ pub struct TestProgramIdConstraint<'info> {
 pub struct TestProgramIdConstraintUsingFindPda<'info> {
     // not a real associated token account
     // just deriving like this for testing purposes
-    #[account(seeds = [b"seed"], bump, seeds::program = anchor_spl::associated_token::ID)]
+    #[account(seeds = [b"seed"], bump, seeds::program = satellite_apl::associated_token::ID)]
     /// CHECK:
     first: Option<AccountInfo<'info>>,
 

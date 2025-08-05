@@ -4,7 +4,7 @@
 mod other;
 
 use satellite_lang::prelude::*;
-use anchor_spl::{
+use satellite_apl::{
     associated_token::AssociatedToken,
     token::{Mint, Token, TokenAccount},
 };

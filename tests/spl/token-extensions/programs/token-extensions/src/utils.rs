@@ -11,7 +11,7 @@ use satellite_lang::{
     },
     Lamports,
 };
-use anchor_spl::token_interface::spl_token_2022::{
+use satellite_apl::token_interface::spl_token_2022::{
     extension::{BaseStateWithExtensions, Extension, StateWithExtensions},
     state::Mint,
 };

@@ -9,7 +9,7 @@ use {
             system_instruction,
         },
     },
-    anchor_spl::{
+    satellite_apl::{
         associated_token::{spl_associated_token_account, AssociatedToken},
         metadata::mpl_token_metadata,
         token::{

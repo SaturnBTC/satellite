@@ -11,8 +11,8 @@ name = "token_proxy"
 [features]
 no-entrypoint = []
 cpi = ["no-entrypoint"]
-idl-build = ["satellite-lang/idl-build", "anchor-spl/idl-build"]
+idl-build = ["satellite-lang/idl-build", "satellite-apl/idl-build"]
 
 [dependencies]
 satellite-lang = { path = "../../../../../lang" }
-anchor-spl = { path = "../../../../../spl" }
+satellite-apl = { path = "../../../../../spl" }

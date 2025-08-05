@@ -93,7 +93,7 @@ pub fn check_anchor_version(cfg: &WithPath<Config>) -> Result<()> {
 /// The main problem people will run into with Solana v2 is that the `solana-program` version
 /// specified in users' `Cargo.toml` might be incompatible with `satellite-lang`'s dependency.
 /// To fix this and similar problems, users should use the crates exported from `satellite-lang` or
-/// `anchor-spl` when possible.
+/// `satellite-apl` when possible.
 pub fn check_deps(cfg: &WithPath<Config>) -> Result<()> {
     // Check `solana-program`
     cfg.get_rust_program_list()?
@@ -134,8 +134,8 @@ pub fn check_idl_build_feature() -> Result<()> {
         let anchor_spl_idl_build = manifest
             .dependencies
             .iter()
-            .any(|dep| dep.0 == "anchor-spl")
-            .then_some(r#", "anchor-spl/idl-build""#)
+            .any(|dep| dep.0 == "satellite-apl")
+            .then_some(r#", "satellite-apl/idl-build""#)
             .unwrap_or_default();
 
         return Err(anyhow!(
@@ -164,20 +164,20 @@ in `{manifest_path:?}`."#
             )
         });
 
-    // Check `anchor-spl`'s `idl-build` feature
+    // Check `satellite-apl`'s `idl-build` feature
     manifest
         .dependencies
-        .get("anchor-spl")
+        .get("satellite-apl")
         .and_then(|_| manifest.features.get("idl-build"))
-        .map(|feature_list| !feature_list.contains(&"anchor-spl/idl-build".into()))
+        .map(|feature_list| !feature_list.contains(&"satellite-apl/idl-build".into()))
         .unwrap_or_default()
         .then(|| {
             eprintln!(
-                "WARNING: `idl-build` feature of `anchor-spl` is not enabled. \
+                "WARNING: `idl-build` feature of `satellite-apl` is not enabled. \
                 This is likely to result in cryptic compile errors.\n\n\t\
-                To solve, add `anchor-spl/idl-build` to the `idl-build` feature list:\n\n\t\
+                To solve, add `satellite-apl/idl-build` to the `idl-build` feature list:\n\n\t\
                 [features]\n\t\
-                idl-build = [\"anchor-spl/idl-build\", ...]\n"
+                idl-build = [\"satellite-apl/idl-build\", ...]\n"
             )
         });
 

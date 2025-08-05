@@ -488,7 +488,7 @@ use syn::parse_macro_input;
 ///                 <br><br>
 ///                 Example:
 ///                 <pre>
-/// use anchor_spl::{mint, token::{TokenAccount, Mint, Token}};
+/// use satellite_apl::{mint, token::{TokenAccount, Mint, Token}};
 /// ...&#10;
 /// #[account(
 ///     init,
@@ -520,7 +520,7 @@ use syn::parse_macro_input;
 ///                 <br><br>
 ///                 Example:
 ///                 <pre>
-/// use anchor_spl::token::{Mint, Token};
+/// use satellite_apl::token::{Mint, Token};
 /// ...&#10;
 /// #[account(
 ///     init,
@@ -556,7 +556,7 @@ use syn::parse_macro_input;
 ///                 <br><br>
 ///                 Example:
 ///                 <pre>
-/// use anchor_spl::{
+/// use satellite_apl::{
 ///     associated_token::AssociatedToken,
 ///     mint,
 ///     token::{TokenAccount, Mint, Token}
@@ -592,7 +592,7 @@ use syn::parse_macro_input;
 ///                 <br><br>
 ///                 Example:
 ///                 <pre>
-/// use anchor_spl::token_interface::{TokenInterface, TokenAccount, Mint};
+/// use satellite_apl::token_interface::{TokenInterface, TokenAccount, Mint};
 /// ...&#10;
 /// #[account(
 ///     mint::token_program = token_a_token_program,

@@ -5,7 +5,7 @@ use satellite_lang::accounts::state::ProgramState;
 use satellite_lang::prelude::*;
 use satellite_lang::solana_program::account_info::next_account_info;
 use satellite_lang::solana_program::program_option::COption;
-use anchor_spl::token::{self, Mint, TokenAccount, Transfer};
+use satellite_apl::token::{self, Mint, TokenAccount, Transfer};
 use lockup::{CreateVesting, RealizeLock, Realizor, Vesting};
 use std::convert::Into;
 

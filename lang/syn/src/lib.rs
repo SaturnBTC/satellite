@@ -439,7 +439,7 @@ impl Field {
                 __program_id
             },
             _ => quote! {
-                &anchor_spl::token::ID
+                &satellite_apl::token::ID
             },
         };
         match &self.ty {

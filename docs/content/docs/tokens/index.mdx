@@ -19,34 +19,34 @@ On Solana, there are two main token programs (developed by
 
 ## Invoking Token Programs in an Anchor Program
 
-The [`anchor-spl`](https://github.com/coral-xyz/anchor/tree/0e5285aecdf410fa0779b7cd09a47f235882c156/spl) crate
+The [`satellite-apl`](https://github.com/coral-xyz/anchor/tree/0e5285aecdf410fa0779b7cd09a47f235882c156/spl) crate
 simplifies the process of interacting with Solana's Token Programs in an Anchor
 program. This crate includes instructions and account types for both the
 original Token Program and the newer Token Extension Program (Token 2022).
 
-Simply add the `anchor-spl` crate as a dependency to your program and add `"anchor-spl/idl-build"` to idl-build feature list in `Cargo.toml`. For a
+Simply add the `satellite-apl` crate as a dependency to your program and add `"satellite-apl/idl-build"` to idl-build feature list in `Cargo.toml`. For a
 walkthrough of how to create an Anchor program locally, see the
 [quickstart page](/docs/quickstart/local).
 
 ```shell title="Terminal"
-cargo add anchor-spl
+cargo add satellite-apl
 ```
 
 ```toml title="Cargo.toml"
 [features]
 idl-build = [
     "satellite-lang/idl-build",
-    "anchor-spl/idl-build",
+    "satellite-apl/idl-build",
 ]
 
 [dependencies]
 satellite-lang = "0.31.1"
-anchor-spl = "0.31.1"
+satellite-apl = "0.31.1"
 ```
 
 ### Core Modules
 
-The most commonly used modules provided by the `anchor-spl` crate include:
+The most commonly used modules provided by the `satellite-apl` crate include:
 
 | Module                                                                                                                                     | Description                                                                              |
 | -------------------------------------------------------------------------------------------------------------------------------------------| ---------------------------------------------------------------------------------------- |
@@ -56,5 +56,5 @@ The most commonly used modules provided by the `anchor-spl` crate include:
 | [`token_interface`](https://github.com/coral-xyz/anchor/blob/0e5285aecdf410fa0779b7cd09a47f235882c156/spl/src/token_interface.rs)          | Implementation of account types that work with both Token Program and Token 2022 Program |
 | [`associated_token`](https://github.com/coral-xyz/anchor/blob/0e5285aecdf410fa0779b7cd09a47f235882c156/spl/src/associated_token.rs)        | Associated token account instruction                                                     |
 
-The following pages provide examples of how to use the `anchor-spl` crate in an
+The following pages provide examples of how to use the `satellite-apl` crate in an
 Anchor program.

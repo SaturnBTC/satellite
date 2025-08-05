@@ -209,7 +209,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "anchor-spl"
+name = "satellite-apl"
 version = "0.30.1"
 dependencies = [
  "satellite-lang",
@@ -413,7 +413,7 @@ name = "bench"
 version = "0.1.0"
 dependencies = [
  "satellite-lang",
- "anchor-spl",
+ "satellite-apl",
 ]
 
 [[package]]

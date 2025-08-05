@@ -1,6 +1,6 @@
 /// Crate a default [`satellite_lang::IdlBuild`] implementation for the given type.
 ///
-/// This is used in order to make wrapper accounts of `anchor-spl` work with `idl-build` feature.
+/// This is used in order to make wrapper accounts of `satellite-apl` work with `idl-build` feature.
 macro_rules! impl_idl_build {
     ($ty: ty) => {
         impl satellite_lang::IdlBuild for $ty {}

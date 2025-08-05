@@ -243,14 +243,14 @@ fn get_pda(acc: &Field, accounts: &AccountsStruct) -> TokenStream {
             let token_program = token_program
                 .as_ref()
                 .and_then(parse_ata)
-                .or_else(|| parse_expr(quote!(anchor_spl::token::ID)));
+                .or_else(|| parse_expr(quote!(satellite_apl::token::ID)));
 
             let seeds = match (wallet, mint, token_program) {
                 (Some(w), Some(m), Some(tp)) => quote! { vec![#w, #tp, #m] },
                 _ => return None,
             };
 
-            let program = parse_expr(quote!(anchor_spl::associated_token::ID))
+            let program = parse_expr(quote!(satellite_apl::associated_token::ID))
                 .map(|program| quote! { Some(#program) })
                 .unwrap();
 

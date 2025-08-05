@@ -61,7 +61,7 @@ Releases for anchor will also be published under the `solanafoundation` Github o
 - client: Support non-8-byte discriminators ([#3125](https://github.com/coral-xyz/anchor/pull/3125)).
 - spl: Add `withdraw_withheld_tokens_from_accounts` instruction ([#3128](https://github.com/coral-xyz/anchor/pull/3128)).
 - ts: Add optional `wallet` property to the `Provider` interface ([#3130](https://github.com/coral-xyz/anchor/pull/3130)).
-- cli: Warn if `anchor-spl/idl-build` is missing ([#3133](https://github.com/coral-xyz/anchor/pull/3133)).
+- cli: Warn if `satellite-apl/idl-build` is missing ([#3133](https://github.com/coral-xyz/anchor/pull/3133)).
 - client: Add `internal_rpc` method for `mock` feature ([#3135](https://github.com/coral-xyz/anchor/pull/3135)).
 - lang: Add `#[instruction]` attribute proc-macro to override default instruction discriminators ([#3137](https://github.com/coral-xyz/anchor/pull/3137)).
 - lang: Use associated discriminator constants instead of hardcoding in `#[account]` ([#3144](https://github.com/coral-xyz/anchor/pull/3144)).
@@ -343,7 +343,7 @@ See the [Anchor 0.29 release notes](https://www.satellite-lang.com/release-notes
 - lang: `Box` the inner enums of `satellite_lang::error::Error` to optimize `satellite_lang::Result` ([#2600](https://github.com/coral-xyz/anchor/pull/2600)).
 - ts: Add strong type support for `Program.addEventListener` method ([#2627](https://github.com/coral-xyz/anchor/pull/2627)).
 - syn: Add `IdlBuild` trait to implement IDL support for custom types ([#2629](https://github.com/coral-xyz/anchor/pull/2629)).
-- spl: Add `idl-build` feature. IDL build method will not work without enabling this feature when using `anchor-spl` ([#2629](https://github.com/coral-xyz/anchor/pull/2629)).
+- spl: Add `idl-build` feature. IDL build method will not work without enabling this feature when using `satellite-apl` ([#2629](https://github.com/coral-xyz/anchor/pull/2629)).
 - lang: Add support for type aliases in IDLs ([#2637](https://github.com/coral-xyz/anchor/pull/2637)).
 - cli: Add `test.upgradeable`, `test.genesis.upgradeable` setting in `Anchor.toml` to support testing upgradeable programs ([#2642](https://github.com/coral-xyz/anchor/pull/2642)).
 - cli, client, lang, spl: Update Solana toolchain and dependencies to `1.17.0`, `1.16` remains supported ([#2645](https://github.com/coral-xyz/anchor/pull/2645)).
@@ -1121,7 +1121,7 @@ Initial release.
 - lang/attribute/state: Internal attribute macro for defining an Anchor program state struct.
 - lang/derive/accounts: Internal derive macro for defining deserialized account structs.
 - lang/syn: Internal crate for parsing the Anchor eDSL, generating code, and an IDL.
-- spl: `anchor-spl` crate providing CPI clients for Anchor programs.
+- spl: `satellite-apl` crate providing CPI clients for Anchor programs.
 - client: `anchor-client` crate providing Rust clients for Anchor programs.
 - ts: `@project-serum/anchor` package for generating TypeScript clients.
 - cli: Command line interface for managing Anchor programs.

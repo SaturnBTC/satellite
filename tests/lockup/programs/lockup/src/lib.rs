@@ -5,7 +5,7 @@ use satellite_lang::accounts::state::ProgramState;
 use satellite_lang::prelude::*;
 use satellite_lang::solana_program;
 use satellite_lang::solana_program::instruction::Instruction;
-use anchor_spl::token::{self, TokenAccount, Transfer};
+use satellite_apl::token::{self, TokenAccount, Transfer};
 
 mod calculator;
 

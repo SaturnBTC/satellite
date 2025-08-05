@@ -13,9 +13,9 @@ no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
 default = []
-idl-build = ["satellite-lang/idl-build", "anchor-spl/idl-build"]
+idl-build = ["satellite-lang/idl-build", "satellite-apl/idl-build"]
 
 [dependencies]
 satellite-lang = { path = "../../../../lang", features = ["init-if-needed"] }
-anchor-spl = { path = "../../../../spl" }
+satellite-apl = { path = "../../../../spl" }
 bytemuck = { version = "1.4.0", features = ["derive", "min_const_generics"] }

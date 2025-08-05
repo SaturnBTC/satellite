@@ -96,8 +96,8 @@ use std::ops::{Deref, DerefMut};
 /// #[derive(Clone)]
 /// pub struct Mint(spl_token::state::Mint);
 ///
-/// // This is necessary so we can use "anchor_spl::token::Mint::LEN"
-/// // because rust does not resolve "anchor_spl::token::Mint::LEN" to
+/// // This is necessary so we can use "satellite_apl::token::Mint::LEN"
+/// // because rust does not resolve "satellite_apl::token::Mint::LEN" to
 /// // "spl_token::state::Mint::LEN" automatically
 /// impl Mint {
 ///     pub const LEN: usize = spl_token::state::Mint::LEN;
@@ -206,7 +206,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// Anchor provides wrapper types to access accounts owned by the token program. Use
 /// ```ignore
-/// use anchor_spl::token::TokenAccount;
+/// use satellite_apl::token::TokenAccount;
 ///
 /// #[derive(Accounts)]
 /// pub struct Example {
@@ -215,7 +215,7 @@ use std::ops::{Deref, DerefMut};
 /// ```
 /// to access token accounts and
 /// ```ignore
-/// use anchor_spl::token::Mint;
+/// use satellite_apl::token::Mint;
 ///
 /// #[derive(Accounts)]
 /// pub struct Example {

@@ -1,5 +1,5 @@
 [package]
-name = "anchor-spl"
+name = "satellite-apl"
 version = "0.31.1"
 authors = ["Anchor Maintainers <accounts@200ms.io>"]
 edition = "2021"

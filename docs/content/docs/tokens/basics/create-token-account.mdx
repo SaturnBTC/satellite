@@ -141,14 +141,14 @@ mint, eliminating the need to track token account addresses separately.
 
 ## Usage
 
-Use the `token_interface` and `associated_token` modules from the `anchor-spl`
+Use the `token_interface` and `associated_token` modules from the `satellite-apl`
 crate to work with ATAs compatible with either the Token Program and Token
 Extension Program.
 
 ```rust title="snippet"
 // [!code highlight:2]
-use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use satellite_apl::associated_token::AssociatedToken;
+use satellite_apl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // --snip--
 
@@ -177,7 +177,7 @@ To create token accounts with PDAs derived from your program, you can use the
 with the `seeds` and `bump` constraints.
 
 ```rust title="snippet"
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use satellite_apl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 // --snip--
 
@@ -338,8 +338,8 @@ Create an associated token account for a user.
 
 ```rust title="lib.rs"
 use satellite_lang::prelude::*;
-use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use satellite_apl::associated_token::AssociatedToken;
+use satellite_apl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 declare_id!("3pX5NKLru1UBDVckynWQxsgnJeUN3N1viy36Gk9TSn8d");
 
@@ -484,7 +484,7 @@ the token account.
 
 ```rust title="lib.rs"
 use satellite_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use satellite_apl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 declare_id!("3pX5NKLru1UBDVckynWQxsgnJeUN3N1viy36Gk9TSn8d");
 

@@ -1,4 +1,4 @@
-//! Only tests whether `anchor-spl` builds with `metadata` feature enabled.
+//! Only tests whether `satellite-apl` builds with `metadata` feature enabled.
 
 use satellite_lang::prelude::*;
 

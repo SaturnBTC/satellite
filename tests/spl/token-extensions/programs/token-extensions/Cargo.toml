@@ -13,11 +13,11 @@ no-entrypoint = []
 no-idl = []
 cpi = ["no-entrypoint"]
 default = []
-idl-build = ["satellite-lang/idl-build", "anchor-spl/idl-build"]
+idl-build = ["satellite-lang/idl-build", "satellite-apl/idl-build"]
 
 [dependencies]
 satellite-lang = { path = "../../../../../lang", features = ["init-if-needed"] }
-anchor-spl = { path = "../../../../../spl" }
+satellite-apl = { path = "../../../../../spl" }
 spl-tlv-account-resolution = "0.9"
 spl-transfer-hook-interface = "0.9"
 spl-type-length-value = "0.7"

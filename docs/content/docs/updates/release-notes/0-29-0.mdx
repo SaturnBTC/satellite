@@ -236,7 +236,7 @@ anchor idl build
 [features]
 idl-build = [
     "satellite-lang/idl-build",
-    "anchor-spl/idl-build",
+    "satellite-apl/idl-build",
     "another-program/idl-build"
 ]
 ```
@@ -315,7 +315,7 @@ properly with
 
 ## Export `mpl-token-metadata`
 
-`anchor-spl` with `metadata` feature enabled now exports the
+`satellite-apl` with `metadata` feature enabled now exports the
 `mpl-token-metadata` crate.
 
 **Note:** Consider removing the `mpl-token-metadata` dependency to reduce the
@@ -323,14 +323,14 @@ possibility of having conflicting versions:
 
 ```diff
 [dependencies]
-anchor-spl = { version = "0.29.0", features = ["metadata"] }
+satellite-apl = { version = "0.29.0", features = ["metadata"] }
 - mpl-token-metadata = "1.13.1"
 ```
 
-and use the exported crate from `anchor-spl`:
+and use the exported crate from `satellite-apl`:
 
 ```rust
-use anchor_spl::metadata::mpl_token_metadata;
+use satellite_apl::metadata::mpl_token_metadata;
 ```
 
 ## TypeScript SDK improvements

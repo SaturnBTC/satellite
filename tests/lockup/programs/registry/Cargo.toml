@@ -15,5 +15,5 @@ default = []
 
 [dependencies]
 satellite-lang = { path = "../../../../lang" }
-anchor-spl = { path = "../../../../spl" }
+satellite-apl = { path = "../../../../spl" }
 lockup = { path = "../lockup", features = ["cpi"] }

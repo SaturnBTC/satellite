@@ -2,8 +2,8 @@
 
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::sysvar::instructions as tx_instructions;
-use anchor_spl::dex::{self, Dex};
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
+use satellite_apl::dex::{self, Dex};
+use satellite_apl::token::{self, Mint, Token, TokenAccount};
 use lockup::program::Lockup;
 use registry::program::Registry;
 use registry::{Registrar, RewardVendorKind};
