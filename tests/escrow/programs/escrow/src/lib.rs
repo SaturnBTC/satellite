@@ -15,16 +15,15 @@
 //! 2. If no one has exchanged, the initializer can close the escrow account
 //! - Initializer will get back ownership of their token X account
 
+use anchor_spl::token::{self, Mint, SetAuthority, Token, TokenAccount, TransferChecked};
 use satellite_lang::prelude::*;
-use anchor_spl::{
-    token_2022::spl_token_2022::instruction::AuthorityType,
-    token_interface::{self, Mint, SetAuthority, TokenAccount, TokenInterface, TransferChecked},
-};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
 pub mod escrow {
+    use anchor_spl::token::apl_token::instruction::AuthorityType;
+
     use super::*;
 
     const ESCROW_PDA_SEED: &[u8] = b"escrow";
@@ -53,11 +52,7 @@ pub mod escrow {
         ctx.accounts.escrow_account.taker_amount = taker_amount;
 
         let (pda, _bump_seed) = Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
-        token_interface::set_authority(
-            ctx.accounts.into(),
-            AuthorityType::AccountOwner,
-            Some(pda),
-        )?;
+        token::set_authority(ctx.accounts.into(), AuthorityType::AccountOwner, Some(pda))?;
         Ok(())
     }
 
@@ -65,7 +60,7 @@ pub mod escrow {
         let (_pda, bump_seed) = Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
         let seeds = &[&ESCROW_PDA_SEED[..], &[bump_seed]];
 
-        token_interface::set_authority(
+        token::set_authority(
             ctx.accounts
                 .into_set_authority_context()
                 .with_signer(&[&seeds[..]]),
@@ -81,7 +76,7 @@ pub mod escrow {
         let (_pda, bump_seed) = Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
         let seeds = &[&ESCROW_PDA_SEED[..], &[bump_seed]];
 
-        token_interface::transfer_checked(
+        token::transfer_checked(
             ctx.accounts
                 .into_transfer_to_taker_context()
                 .with_signer(&[&seeds[..]]),
@@ -89,13 +84,13 @@ pub mod escrow {
             ctx.accounts.receive_mint.decimals,
         )?;
 
-        token_interface::transfer_checked(
+        token::transfer_checked(
             ctx.accounts.into_transfer_to_initializer_context(),
             ctx.accounts.escrow_account.taker_amount,
             ctx.accounts.deposit_mint.decimals,
         )?;
 
-        token_interface::set_authority(
+        token::set_authority(
             ctx.accounts
                 .into_set_authority_context()
                 .with_signer(&[&seeds[..]]),
@@ -121,7 +116,7 @@ pub struct InitializeEscrow<'info> {
     #[account(init, payer = initializer, space = 8 + EscrowAccount::LEN)]
     pub escrow_account: Account<'info, EscrowAccount>,
     pub system_program: Program<'info, System>,
-    pub token_program: Interface<'info, TokenInterface>,
+    pub token_program: Interface<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -153,8 +148,8 @@ pub struct Exchange<'info> {
     pub pda_account: AccountInfo<'info>,
     pub deposit_mint: Box<InterfaceAccount<'info, Mint>>,
     pub receive_mint: Box<InterfaceAccount<'info, Mint>>,
-    pub deposit_token_program: Interface<'info, TokenInterface>,
-    pub receive_token_program: Interface<'info, TokenInterface>,
+    pub deposit_token_program: Interface<'info, Token>,
+    pub receive_token_program: Interface<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -172,7 +167,7 @@ pub struct CancelEscrow<'info> {
         close = initializer
     )]
     pub escrow_account: Account<'info, EscrowAccount>,
-    pub token_program: Interface<'info, TokenInterface>,
+    pub token_program: Interface<'info, Token>,
 }
 
 #[account]
