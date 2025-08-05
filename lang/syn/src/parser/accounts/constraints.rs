@@ -50,45 +50,45 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
         "executable" => {
             ConstraintToken::Executable(Context::new(ident.span(), ConstraintExecutable {}))
         }
-        // "mint" => {
-        //     stream.parse::<Token![:]>()?;
-        //     stream.parse::<Token![:]>()?;
-        //     let kw = stream.call(Ident::parse_any)?.to_string();
-        //     stream.parse::<Token![=]>()?;
+        "mint" => {
+            stream.parse::<Token![:]>()?;
+            stream.parse::<Token![:]>()?;
+            let kw = stream.call(Ident::parse_any)?.to_string();
+            stream.parse::<Token![=]>()?;
 
-        //     let span = ident
-        //         .span()
-        //         .join(stream.span())
-        //         .unwrap_or_else(|| ident.span());
+            let span = ident
+                .span()
+                .join(stream.span())
+                .unwrap_or_else(|| ident.span());
 
-        //     match kw.as_str() {
-        //         "authority" => ConstraintToken::MintAuthority(Context::new(
-        //             span,
-        //             ConstraintMintAuthority {
-        //                 mint_auth: stream.parse()?,
-        //             },
-        //         )),
-        //         "freeze_authority" => ConstraintToken::MintFreezeAuthority(Context::new(
-        //             span,
-        //             ConstraintMintFreezeAuthority {
-        //                 mint_freeze_auth: stream.parse()?,
-        //             },
-        //         )),
-        //         "decimals" => ConstraintToken::MintDecimals(Context::new(
-        //             span,
-        //             ConstraintMintDecimals {
-        //                 decimals: stream.parse()?,
-        //             },
-        //         )),
-        //         "token_program" => ConstraintToken::MintTokenProgram(Context::new(
-        //             span,
-        //             ConstraintTokenProgram {
-        //                 token_program: stream.parse()?,
-        //             },
-        //         )),
-        //         _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
-        //     }
-        // }
+            match kw.as_str() {
+                "authority" => ConstraintToken::MintAuthority(Context::new(
+                    span,
+                    ConstraintMintAuthority {
+                        mint_auth: stream.parse()?,
+                    },
+                )),
+                "freeze_authority" => ConstraintToken::MintFreezeAuthority(Context::new(
+                    span,
+                    ConstraintMintFreezeAuthority {
+                        mint_freeze_auth: stream.parse()?,
+                    },
+                )),
+                "decimals" => ConstraintToken::MintDecimals(Context::new(
+                    span,
+                    ConstraintMintDecimals {
+                        decimals: stream.parse()?,
+                    },
+                )),
+                "token_program" => ConstraintToken::MintTokenProgram(Context::new(
+                    span,
+                    ConstraintTokenProgram {
+                        token_program: stream.parse()?,
+                    },
+                )),
+                _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
+            }
+        }
         // "extensions" => {
         //     stream.parse::<Token![:]>()?;
         //     stream.parse::<Token![:]>()?;
@@ -260,72 +260,72 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
         //         _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
         //     }
         // }
-        // "token" => {
-        //     stream.parse::<Token![:]>()?;
-        //     stream.parse::<Token![:]>()?;
-        //     let kw = stream.call(Ident::parse_any)?.to_string();
-        //     stream.parse::<Token![=]>()?;
+        "token" => {
+            stream.parse::<Token![:]>()?;
+            stream.parse::<Token![:]>()?;
+            let kw = stream.call(Ident::parse_any)?.to_string();
+            stream.parse::<Token![=]>()?;
 
-        //     let span = ident
-        //         .span()
-        //         .join(stream.span())
-        //         .unwrap_or_else(|| ident.span());
+            let span = ident
+                .span()
+                .join(stream.span())
+                .unwrap_or_else(|| ident.span());
 
-        //     match kw.as_str() {
-        //         "mint" => ConstraintToken::TokenMint(Context::new(
-        //             span,
-        //             ConstraintTokenMint {
-        //                 mint: stream.parse()?,
-        //             },
-        //         )),
-        //         "authority" => ConstraintToken::TokenAuthority(Context::new(
-        //             span,
-        //             ConstraintTokenAuthority {
-        //                 auth: stream.parse()?,
-        //             },
-        //         )),
-        //         "token_program" => ConstraintToken::TokenTokenProgram(Context::new(
-        //             span,
-        //             ConstraintTokenProgram {
-        //                 token_program: stream.parse()?,
-        //             },
-        //         )),
-        //         _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
-        //     }
-        // }
-        // "associated_token" => {
-        //     stream.parse::<Token![:]>()?;
-        //     stream.parse::<Token![:]>()?;
-        //     let kw = stream.call(Ident::parse_any)?.to_string();
-        //     stream.parse::<Token![=]>()?;
+            match kw.as_str() {
+                "mint" => ConstraintToken::TokenMint(Context::new(
+                    span,
+                    ConstraintTokenMint {
+                        mint: stream.parse()?,
+                    },
+                )),
+                "authority" => ConstraintToken::TokenAuthority(Context::new(
+                    span,
+                    ConstraintTokenAuthority {
+                        auth: stream.parse()?,
+                    },
+                )),
+                "token_program" => ConstraintToken::TokenTokenProgram(Context::new(
+                    span,
+                    ConstraintTokenProgram {
+                        token_program: stream.parse()?,
+                    },
+                )),
+                _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
+            }
+        }
+        "associated_token" => {
+            stream.parse::<Token![:]>()?;
+            stream.parse::<Token![:]>()?;
+            let kw = stream.call(Ident::parse_any)?.to_string();
+            stream.parse::<Token![=]>()?;
 
-        //     let span = ident
-        //         .span()
-        //         .join(stream.span())
-        //         .unwrap_or_else(|| ident.span());
+            let span = ident
+                .span()
+                .join(stream.span())
+                .unwrap_or_else(|| ident.span());
 
-        //     match kw.as_str() {
-        //         "mint" => ConstraintToken::AssociatedTokenMint(Context::new(
-        //             span,
-        //             ConstraintTokenMint {
-        //                 mint: stream.parse()?,
-        //             },
-        //         )),
-        //         "authority" => ConstraintToken::AssociatedTokenAuthority(Context::new(
-        //             span,
-        //             ConstraintTokenAuthority {
-        //                 auth: stream.parse()?,
-        //             },
-        //         )),
-        //         "token_program" => ConstraintToken::AssociatedTokenTokenProgram(Context::new(
-        //             span,
-        //             ConstraintTokenProgram {
-        //                 token_program: stream.parse()?,
-        //             },
-        //         )),
-        //         _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
-        //     }
-        // }
+            match kw.as_str() {
+                "mint" => ConstraintToken::AssociatedTokenMint(Context::new(
+                    span,
+                    ConstraintTokenMint {
+                        mint: stream.parse()?,
+                    },
+                )),
+                "authority" => ConstraintToken::AssociatedTokenAuthority(Context::new(
+                    span,
+                    ConstraintTokenAuthority {
+                        auth: stream.parse()?,
+                    },
+                )),
+                "token_program" => ConstraintToken::AssociatedTokenTokenProgram(Context::new(
+                    span,
+                    ConstraintTokenProgram {
+                        token_program: stream.parse()?,
+                    },
+                )),
+                _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
+            }
+        }
         "bump" => {
             let bump = {
                 if stream.peek(Token![=]) {
@@ -522,16 +522,16 @@ pub struct ConstraintGroupBuilder<'ty> {
     pub space: Option<Context<ConstraintSpace>>,
     pub close: Option<Context<ConstraintClose>>,
     pub address: Option<Context<ConstraintAddress>>,
-    // pub token_mint: Option<Context<ConstraintTokenMint>>,
-    // pub token_authority: Option<Context<ConstraintTokenAuthority>>,
-    // pub token_token_program: Option<Context<ConstraintTokenProgram>>,
-    // pub associated_token_mint: Option<Context<ConstraintTokenMint>>,
-    // pub associated_token_authority: Option<Context<ConstraintTokenAuthority>>,
-    // pub associated_token_token_program: Option<Context<ConstraintTokenProgram>>,
-    // pub mint_authority: Option<Context<ConstraintMintAuthority>>,
-    // pub mint_freeze_authority: Option<Context<ConstraintMintFreezeAuthority>>,
-    // pub mint_decimals: Option<Context<ConstraintMintDecimals>>,
-    // pub mint_token_program: Option<Context<ConstraintTokenProgram>>,
+    pub token_mint: Option<Context<ConstraintTokenMint>>,
+    pub token_authority: Option<Context<ConstraintTokenAuthority>>,
+    pub token_token_program: Option<Context<ConstraintTokenProgram>>,
+    pub associated_token_mint: Option<Context<ConstraintTokenMint>>,
+    pub associated_token_authority: Option<Context<ConstraintTokenAuthority>>,
+    pub associated_token_token_program: Option<Context<ConstraintTokenProgram>>,
+    pub mint_authority: Option<Context<ConstraintMintAuthority>>,
+    pub mint_freeze_authority: Option<Context<ConstraintMintFreezeAuthority>>,
+    pub mint_decimals: Option<Context<ConstraintMintDecimals>>,
+    pub mint_token_program: Option<Context<ConstraintTokenProgram>>,
     // pub extension_group_pointer_authority: Option<Context<ConstraintExtensionAuthority>>,
     // pub extension_group_pointer_group_address:
     //     Option<Context<ConstraintExtensionGroupPointerGroupAddress>>,
@@ -571,16 +571,16 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             space: None,
             close: None,
             address: None,
-            // token_mint: None,
-            // token_authority: None,
-            // token_token_program: None,
-            // associated_token_mint: None,
-            // associated_token_authority: None,
-            // associated_token_token_program: None,
-            // mint_authority: None,
-            // mint_freeze_authority: None,
-            // mint_decimals: None,
-            // mint_token_program: None,
+            token_mint: None,
+            token_authority: None,
+            token_token_program: None,
+            associated_token_mint: None,
+            associated_token_authority: None,
+            associated_token_token_program: None,
+            mint_authority: None,
+            mint_freeze_authority: None,
+            mint_decimals: None,
+            mint_token_program: None,
             // extension_group_pointer_authority: None,
             // extension_group_pointer_group_address: None,
             // extension_group_member_pointer_authority: None,
@@ -639,11 +639,11 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             // When initializing a non-PDA account, the account being
             // initialized must sign to invoke the system program's create
             // account instruction.
-            // if self.signer.is_none() && self.seeds.is_none() && self.associated_token_mint.is_none()
-            // {
-            //     self.signer
-            //         .replace(Context::new(i.span(), ConstraintSigner { error: None }));
-            // }
+            if self.signer.is_none() && self.seeds.is_none() && self.associated_token_mint.is_none()
+            {
+                self.signer
+                    .replace(Context::new(i.span(), ConstraintSigner { error: None }));
+            }
 
             // Assert a bump target is not given on init.
             if let Some(b) = &self.bump {
@@ -656,40 +656,40 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             }
 
             // TokenAccount.
-            // if let Some(token_mint) = &self.token_mint {
-            //     if self.token_authority.is_none() {
-            //         return Err(ParseError::new(
-            //             token_mint.span(),
-            //             "when initializing, token authority must be provided if token mint is",
-            //         ));
-            //     }
-            // }
-            // if let Some(token_authority) = &self.token_authority {
-            //     if self.token_mint.is_none() {
-            //         return Err(ParseError::new(
-            //             token_authority.span(),
-            //             "when initializing, token mint must be provided if token authority is",
-            //         ));
-            //     }
-            // }
+            if let Some(token_mint) = &self.token_mint {
+                if self.token_authority.is_none() {
+                    return Err(ParseError::new(
+                        token_mint.span(),
+                        "when initializing, token authority must be provided if token mint is",
+                    ));
+                }
+            }
+            if let Some(token_authority) = &self.token_authority {
+                if self.token_mint.is_none() {
+                    return Err(ParseError::new(
+                        token_authority.span(),
+                        "when initializing, token mint must be provided if token authority is",
+                    ));
+                }
+            }
 
             // Mint.
-            // if let Some(mint_decimals) = &self.mint_decimals {
-            //     if self.mint_authority.is_none() {
-            //         return Err(ParseError::new(
-            //             mint_decimals.span(),
-            //             "when initializing, mint authority must be provided if mint decimals is",
-            //         ));
-            //     }
-            // }
-            // if let Some(mint_authority) = &self.mint_authority {
-            //     if self.mint_decimals.is_none() {
-            //         return Err(ParseError::new(
-            //             mint_authority.span(),
-            //             "when initializing, mint decimals must be provided if mint authority is",
-            //         ));
-            //     }
-            // }
+            if let Some(mint_decimals) = &self.mint_decimals {
+                if self.mint_authority.is_none() {
+                    return Err(ParseError::new(
+                        mint_decimals.span(),
+                        "when initializing, mint authority must be provided if mint decimals is",
+                    ));
+                }
+            }
+            if let Some(mint_authority) = &self.mint_authority {
+                if self.mint_decimals.is_none() {
+                    return Err(ParseError::new(
+                        mint_authority.span(),
+                        "when initializing, mint decimals must be provided if mint authority is",
+                    ));
+                }
+            }
         }
 
         // Realloc.
@@ -746,10 +746,10 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
 
         // Space.
         if let Some(i) = &self.init {
-            // let initializing_token_program_acc = self.token_mint.is_some()
-            //     || self.mint_authority.is_some()
-            //     || self.token_authority.is_some()
-            //     || self.associated_token_authority.is_some();
+            let initializing_token_program_acc = self.token_mint.is_some()
+                || self.mint_authority.is_some()
+                || self.token_authority.is_some()
+                || self.associated_token_authority.is_some();
 
             match (self.space.is_some(), /*initializing_token_program_acc*/false) {
                 (true, true) => {
@@ -784,16 +784,16 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             space,
             close,
             address,
-            // token_mint,
-            // token_authority,
-            // token_token_program,
-            // associated_token_mint,
-            // associated_token_authority,
-            // associated_token_token_program,
-            // mint_authority,
-            // mint_freeze_authority,
-            // mint_decimals,
-            // mint_token_program,
+            token_mint,
+            token_authority,
+            token_token_program,
+            associated_token_mint,
+            associated_token_authority,
+            associated_token_token_program,
+            mint_authority,
+            mint_freeze_authority,
+            mint_decimals,
+            mint_token_program,
             // extension_group_pointer_authority,
             // extension_group_pointer_group_address,
             // extension_group_member_pointer_authority,
@@ -837,136 +837,136 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                 .expect("bump must be provided with seeds"),
             program_seed: into_inner!(program_seed).map(|id| id.program_seed),
         });
-        // let associated_token = match (
-        //     associated_token_mint,
-        //     associated_token_authority,
-        //     &associated_token_token_program,
-        // ) {
-        //     (Some(mint), Some(auth), _) => Some(ConstraintAssociatedToken {
-        //         wallet: auth.into_inner().auth,
-        //         mint: mint.into_inner().mint,
-        //         token_program: associated_token_token_program
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().token_program),
-        //     }),
-        //     (Some(mint), None, _) => return Err(ParseError::new(
-        //         mint.span(),
-        //         "authority must be provided to specify an associated token program derived address",
-        //     )),
-        //     (None, Some(auth), _) => {
-        //         return Err(ParseError::new(
-        //             auth.span(),
-        //             "mint must be provided to specify an associated token program derived address",
-        //         ))
-        //     },
-        //     (None, None, Some(token_program)) => {
-        //         return Err(ParseError::new(
-        //             token_program.span(),
-        //             "mint and authority must be provided to specify an associated token program derived address",
-        //         ))
-        //     }
-        //     _ => None,
-        // };
-        // if let Some(associated_token) = &associated_token {
-        //     if seeds.is_some() {
-        //         return Err(ParseError::new(
-        //             associated_token.mint.span(),
-        //             "'associated_token' constraints cannot be used with the 'seeds' constraint",
-        //         ));
-        //     }
-        // }
+        let associated_token = match (
+            associated_token_mint,
+            associated_token_authority,
+            &associated_token_token_program,
+        ) {
+            (Some(mint), Some(auth), _) => Some(ConstraintAssociatedToken {
+                wallet: auth.into_inner().auth,
+                mint: mint.into_inner().mint,
+                token_program: associated_token_token_program
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().token_program),
+            }),
+            (Some(mint), None, _) => return Err(ParseError::new(
+                mint.span(),
+                "authority must be provided to specify an associated token program derived address",
+            )),
+            (None, Some(auth), _) => {
+                return Err(ParseError::new(
+                    auth.span(),
+                    "mint must be provided to specify an associated token program derived address",
+                ))
+            },
+            (None, None, Some(token_program)) => {
+                return Err(ParseError::new(
+                    token_program.span(),
+                    "mint and authority must be provided to specify an associated token program derived address",
+                ))
+            }
+            _ => None,
+        };
+        if let Some(associated_token) = &associated_token {
+            if seeds.is_some() {
+                return Err(ParseError::new(
+                    associated_token.mint.span(),
+                    "'associated_token' constraints cannot be used with the 'seeds' constraint",
+                ));
+            }
+        }
 
-        // let token_account = match (&token_mint, &token_authority, &token_token_program) {
-        //     (None, None, None) => None,
-        //     _ => Some(ConstraintTokenAccountGroup {
-        //         mint: token_mint.as_ref().map(|a| a.clone().into_inner().mint),
-        //         authority: token_authority
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().auth),
-        //         token_program: token_token_program
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().token_program),
-        //     }),
-        // };
+        let token_account = match (&token_mint, &token_authority, &token_token_program) {
+            (None, None, None) => None,
+            _ => Some(ConstraintTokenAccountGroup {
+                mint: token_mint.as_ref().map(|a| a.clone().into_inner().mint),
+                authority: token_authority
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().auth),
+                token_program: token_token_program
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().token_program),
+            }),
+        };
 
-        // let mint = match (
-        //     &mint_decimals,
-        //     &mint_authority,
-        //     &mint_freeze_authority,
-        //     &mint_token_program,
-        //     &extension_group_pointer_authority,
-        //     &extension_group_pointer_group_address,
-        //     &extension_group_member_pointer_authority,
-        //     &extension_group_member_pointer_member_address,
-        //     &extension_metadata_pointer_authority,
-        //     &extension_metadata_pointer_metadata_address,
-        //     &extension_close_authority,
-        //     &extension_transfer_hook_authority,
-        //     &extension_transfer_hook_program_id,
-        //     &extension_permanent_delegate,
-        // ) {
-        //     (
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //         None,
-        //     ) => None,
-        //     _ => Some(ConstraintTokenMintGroup {
-        //         decimals: mint_decimals
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().decimals),
-        //         mint_authority: mint_authority
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().mint_auth),
-        //         freeze_authority: mint_freeze_authority
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().mint_freeze_auth),
-        //         token_program: mint_token_program
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().token_program),
-        //         // extensions
-        //         group_pointer_authority: extension_group_pointer_authority
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().authority),
-        //         group_pointer_group_address: extension_group_pointer_group_address
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().group_address),
-        //         group_member_pointer_authority: extension_group_member_pointer_authority
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().authority),
-        //         group_member_pointer_member_address: extension_group_member_pointer_member_address
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().member_address),
-        //         metadata_pointer_authority: extension_metadata_pointer_authority
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().authority),
-        //         metadata_pointer_metadata_address: extension_metadata_pointer_metadata_address
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().metadata_address),
-        //         close_authority: extension_close_authority
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().authority),
-        //         permanent_delegate: extension_permanent_delegate
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().permanent_delegate),
-        //         transfer_hook_authority: extension_transfer_hook_authority
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().authority),
-        //         transfer_hook_program_id: extension_transfer_hook_program_id
-        //             .as_ref()
-        //             .map(|a| a.clone().into_inner().program_id),
-        //     }),
-        // };
+        let mint = match (
+            &mint_decimals,
+            &mint_authority,
+            &mint_freeze_authority,
+            &mint_token_program,
+            // &extension_group_pointer_authority,
+            // &extension_group_pointer_group_address,
+            // &extension_group_member_pointer_authority,
+            // &extension_group_member_pointer_member_address,
+            // &extension_metadata_pointer_authority,
+            // &extension_metadata_pointer_metadata_address,
+            // &extension_close_authority,
+            // &extension_transfer_hook_authority,
+            // &extension_transfer_hook_program_id,
+            // &extension_permanent_delegate,
+        ) {
+            (
+                None,
+                None,
+                None,
+                None,
+                // None,
+                // None,
+                // None,
+                // None,
+                // None,
+                // None,
+                // None,
+                // None,
+                // None,
+                // None,
+            ) => None,
+            _ => Some(ConstraintTokenMintGroup {
+                decimals: mint_decimals
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().decimals),
+                mint_authority: mint_authority
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().mint_auth),
+                freeze_authority: mint_freeze_authority
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().mint_freeze_auth),
+                token_program: mint_token_program
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().token_program),
+                // extensions
+                // group_pointer_authority: extension_group_pointer_authority
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().authority),
+                // group_pointer_group_address: extension_group_pointer_group_address
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().group_address),
+                // group_member_pointer_authority: extension_group_member_pointer_authority
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().authority),
+                // group_member_pointer_member_address: extension_group_member_pointer_member_address
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().member_address),
+                // metadata_pointer_authority: extension_metadata_pointer_authority
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().authority),
+                // metadata_pointer_metadata_address: extension_metadata_pointer_metadata_address
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().metadata_address),
+                // close_authority: extension_close_authority
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().authority),
+                // permanent_delegate: extension_permanent_delegate
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().permanent_delegate),
+                // transfer_hook_authority: extension_transfer_hook_authority
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().authority),
+                // transfer_hook_program_id: extension_transfer_hook_program_id
+                //     .as_ref()
+                //     .map(|a| a.clone().into_inner().program_id),
+            }),
+        };
 
         Ok(ConstraintGroup {
             init: init.as_ref().map(|i| Ok::<_, ParseError>(ConstraintInitGroup {
@@ -974,56 +974,53 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                 seeds: seeds.clone(),
                 payer: into_inner!(payer.clone()).unwrap().target,
                 space: space.clone().map(|s| s.space.clone()),
-                kind: InitKind::Program {
-                    owner: owner.as_ref().map(|o| o.owner_address.clone()),
+                kind: if let Some(tm) = &token_mint {
+                    InitKind::Token {
+                        mint: tm.clone().into_inner().mint,
+                        owner: match &token_authority {
+                            Some(a) => a.clone().into_inner().auth,
+                            None => return Err(ParseError::new(
+                                tm.span(),
+                                "authority must be provided to initialize a token program derived address"
+                            )),
+                        },
+                        token_program: token_token_program.map(|tp| tp.into_inner().token_program),
+                    }
+                } else if let Some(at) = &associated_token {
+                    InitKind::AssociatedToken {
+                        mint: at.mint.clone(),
+                        owner: at.wallet.clone(),
+                        token_program: associated_token_token_program.map(|tp| tp.into_inner().token_program),
+                    }
+                } else if let Some(d) = &mint_decimals {
+                    InitKind::Mint {
+                        decimals: d.clone().into_inner().decimals,
+                        owner: match &mint_authority {
+                            Some(a) => a.clone().into_inner().mint_auth,
+                            None => return Err(ParseError::new(
+                                d.span(),
+                                "authority must be provided to initialize a mint program derived address"
+                            ))
+                        },
+                        freeze_authority: mint_freeze_authority.map(|fa| fa.into_inner().mint_freeze_auth),
+                        token_program: mint_token_program.map(|tp| tp.into_inner().token_program),
+                        // extensions
+                        // group_pointer_authority: extension_group_pointer_authority.map(|gpa| gpa.into_inner().authority),
+                        // group_pointer_group_address: extension_group_pointer_group_address.map(|gpga| gpga.into_inner().group_address),
+                        // group_member_pointer_authority: extension_group_member_pointer_authority.map(|gmpa| gmpa.into_inner().authority),
+                        // group_member_pointer_member_address: extension_group_member_pointer_member_address.map(|gmpma| gmpma.into_inner().member_address),
+                        // metadata_pointer_authority: extension_metadata_pointer_authority.map(|mpa| mpa.into_inner().authority),
+                        // metadata_pointer_metadata_address: extension_metadata_pointer_metadata_address.map(|mpma| mpma.into_inner().metadata_address),
+                        // close_authority: extension_close_authority.map(|ca| ca.into_inner().authority),
+                        // permanent_delegate: extension_permanent_delegate.map(|pd| pd.into_inner().permanent_delegate),
+                        // transfer_hook_authority: extension_transfer_hook_authority.map(|tha| tha.into_inner().authority),
+                        // transfer_hook_program_id: extension_transfer_hook_program_id.map(|thpid| thpid.into_inner().program_id),
+                    }
+                } else {
+                    InitKind::Program {
+                        owner: owner.as_ref().map(|o| o.owner_address.clone()),
+                    }
                 },
-                // kind: if let Some(tm) = &token_mint {
-                //     InitKind::Token {
-                //         mint: tm.clone().into_inner().mint,
-                //         owner: match &token_authority {
-                //             Some(a) => a.clone().into_inner().auth,
-                //             None => return Err(ParseError::new(
-                //                 tm.span(),
-                //                 "authority must be provided to initialize a token program derived address"
-                //             )),
-                //         },
-                //         token_program: token_token_program.map(|tp| tp.into_inner().token_program),
-                //     }
-                // } else if let Some(at) = &associated_token {
-                //     InitKind::AssociatedToken {
-                //         mint: at.mint.clone(),
-                //         owner: at.wallet.clone(),
-                //         token_program: associated_token_token_program.map(|tp| tp.into_inner().token_program),
-                //     }
-                // } else if let Some(d) = &mint_decimals {
-                //     InitKind::Mint {
-                //         decimals: d.clone().into_inner().decimals,
-                //         owner: match &mint_authority {
-                //             Some(a) => a.clone().into_inner().mint_auth,
-                //             None => return Err(ParseError::new(
-                //                 d.span(),
-                //                 "authority must be provided to initialize a mint program derived address"
-                //             ))
-                //         },
-                //         freeze_authority: mint_freeze_authority.map(|fa| fa.into_inner().mint_freeze_auth),
-                //         token_program: mint_token_program.map(|tp| tp.into_inner().token_program),
-                //         // extensions
-                //         group_pointer_authority: extension_group_pointer_authority.map(|gpa| gpa.into_inner().authority),
-                //         group_pointer_group_address: extension_group_pointer_group_address.map(|gpga| gpga.into_inner().group_address),
-                //         group_member_pointer_authority: extension_group_member_pointer_authority.map(|gmpa| gmpa.into_inner().authority),
-                //         group_member_pointer_member_address: extension_group_member_pointer_member_address.map(|gmpma| gmpma.into_inner().member_address),
-                //         metadata_pointer_authority: extension_metadata_pointer_authority.map(|mpa| mpa.into_inner().authority),
-                //         metadata_pointer_metadata_address: extension_metadata_pointer_metadata_address.map(|mpma| mpma.into_inner().metadata_address),
-                //         close_authority: extension_close_authority.map(|ca| ca.into_inner().authority),
-                //         permanent_delegate: extension_permanent_delegate.map(|pd| pd.into_inner().permanent_delegate),
-                //         transfer_hook_authority: extension_transfer_hook_authority.map(|tha| tha.into_inner().authority),
-                //         transfer_hook_program_id: extension_transfer_hook_program_id.map(|thpid| thpid.into_inner().program_id),
-                //     }
-                // } else {
-                //     InitKind::Program {
-                //         owner: owner.as_ref().map(|o| o.owner_address.clone()),
-                //     }
-                // },
             })).transpose()?,
             realloc: realloc.as_ref().map(|r| ConstraintReallocGroup {
                 payer: into_inner!(realloc_payer).unwrap().target,
@@ -1040,11 +1037,11 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             executable: into_inner!(executable),
             close: into_inner!(close),
             address: into_inner!(address),
-            // associated_token: if !is_init { associated_token } else { None },
+            associated_token: if !is_init { associated_token } else { None },
             seeds,
             shards: into_inner!(shards),
-            // token_account: if !is_init {token_account} else {None},
-            // mint: if !is_init {mint} else {None},
+            token_account: if !is_init {token_account} else {None},
+            mint: if !is_init {mint} else {None},
         })
     }
 
@@ -1065,18 +1062,18 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ConstraintToken::Close(c) => self.add_close(c),
             ConstraintToken::Address(c) => self.add_address(c),
             ConstraintToken::Shards(c) => self.add_shards(c),
-            // ConstraintToken::TokenAuthority(c) => self.add_token_authority(c),
-            // ConstraintToken::TokenMint(c) => self.add_token_mint(c),
-            // ConstraintToken::TokenTokenProgram(c) => self.add_token_token_program(c),
-            // ConstraintToken::AssociatedTokenAuthority(c) => self.add_associated_token_authority(c),
-            // ConstraintToken::AssociatedTokenMint(c) => self.add_associated_token_mint(c),
-            // ConstraintToken::AssociatedTokenTokenProgram(c) => {
-            //     self.add_associated_token_token_program(c)
-            // }
-            // ConstraintToken::MintAuthority(c) => self.add_mint_authority(c),
-            // ConstraintToken::MintFreezeAuthority(c) => self.add_mint_freeze_authority(c),
-            // ConstraintToken::MintDecimals(c) => self.add_mint_decimals(c),
-            // ConstraintToken::MintTokenProgram(c) => self.add_mint_token_program(c),
+            ConstraintToken::TokenAuthority(c) => self.add_token_authority(c),
+            ConstraintToken::TokenMint(c) => self.add_token_mint(c),
+            ConstraintToken::TokenTokenProgram(c) => self.add_token_token_program(c),
+            ConstraintToken::AssociatedTokenAuthority(c) => self.add_associated_token_authority(c),
+            ConstraintToken::AssociatedTokenMint(c) => self.add_associated_token_mint(c),
+            ConstraintToken::AssociatedTokenTokenProgram(c) => {
+                self.add_associated_token_token_program(c)
+            }
+            ConstraintToken::MintAuthority(c) => self.add_mint_authority(c),
+            ConstraintToken::MintFreezeAuthority(c) => self.add_mint_freeze_authority(c),
+            ConstraintToken::MintDecimals(c) => self.add_mint_decimals(c),
+            ConstraintToken::MintTokenProgram(c) => self.add_mint_token_program(c),
             ConstraintToken::Bump(c) => self.add_bump(c),
             ConstraintToken::ProgramSeed(c) => self.add_program_seed(c),
             ConstraintToken::Realloc(c) => self.add_realloc(c),
@@ -1118,66 +1115,66 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
         if self.zeroed.is_some() {
             return Err(ParseError::new(c.span(), "zeroed already provided"));
         }
-        // if self.token_mint.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before token mint",
-        //     ));
-        // }
-        // if self.token_authority.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before token authority",
-        //     ));
-        // }
-        // if self.token_token_program.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before token account token program",
-        //     ));
-        // }
-        // if self.mint_authority.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before mint authority",
-        //     ));
-        // }
-        // if self.mint_freeze_authority.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before mint freeze authority",
-        //     ));
-        // }
-        // if self.mint_decimals.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before mint decimals",
-        //     ));
-        // }
-        // if self.mint_token_program.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before mint token program",
-        //     ));
-        // }
-        // if self.associated_token_mint.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before associated token mint",
-        //     ));
-        // }
-        // if self.associated_token_authority.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before associated token authority",
-        //     ));
-        // }
-        // if self.associated_token_token_program.is_some() {
-        //     return Err(ParseError::new(
-        //         c.span(),
-        //         "init must be provided before associated token account token program",
-        //     ));
-        // }
+        if self.token_mint.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before token mint",
+            ));
+        }
+        if self.token_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before token authority",
+            ));
+        }
+        if self.token_token_program.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before token account token program",
+            ));
+        }
+        if self.mint_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before mint authority",
+            ));
+        }
+        if self.mint_freeze_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before mint freeze authority",
+            ));
+        }
+        if self.mint_decimals.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before mint decimals",
+            ));
+        }
+        if self.mint_token_program.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before mint token program",
+            ));
+        }
+        if self.associated_token_mint.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before associated token mint",
+            ));
+        }
+        if self.associated_token_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before associated token authority",
+            ));
+        }
+        if self.associated_token_token_program.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "init must be provided before associated token account token program",
+            ));
+        }
         self.init.replace(c);
         Ok(())
     }
@@ -1295,33 +1292,33 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
         Ok(())
     }
 
-    // fn add_token_mint(&mut self, c: Context<ConstraintTokenMint>) -> ParseResult<()> {
-    //     if self.token_mint.is_some() {
-    //         return Err(ParseError::new(c.span(), "token mint already provided"));
-    //     }
-    //     if self.associated_token_mint.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "associated token mint already provided",
-    //         ));
-    //     }
-    //     self.token_mint.replace(c);
-    //     Ok(())
-    // }
+    fn add_token_mint(&mut self, c: Context<ConstraintTokenMint>) -> ParseResult<()> {
+        if self.token_mint.is_some() {
+            return Err(ParseError::new(c.span(), "token mint already provided"));
+        }
+        if self.associated_token_mint.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "associated token mint already provided",
+            ));
+        }
+        self.token_mint.replace(c);
+        Ok(())
+    }
 
-    // fn add_associated_token_mint(&mut self, c: Context<ConstraintTokenMint>) -> ParseResult<()> {
-    //     if self.associated_token_mint.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "associated token mint already provided",
-    //         ));
-    //     }
-    //     if self.token_mint.is_some() {
-    //         return Err(ParseError::new(c.span(), "token mint already provided"));
-    //     }
-    //     self.associated_token_mint.replace(c);
-    //     Ok(())
-    // }
+    fn add_associated_token_mint(&mut self, c: Context<ConstraintTokenMint>) -> ParseResult<()> {
+        if self.associated_token_mint.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "associated token mint already provided",
+            ));
+        }
+        if self.token_mint.is_some() {
+            return Err(ParseError::new(c.span(), "token mint already provided"));
+        }
+        self.associated_token_mint.replace(c);
+        Ok(())
+    }
 
     fn add_bump(&mut self, c: Context<ConstraintTokenBump>) -> ParseResult<()> {
         if self.bump.is_some() {
@@ -1364,102 +1361,102 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
         Ok(())
     }
 
-    // fn add_token_authority(&mut self, c: Context<ConstraintTokenAuthority>) -> ParseResult<()> {
-    //     if self.token_authority.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "token authority already provided",
-    //         ));
-    //     }
-    //     self.token_authority.replace(c);
-    //     Ok(())
-    // }
+    fn add_token_authority(&mut self, c: Context<ConstraintTokenAuthority>) -> ParseResult<()> {
+        if self.token_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "token authority already provided",
+            ));
+        }
+        self.token_authority.replace(c);
+        Ok(())
+    }
 
-    // fn add_associated_token_authority(
-    //     &mut self,
-    //     c: Context<ConstraintTokenAuthority>,
-    // ) -> ParseResult<()> {
-    //     if self.associated_token_authority.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "associated token authority already provided",
-    //         ));
-    //     }
-    //     if self.token_authority.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "token authority already provided",
-    //         ));
-    //     }
-    //     self.associated_token_authority.replace(c);
-    //     Ok(())
-    // }
+    fn add_associated_token_authority(
+        &mut self,
+        c: Context<ConstraintTokenAuthority>,
+    ) -> ParseResult<()> {
+        if self.associated_token_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "associated token authority already provided",
+            ));
+        }
+        if self.token_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "token authority already provided",
+            ));
+        }
+        self.associated_token_authority.replace(c);
+        Ok(())
+    }
 
-    // fn add_token_token_program(&mut self, c: Context<ConstraintTokenProgram>) -> ParseResult<()> {
-    //     if self.token_token_program.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "token token_program already provided",
-    //         ));
-    //     }
-    //     self.token_token_program.replace(c);
-    //     Ok(())
-    // }
+    fn add_token_token_program(&mut self, c: Context<ConstraintTokenProgram>) -> ParseResult<()> {
+        if self.token_token_program.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "token token_program already provided",
+            ));
+        }
+        self.token_token_program.replace(c);
+        Ok(())
+    }
 
-    // fn add_associated_token_token_program(
-    //     &mut self,
-    //     c: Context<ConstraintTokenProgram>,
-    // ) -> ParseResult<()> {
-    //     if self.associated_token_token_program.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "associated token token_program already provided",
-    //         ));
-    //     }
-    //     self.associated_token_token_program.replace(c);
-    //     Ok(())
-    // }
+    fn add_associated_token_token_program(
+        &mut self,
+        c: Context<ConstraintTokenProgram>,
+    ) -> ParseResult<()> {
+        if self.associated_token_token_program.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "associated token token_program already provided",
+            ));
+        }
+        self.associated_token_token_program.replace(c);
+        Ok(())
+    }
 
-    // fn add_mint_authority(&mut self, c: Context<ConstraintMintAuthority>) -> ParseResult<()> {
-    //     if self.mint_authority.is_some() {
-    //         return Err(ParseError::new(c.span(), "mint authority already provided"));
-    //     }
-    //     self.mint_authority.replace(c);
-    //     Ok(())
-    // }
+    fn add_mint_authority(&mut self, c: Context<ConstraintMintAuthority>) -> ParseResult<()> {
+        if self.mint_authority.is_some() {
+            return Err(ParseError::new(c.span(), "mint authority already provided"));
+        }
+        self.mint_authority.replace(c);
+        Ok(())
+    }
 
-    // fn add_mint_freeze_authority(
-    //     &mut self,
-    //     c: Context<ConstraintMintFreezeAuthority>,
-    // ) -> ParseResult<()> {
-    //     if self.mint_freeze_authority.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "mint freeze_authority already provided",
-    //         ));
-    //     }
-    //     self.mint_freeze_authority.replace(c);
-    //     Ok(())
-    // }
+    fn add_mint_freeze_authority(
+        &mut self,
+        c: Context<ConstraintMintFreezeAuthority>,
+    ) -> ParseResult<()> {
+        if self.mint_freeze_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "mint freeze_authority already provided",
+            ));
+        }
+        self.mint_freeze_authority.replace(c);
+        Ok(())
+    }
 
-    // fn add_mint_decimals(&mut self, c: Context<ConstraintMintDecimals>) -> ParseResult<()> {
-    //     if self.mint_decimals.is_some() {
-    //         return Err(ParseError::new(c.span(), "mint decimals already provided"));
-    //     }
-    //     self.mint_decimals.replace(c);
-    //     Ok(())
-    // }
+    fn add_mint_decimals(&mut self, c: Context<ConstraintMintDecimals>) -> ParseResult<()> {
+        if self.mint_decimals.is_some() {
+            return Err(ParseError::new(c.span(), "mint decimals already provided"));
+        }
+        self.mint_decimals.replace(c);
+        Ok(())
+    }
 
-    // fn add_mint_token_program(&mut self, c: Context<ConstraintTokenProgram>) -> ParseResult<()> {
-    //     if self.mint_token_program.is_some() {
-    //         return Err(ParseError::new(
-    //             c.span(),
-    //             "mint token_program already provided",
-    //         ));
-    //     }
-    //     self.mint_token_program.replace(c);
-    //     Ok(())
-    // }
+    fn add_mint_token_program(&mut self, c: Context<ConstraintTokenProgram>) -> ParseResult<()> {
+        if self.mint_token_program.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "mint token_program already provided",
+            ));
+        }
+        self.mint_token_program.replace(c);
+        Ok(())
+    }
 
     fn add_mut(&mut self, c: Context<ConstraintMut>) -> ParseResult<()> {
         if self.mutable.is_some() {

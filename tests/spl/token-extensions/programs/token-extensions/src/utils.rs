@@ -1,7 +1,7 @@
 use satellite_lang::{
     prelude::Result,
-    solana_program::{
-        account_info::AccountInfo,
+    arch_program::{
+        account::AccountInfo,
         instruction::{get_stack_height, TRANSACTION_LEVEL_STACK_HEIGHT},
         program::invoke,
         pubkey::Pubkey,

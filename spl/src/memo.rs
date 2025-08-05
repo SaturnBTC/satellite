@@ -1,6 +1,6 @@
-use anchor_lang::solana_program::pubkey::Pubkey;
-use anchor_lang::Result;
-use anchor_lang::{context::CpiContext, Accounts};
+use satellite_lang::arch_program::pubkey::Pubkey;
+use satellite_lang::Result;
+use satellite_lang::{context::CpiContext, Accounts};
 
 pub use spl_memo;
 pub use spl_memo::ID;
@@ -13,7 +13,7 @@ pub fn build_memo<'info>(ctx: CpiContext<'_, '_, '_, 'info, BuildMemo>, memo: &[
             .map(|account| account.key)
             .collect::<Vec<_>>(),
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ctx.remaining_accounts,
         ctx.signer_seeds,
@@ -27,7 +27,7 @@ pub struct BuildMemo {}
 #[derive(Clone)]
 pub struct Memo;
 
-impl anchor_lang::Id for Memo {
+impl satellite_lang::Id for Memo {
     fn id() -> Pubkey {
         ID
     }

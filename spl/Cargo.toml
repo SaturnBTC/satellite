@@ -11,28 +11,16 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["associated_token", "mint", "token", "token_2022", "token_2022_extensions"]
-anchor-debug = ["anchor-lang/anchor-debug"]
-associated_token = ["spl-associated-token-account"]
-devnet = []
+default = ["associated_token", "token"]
+anchor-debug = ["satellite-lang/anchor-debug"]
+associated_token = ["apl-associated-token-account"]
 governance = []
-idl-build = ["anchor-lang/idl-build"]
-memo = ["spl-memo"]
-metadata = ["mpl-token-metadata"]
-mint = []
+idl-build = ["satellite-lang/idl-build"]
 stake = ["borsh"]
-token = ["spl-token"]
-token_2022 = ["spl-token-2022"]
-token_2022_extensions = ["spl-token-2022", "spl-token-group-interface", "spl-token-metadata-interface", "spl-pod"]
+token = ["apl-token"]
 
 [dependencies]
-anchor-lang = { path = "../lang", version = "0.31.1", features = ["derive"] }
+satellite-lang = { path = "../lang", version = "0.31.1", features = ["derive"] }
 borsh = { version = "0.10.3", optional = true }
-mpl-token-metadata = { version = "5", optional = true }
-spl-associated-token-account = { version = "6", features = ["no-entrypoint"], optional = true }
-spl-memo = { version = "6", features = ["no-entrypoint"], optional = true }
-spl-token = { version = "7", features = ["no-entrypoint"], optional = true }
-spl-token-2022 = { version = "6", features = ["no-entrypoint"], optional = true }
-spl-token-group-interface = { version = "0.5", optional = true }
-spl-token-metadata-interface = { version = "0.6", optional = true }
-spl-pod = { version = "0.5", optional = true }
+apl-associated-token-account = { path = "../deps/associated-token-account", features = ["no-entrypoint"], optional = true }
+apl-token = { path = "../deps/token", features = ["no-entrypoint"], optional = true }

@@ -766,9 +766,9 @@ pub struct ConstraintGroup {
     pub raw: Vec<ConstraintRaw>,
     pub close: Option<ConstraintClose>,
     pub address: Option<ConstraintAddress>,
-    // pub associated_token: Option<ConstraintAssociatedToken>,
-    // pub token_account: Option<ConstraintTokenAccountGroup>,
-    // pub mint: Option<ConstraintTokenMintGroup>,
+    pub associated_token: Option<ConstraintAssociatedToken>,
+    pub token_account: Option<ConstraintTokenAccountGroup>,
+    pub mint: Option<ConstraintTokenMintGroup>,
     pub realloc: Option<ConstraintReallocGroup>,
     // When `shards = N` or `shards = "rest"` is specified on an account field this entry holds
     // the parsed configuration.
@@ -808,12 +808,12 @@ pub enum Constraint {
     Owner(ConstraintOwner),
     RentExempt(ConstraintRentExempt),
     Seeds(ConstraintSeedsGroup),
-    // AssociatedToken(ConstraintAssociatedToken),
+    AssociatedToken(ConstraintAssociatedToken),
     Executable(ConstraintExecutable),
     Close(ConstraintClose),
     Address(ConstraintAddress),
-    // TokenAccount(ConstraintTokenAccountGroup),
-    // Mint(ConstraintTokenMintGroup),
+    TokenAccount(ConstraintTokenAccountGroup),
+    Mint(ConstraintTokenMintGroup),
     Realloc(ConstraintReallocGroup),
     Shards(ConstraintShards),
 }
@@ -836,16 +836,16 @@ pub enum ConstraintToken {
     Payer(Context<ConstraintPayer>),
     Space(Context<ConstraintSpace>),
     Address(Context<ConstraintAddress>),
-    // TokenMint(Context<ConstraintTokenMint>),
-    // TokenAuthority(Context<ConstraintTokenAuthority>),
-    // TokenTokenProgram(Context<ConstraintTokenProgram>),
-    // AssociatedTokenMint(Context<ConstraintTokenMint>),
-    // AssociatedTokenAuthority(Context<ConstraintTokenAuthority>),
-    // AssociatedTokenTokenProgram(Context<ConstraintTokenProgram>),
-    // MintAuthority(Context<ConstraintMintAuthority>),
-    // MintFreezeAuthority(Context<ConstraintMintFreezeAuthority>),
-    // MintDecimals(Context<ConstraintMintDecimals>),
-    // MintTokenProgram(Context<ConstraintTokenProgram>),
+    TokenMint(Context<ConstraintTokenMint>),
+    TokenAuthority(Context<ConstraintTokenAuthority>),
+    TokenTokenProgram(Context<ConstraintTokenProgram>),
+    AssociatedTokenMint(Context<ConstraintTokenMint>),
+    AssociatedTokenAuthority(Context<ConstraintTokenAuthority>),
+    AssociatedTokenTokenProgram(Context<ConstraintTokenProgram>),
+    MintAuthority(Context<ConstraintMintAuthority>),
+    MintFreezeAuthority(Context<ConstraintMintFreezeAuthority>),
+    MintDecimals(Context<ConstraintMintDecimals>),
+    MintTokenProgram(Context<ConstraintTokenProgram>),
     Bump(Context<ConstraintTokenBump>),
     ProgramSeed(Context<ConstraintProgramSeed>),
     Realloc(Context<ConstraintRealloc>),
@@ -1030,33 +1030,33 @@ pub enum InitKind {
     },
     // Owner for token and mint represents the authority. Not to be confused
     // with the owner of the AccountInfo.
-    // Token {
-    //     owner: Expr,
-    //     mint: Expr,
-    //     token_program: Option<Expr>,
-    // },
-    // AssociatedToken {
-    //     owner: Expr,
-    //     mint: Expr,
-    //     token_program: Option<Expr>,
-    // },
-    // Mint {
-    //     owner: Expr,
-    //     freeze_authority: Option<Expr>,
-    //     decimals: Expr,
-    //     token_program: Option<Expr>,
-    //     // extensions
-    //     group_pointer_authority: Option<Expr>,
-    //     group_pointer_group_address: Option<Expr>,
-    //     group_member_pointer_authority: Option<Expr>,
-    //     group_member_pointer_member_address: Option<Expr>,
-    //     metadata_pointer_authority: Option<Expr>,
-    //     metadata_pointer_metadata_address: Option<Expr>,
-    //     close_authority: Option<Expr>,
-    //     permanent_delegate: Option<Expr>,
-    //     transfer_hook_authority: Option<Expr>,
-    //     transfer_hook_program_id: Option<Expr>,
-    // },
+    Token {
+        owner: Expr,
+        mint: Expr,
+        token_program: Option<Expr>,
+    },
+    AssociatedToken {
+        owner: Expr,
+        mint: Expr,
+        token_program: Option<Expr>,
+    },
+    Mint {
+        owner: Expr,
+        freeze_authority: Option<Expr>,
+        decimals: Expr,
+        token_program: Option<Expr>,
+        // extensions
+        // group_pointer_authority: Option<Expr>,
+        // group_pointer_group_address: Option<Expr>,
+        // group_member_pointer_authority: Option<Expr>,
+        // group_member_pointer_member_address: Option<Expr>,
+        // metadata_pointer_authority: Option<Expr>,
+        // metadata_pointer_metadata_address: Option<Expr>,
+        // close_authority: Option<Expr>,
+        // permanent_delegate: Option<Expr>,
+        // transfer_hook_authority: Option<Expr>,
+        // transfer_hook_program_id: Option<Expr>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -1064,75 +1064,75 @@ pub struct ConstraintClose {
     pub sol_dest: Ident,
 }
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintTokenMint {
-//     pub mint: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintTokenMint {
+    pub mint: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintConfidentialTransferData {
-//     pub confidential_transfer_data: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintConfidentialTransferData {
+    pub confidential_transfer_data: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintMetadata {
-//     pub token_metadata: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintMetadata {
+    pub token_metadata: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintTokenGroupData {
-//     pub token_group_data: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintTokenGroupData {
+    pub token_group_data: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintTokenGroupMemberData {
-//     pub token_group_member_data: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintTokenGroupMemberData {
+    pub token_group_member_data: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintMetadataPointerData {
-//     pub metadata_pointer_data: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintMetadataPointerData {
+    pub metadata_pointer_data: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintGroupPointerData {
-//     pub group_pointer_data: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintGroupPointerData {
+    pub group_pointer_data: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintGroupMemberPointerData {
-//     pub group_member_pointer_data: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintGroupMemberPointerData {
+    pub group_member_pointer_data: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintCloseAuthority {
-//     pub close_authority: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintCloseAuthority {
+    pub close_authority: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintTokenAuthority {
-//     pub auth: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintTokenAuthority {
+    pub auth: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintTokenProgram {
-//     token_program: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintTokenProgram {
+    token_program: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintAuthority {
-//     pub mint_auth: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintAuthority {
+    pub mint_auth: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintFreezeAuthority {
-//     pub mint_freeze_auth: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintFreezeAuthority {
+    pub mint_freeze_auth: Expr,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintMintDecimals {
-//     pub decimals: Expr,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintMintDecimals {
+    pub decimals: Expr,
+}
 
 #[derive(Debug, Clone)]
 pub struct ConstraintTokenBump {
@@ -1144,37 +1144,37 @@ pub struct ConstraintProgramSeed {
     pub program_seed: Expr,
 }
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintAssociatedToken {
-//     pub wallet: Expr,
-//     pub mint: Expr,
-//     pub token_program: Option<Expr>,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintAssociatedToken {
+    pub wallet: Expr,
+    pub mint: Expr,
+    pub token_program: Option<Expr>,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintTokenAccountGroup {
-//     pub mint: Option<Expr>,
-//     pub authority: Option<Expr>,
-//     pub token_program: Option<Expr>,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintTokenAccountGroup {
+    pub mint: Option<Expr>,
+    pub authority: Option<Expr>,
+    pub token_program: Option<Expr>,
+}
 
-// #[derive(Debug, Clone)]
-// pub struct ConstraintTokenMintGroup {
-//     pub decimals: Option<Expr>,
-//     pub mint_authority: Option<Expr>,
-//     pub freeze_authority: Option<Expr>,
-//     pub token_program: Option<Expr>,
-//     pub group_pointer_authority: Option<Expr>,
-//     pub group_pointer_group_address: Option<Expr>,
-//     pub group_member_pointer_authority: Option<Expr>,
-//     pub group_member_pointer_member_address: Option<Expr>,
-//     pub metadata_pointer_authority: Option<Expr>,
-//     pub metadata_pointer_metadata_address: Option<Expr>,
-//     pub close_authority: Option<Expr>,
-//     pub permanent_delegate: Option<Expr>,
-//     pub transfer_hook_authority: Option<Expr>,
-//     pub transfer_hook_program_id: Option<Expr>,
-// }
+#[derive(Debug, Clone)]
+pub struct ConstraintTokenMintGroup {
+    pub decimals: Option<Expr>,
+    pub mint_authority: Option<Expr>,
+    pub freeze_authority: Option<Expr>,
+    pub token_program: Option<Expr>,
+    // pub group_pointer_authority: Option<Expr>,
+    // pub group_pointer_group_address: Option<Expr>,
+    // pub group_member_pointer_authority: Option<Expr>,
+    // pub group_member_pointer_member_address: Option<Expr>,
+    // pub metadata_pointer_authority: Option<Expr>,
+    // pub metadata_pointer_metadata_address: Option<Expr>,
+    // pub close_authority: Option<Expr>,
+    // pub permanent_delegate: Option<Expr>,
+    // pub transfer_hook_authority: Option<Expr>,
+    // pub transfer_hook_program_id: Option<Expr>,
+}
 
 // Syntaxt context object for preserving metadata about the inner item.
 #[derive(Debug, Clone)]

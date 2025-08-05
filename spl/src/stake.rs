@@ -1,7 +1,7 @@
-use anchor_lang::{
+use satellite_lang::{
     context::CpiContext,
-    solana_program::{
-        account_info::AccountInfo,
+    arch_program::{
+        account::AccountInfo,
         pubkey::Pubkey,
         stake::{
             self,
@@ -36,7 +36,7 @@ pub fn authorize<'info>(
     if let Some(c) = custodian {
         account_infos.push(c);
     }
-    anchor_lang::solana_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
+    satellite_lang::arch_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
         .map_err(Into::into)
 }
 
@@ -62,7 +62,7 @@ pub fn withdraw<'info>(
     if let Some(c) = custodian {
         account_infos.push(c);
     }
-    anchor_lang::solana_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
+    satellite_lang::arch_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
         .map_err(Into::into)
 }
 
@@ -70,7 +70,7 @@ pub fn deactivate_stake<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, DeactivateStake<'info>>,
 ) -> Result<()> {
     let ix = stake::instruction::deactivate_stake(ctx.accounts.stake.key, ctx.accounts.staker.key);
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[ctx.accounts.stake, ctx.accounts.clock, ctx.accounts.staker],
         ctx.signer_seeds,
@@ -130,19 +130,19 @@ pub struct DeactivateStake<'info> {
 #[derive(Clone)]
 pub struct StakeAccount(StakeState);
 
-impl anchor_lang::AccountDeserialize for StakeAccount {
-    fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+impl satellite_lang::AccountDeserialize for StakeAccount {
+    fn try_deserialize(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         Self::try_deserialize_unchecked(buf)
     }
 
-    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         StakeState::deserialize(buf).map(Self).map_err(Into::into)
     }
 }
 
-impl anchor_lang::AccountSerialize for StakeAccount {}
+impl satellite_lang::AccountSerialize for StakeAccount {}
 
-impl anchor_lang::Owner for StakeAccount {
+impl satellite_lang::Owner for StakeAccount {
     fn owner() -> Pubkey {
         ID
     }
@@ -159,7 +159,7 @@ impl Deref for StakeAccount {
 #[derive(Clone)]
 pub struct Stake;
 
-impl anchor_lang::Id for Stake {
+impl satellite_lang::Id for Stake {
     fn id() -> Pubkey {
         ID
     }

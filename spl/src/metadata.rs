@@ -1,9 +1,9 @@
-use anchor_lang::context::CpiContext;
-use anchor_lang::error::ErrorCode;
-use anchor_lang::solana_program::account_info::AccountInfo;
-use anchor_lang::solana_program::pubkey::Pubkey;
-use anchor_lang::solana_program::sysvar;
-use anchor_lang::{system_program, Accounts, Result, ToAccountInfos};
+use satellite_lang::context::CpiContext;
+use satellite_lang::error::ErrorCode;
+use satellite_lang::arch_program::account::AccountInfo;
+use satellite_lang::arch_program::pubkey::Pubkey;
+use satellite_lang::arch_program::sysvar;
+use satellite_lang::{system_program, Accounts, Result, ToAccountInfos};
 use std::ops::Deref;
 
 pub use mpl_token_metadata;
@@ -23,7 +23,7 @@ pub fn approve_collection_authority<'info>(
         update_authority: *ctx.accounts.update_authority.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -48,7 +48,7 @@ pub fn bubblegum_set_collection_size<'info>(
             set_collection_size_args: mpl_token_metadata::types::SetCollectionSizeArgs { size },
         },
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -69,10 +69,10 @@ pub fn burn_edition_nft<'info>(
         print_edition_account: *ctx.accounts.print_edition.key,
         print_edition_mint: *ctx.accounts.print_edition_mint.key,
         print_edition_token_account: *ctx.accounts.print_edition_token.key,
-        spl_token_program: *ctx.accounts.spl_token.key,
+        spl_token_program: *ctx.accounts.apl_token.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -105,11 +105,11 @@ pub fn burn_nft<'info>(
         metadata: *ctx.accounts.metadata.key,
         mint: *ctx.accounts.mint.key,
         owner: *ctx.accounts.owner.key,
-        spl_token_program: *ctx.accounts.spl_token.key,
+        spl_token_program: *ctx.accounts.apl_token.key,
         token_account: *ctx.accounts.token.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -143,7 +143,7 @@ pub fn create_metadata_accounts_v3<'info>(
             is_mutable,
         },
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -170,7 +170,7 @@ pub fn update_metadata_accounts_v2<'info>(
             is_mutable,
         },
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -190,13 +190,13 @@ pub fn create_master_edition_v3<'info>(
         payer: *ctx.accounts.payer.key,
         rent: None,
         system_program: system_program::ID,
-        token_program: spl_token::ID,
+        token_program: apl_token::id(),
         update_authority: *ctx.accounts.update_authority.key,
     }
     .instruction(
         mpl_token_metadata::instructions::CreateMasterEditionV3InstructionArgs { max_supply },
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -222,7 +222,7 @@ pub fn mint_new_edition_from_master_edition_via_token<'info>(
         system_program: system_program::ID,
         token_account: *ctx.accounts.token_account.key,
         token_account_owner: *ctx.accounts.token_account_owner.key,
-        token_program: spl_token::ID,
+        token_program: apl_token::id(),
     }
     .instruction(
         mpl_token_metadata::instructions::MintNewEditionFromMasterEditionViaTokenInstructionArgs {
@@ -230,7 +230,7 @@ pub fn mint_new_edition_from_master_edition_via_token<'info>(
                 mpl_token_metadata::types::MintNewEditionFromMasterEditionViaTokenArgs { edition },
         },
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -249,7 +249,7 @@ pub fn revoke_collection_authority<'info>(
         revoke_authority: *ctx.accounts.revoke_authority.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -273,7 +273,7 @@ pub fn set_collection_size<'info>(
             set_collection_size_args: mpl_token_metadata::types::SetCollectionSizeArgs { size },
         },
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -295,7 +295,7 @@ pub fn verify_collection<'info>(
         payer: *ctx.accounts.payer.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -317,7 +317,7 @@ pub fn verify_sized_collection_item<'info>(
         payer: *ctx.accounts.payer.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -340,7 +340,7 @@ pub fn set_and_verify_collection<'info>(
         update_authority: *ctx.accounts.update_authority.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -363,7 +363,7 @@ pub fn set_and_verify_sized_collection_item<'info>(
         update_authority: *ctx.accounts.update_authority.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -382,7 +382,7 @@ pub fn freeze_delegated_account<'info>(
         token_program: *ctx.accounts.token_program.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -401,7 +401,7 @@ pub fn thaw_delegated_account<'info>(
         token_program: *ctx.accounts.token_program.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -418,7 +418,7 @@ pub fn update_primary_sale_happened_via_token<'info>(
         token: *ctx.accounts.token.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -437,7 +437,7 @@ pub fn set_token_standard<'info>(
         update_authority: *ctx.accounts.update_authority.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -451,7 +451,7 @@ pub fn sign_metadata<'info>(ctx: CpiContext<'_, '_, '_, 'info, SignMetadata<'inf
         metadata: *ctx.accounts.metadata.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -467,7 +467,7 @@ pub fn remove_creator_verification<'info>(
         metadata: *ctx.accounts.metadata.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -482,7 +482,7 @@ pub fn utilize<'info>(
     number_of_uses: u64,
 ) -> Result<()> {
     let ix = mpl_token_metadata::instructions::Utilize {
-        ata_program: spl_associated_token_account::ID,
+        ata_program: apl_associated_token_account::::ID,
         burner,
         metadata: *ctx.accounts.metadata.key,
         mint: *ctx.accounts.mint.key,
@@ -490,12 +490,12 @@ pub fn utilize<'info>(
         rent: sysvar::rent::ID,
         system_program: system_program::ID,
         token_account: *ctx.accounts.token_account.key,
-        token_program: spl_token::ID,
+        token_program: apl_token::id(),
         use_authority: *ctx.accounts.use_authority.key,
         use_authority_record,
     }
     .instruction(mpl_token_metadata::instructions::UtilizeInstructionArgs { number_of_uses });
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -516,7 +516,7 @@ pub fn unverify_collection<'info>(
         metadata: *ctx.accounts.metadata.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -538,7 +538,7 @@ pub fn unverify_sized_collection_item<'info>(
         payer: *ctx.accounts.payer.key,
     }
     .instruction();
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &ToAccountInfos::to_account_infos(&ctx),
         ctx.signer_seeds,
@@ -575,7 +575,7 @@ pub struct BurnEditionNft<'info> {
     pub master_edition: AccountInfo<'info>,
     pub print_edition: AccountInfo<'info>,
     pub edition_marker: AccountInfo<'info>,
-    pub spl_token: AccountInfo<'info>,
+    pub apl_token: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -585,7 +585,7 @@ pub struct BurnNft<'info> {
     pub mint: AccountInfo<'info>,
     pub token: AccountInfo<'info>,
     pub edition: AccountInfo<'info>,
-    pub spl_token: AccountInfo<'info>,
+    pub apl_token: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -780,8 +780,8 @@ pub struct UnverifySizedCollectionItem<'info> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct MetadataAccount(mpl_token_metadata::accounts::Metadata);
 
-impl anchor_lang::AccountDeserialize for MetadataAccount {
-    fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+impl satellite_lang::AccountDeserialize for MetadataAccount {
+    fn try_deserialize(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         let md = Self::try_deserialize_unchecked(buf)?;
         if md.key != mpl_token_metadata::types::Key::MetadataV1 {
             return Err(ErrorCode::AccountNotInitialized.into());
@@ -789,15 +789,15 @@ impl anchor_lang::AccountDeserialize for MetadataAccount {
         Ok(md)
     }
 
-    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         let md = mpl_token_metadata::accounts::Metadata::safe_deserialize(buf)?;
         Ok(Self(md))
     }
 }
 
-impl anchor_lang::AccountSerialize for MetadataAccount {}
+impl satellite_lang::AccountSerialize for MetadataAccount {}
 
-impl anchor_lang::Owner for MetadataAccount {
+impl satellite_lang::Owner for MetadataAccount {
     fn owner() -> Pubkey {
         ID
     }
@@ -813,8 +813,8 @@ impl Deref for MetadataAccount {
 #[derive(Clone, Debug, PartialEq)]
 pub struct MasterEditionAccount(mpl_token_metadata::accounts::MasterEdition);
 
-impl anchor_lang::AccountDeserialize for MasterEditionAccount {
-    fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+impl satellite_lang::AccountDeserialize for MasterEditionAccount {
+    fn try_deserialize(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         let me = Self::try_deserialize_unchecked(buf)?;
         if me.key != mpl_token_metadata::types::Key::MasterEditionV2 {
             return Err(ErrorCode::AccountNotInitialized.into());
@@ -822,7 +822,7 @@ impl anchor_lang::AccountDeserialize for MasterEditionAccount {
         Ok(me)
     }
 
-    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         let result = mpl_token_metadata::accounts::MasterEdition::safe_deserialize(buf)?;
         Ok(Self(result))
     }
@@ -835,9 +835,9 @@ impl Deref for MasterEditionAccount {
     }
 }
 
-impl anchor_lang::AccountSerialize for MasterEditionAccount {}
+impl satellite_lang::AccountSerialize for MasterEditionAccount {}
 
-impl anchor_lang::Owner for MasterEditionAccount {
+impl satellite_lang::Owner for MasterEditionAccount {
     fn owner() -> Pubkey {
         ID
     }
@@ -849,8 +849,8 @@ pub struct TokenRecordAccount(mpl_token_metadata::accounts::TokenRecord);
 impl TokenRecordAccount {
     pub const LEN: usize = mpl_token_metadata::accounts::TokenRecord::LEN;
 }
-impl anchor_lang::AccountDeserialize for TokenRecordAccount {
-    fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+impl satellite_lang::AccountDeserialize for TokenRecordAccount {
+    fn try_deserialize(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         let tr = Self::try_deserialize_unchecked(buf)?;
         if tr.key != mpl_token_metadata::types::Key::TokenRecord {
             return Err(ErrorCode::AccountNotInitialized.into());
@@ -858,15 +858,15 @@ impl anchor_lang::AccountDeserialize for TokenRecordAccount {
         Ok(tr)
     }
 
-    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         let tr = mpl_token_metadata::accounts::TokenRecord::safe_deserialize(buf)?;
         Ok(Self(tr))
     }
 }
 
-impl anchor_lang::AccountSerialize for TokenRecordAccount {}
+impl satellite_lang::AccountSerialize for TokenRecordAccount {}
 
-impl anchor_lang::Owner for TokenRecordAccount {
+impl satellite_lang::Owner for TokenRecordAccount {
     fn owner() -> Pubkey {
         ID
     }
@@ -882,7 +882,7 @@ impl Deref for TokenRecordAccount {
 #[derive(Clone)]
 pub struct Metadata;
 
-impl anchor_lang::Id for Metadata {
+impl satellite_lang::Id for Metadata {
     fn id() -> Pubkey {
         ID
     }
