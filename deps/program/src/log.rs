@@ -102,22 +102,14 @@ pub fn sol_log(message: &str) {
 /// Print 64-bit values represented as hexadecimal to the log.
 #[inline]
 pub fn sol_log_64(arg1: u64, arg2: u64, arg3: u64, arg4: u64, arg5: u64) {
-    #[cfg(target_os = "solana")]
     unsafe {
         crate::syscalls::sol_log_64_(arg1, arg2, arg3, arg4, arg5);
     }
-    #[cfg(not(target_os = "solana"))]
-    crate::program_stubs::_sol_log_64_(arg1, arg2, arg3, arg4, arg5);
 }
 
 /// Print some slices as base64.
 pub fn sol_log_data(data: &[&[u8]]) {
-    #[cfg(target_os = "solana")]
-    unsafe {
-        crate::syscalls::sol_log_data(data as *const _ as *const u8, data.len() as u64);
-    }
-    #[cfg(not(target_os = "solana"))]
-    crate::program_stubs::_sol_log_data(data as *const _ as *const u8, data.len() as u64);
+    unsafe { crate::syscalls::sol_log_data(data as *const _ as *const u8, data.len() as u64) };
 }
 
 /// Print the hexadecimal representation of a slice.

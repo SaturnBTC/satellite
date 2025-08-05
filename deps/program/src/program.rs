@@ -241,10 +241,10 @@ pub const MAX_TRANSACTION_TO_SIGN: usize = 4 * 1024;
 ///
 /// # Returns
 /// * `ProgramResult` - Ok(()) if successful, or an error if the operation fails
-pub fn set_transaction_to_sign<'accounts, 'info, T>(
-    accounts: &'accounts mut [T],
-    tx: &'accounts Transaction,
-    inputs_to_sign: &'accounts [InputToSign],
+pub fn set_transaction_to_sign<'info, T>(
+    accounts: &[T],
+    tx: &Transaction,
+    inputs_to_sign: &[InputToSign],
 ) -> ProgramResult
 where
     T: AsRef<AccountInfo<'info>>,
@@ -274,7 +274,7 @@ where
 
             for input in inputs_to_sign {
                 if let Some(account) = accounts
-                    .iter_mut()
+                    .iter()
                     .find(|account| *account.as_ref().key == input.signer)
                 {
                     account
@@ -476,7 +476,7 @@ pub fn get_runes_from_output(txid: [u8; 32], output_index: u32) -> Option<Vec<Ru
     if size == 0 {
         None
     } else {
-        unsafe { result.set_size(min(size as usize, MAX_BTC_RUNE_OUTPUT_SIZE)) };
+        result.set_size(min(size as usize, MAX_BTC_RUNE_OUTPUT_SIZE));
         borsh::from_slice::<Vec<RuneAmount>>(result.as_slice()).ok()
     }
 }
@@ -574,4 +574,18 @@ pub fn get_clock() -> Clock {
     let _ = crate::program_stubs::arch_get_clock(&mut clock);
 
     clock
+}
+
+/// Gets the current stack height from the runtime.
+///
+/// # Returns
+/// * `u64` - The current stack height
+pub fn get_stack_height() -> u64 {
+    #[cfg(target_os = "solana")]
+    unsafe {
+        crate::syscalls::arch_get_stack_height()
+    }
+
+    #[cfg(not(target_os = "solana"))]
+    crate::program_stubs::arch_get_stack_height()
 }

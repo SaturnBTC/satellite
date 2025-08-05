@@ -60,7 +60,7 @@ pub const DEFAULT_SLASH_PENALTY: u8 = ((5 * std::u8::MAX as usize) / 100) as u8;
 //     };
 // }
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone, Copy, BorshDeserialize, BorshSerialize)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone, Copy)]
 #[allow(clippy::large_enum_variant)]
 pub enum StakeState {
     #[default]

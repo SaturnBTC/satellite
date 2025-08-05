@@ -388,7 +388,7 @@ pub fn generate_constraint_rent_exempt(
     match c {
         ConstraintRentExempt::Skip => quote! {},
         ConstraintRentExempt::Enforce => quote! {
-            if !satellite_lang::arch_program::rent::Rent::is_exempt(#info.lamports(), #info.try_data_len()? as u64) {
+            if !satellite_lang::arch_program::rent::is_exempt(#info.lamports(), #info.try_data_len()?) {
                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintRentExempt).with_account_name(#name_str));
             }
         },
@@ -420,7 +420,7 @@ fn generate_constraint_realloc(
         }
 
         let __field_info = #field.to_account_info();
-        let __new_rent_minimum = satellite_lang::arch_program::rent::Rent::minimum_balance(#new_space as u64);
+        let __new_rent_minimum = satellite_lang::arch_program::rent::minimum_rent(#new_space);
 
         let __delta_space = (::std::convert::TryInto::<isize>::try_into(#new_space).unwrap())
             .checked_sub(::std::convert::TryInto::try_into(__field_info.data_len()).unwrap())
@@ -1109,7 +1109,7 @@ fn generate_constraint_init_group(
                         }
 
                         {
-                            let required_lamports = satellite_lang::arch_program::rent::Rent::minimum_balance(space as u64);
+                            let required_lamports = satellite_lang::arch_program::rent::minimum_rent(space);
                             if pa.to_account_info().lamports() < required_lamports {
                                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintRentExempt).with_account_name(#name_str));
                             }
@@ -1631,7 +1631,7 @@ fn generate_create_account(
         if __current_lamports == 0 {
             // Create the token account with right amount of lamports and space, and the correct owner.
             let space = #space;
-            let lamports = satellite_lang::arch_program::rent::Rent::minimum_balance(space as u64);
+            let lamports = satellite_lang::arch_program::rent::minimum_rent(space);
             let cpi_accounts = satellite_lang::system_program::CreateAccount {
                 from: #payer.to_account_info(),
                 to: #field.to_account_info()
@@ -1641,7 +1641,7 @@ fn generate_create_account(
         } else {
             require_keys_neq!(#payer.key(), #field.key(), satellite_lang::error::ErrorCode::TryingToInitPayerAsProgramAccount);
             // Fund the account for rent exemption.
-            let required_lamports = satellite_lang::arch_program::rent::Rent::minimum_balance(#space as u64)
+            let required_lamports = satellite_lang::arch_program::rent::minimum_rent(#space)
                 .max(1)
                 .saturating_sub(__current_lamports);
             if required_lamports > 0 {

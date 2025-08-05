@@ -409,6 +409,9 @@ pub enum InstructionError {
 
     #[error("Account is not anchored")]
     AccountNotAnchored,
+
+    #[error("Not enough compute units")]
+    NotEnoughComputeUnits,
 }
 
 impl From<SystemError> for InstructionError {
@@ -460,6 +463,7 @@ impl From<u64> for InstructionError {
             READONLY_LAMPORT_CHANGE => Self::ReadonlyLamportChange,
             EXECUTABLE_LAMPORT_CHANGE => Self::ExecutableLamportChange,
             ACCOUNT_NOT_ANCHORED => Self::AccountNotAnchored,
+            NOT_ENOUGH_COMPUTE_UNITS => Self::NotEnoughComputeUnits,
             _ => {
                 // A valid custom error has no bits set in the upper 32
                 if value >> BUILTIN_BIT_SHIFT == 0 {

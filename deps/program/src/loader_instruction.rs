@@ -156,3 +156,27 @@ pub fn finalize(program_account: Pubkey, authority: Pubkey, next_version: Pubkey
         data: bincode::serialize(&LoaderInstruction::Finalize).unwrap(),
     }
 }
+
+pub fn is_write_instruction(instruction_data: &[u8]) -> bool {
+    !instruction_data.is_empty() && 0 == instruction_data[0]
+}
+
+pub fn is_truncate_instruction(instruction_data: &[u8]) -> bool {
+    !instruction_data.is_empty() && 1 == instruction_data[0]
+}
+
+pub fn is_deploy_instruction(instruction_data: &[u8]) -> bool {
+    !instruction_data.is_empty() && 2 == instruction_data[0]
+}
+
+pub fn is_retract_instruction(instruction_data: &[u8]) -> bool {
+    !instruction_data.is_empty() && 3 == instruction_data[0]
+}
+
+pub fn is_transfer_authority_instruction(instruction_data: &[u8]) -> bool {
+    !instruction_data.is_empty() && 4 == instruction_data[0]
+}
+
+pub fn is_finalize_instruction(instruction_data: &[u8]) -> bool {
+    !instruction_data.is_empty() && 5 == instruction_data[0]
+}

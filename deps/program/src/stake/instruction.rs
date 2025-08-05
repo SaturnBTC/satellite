@@ -145,7 +145,7 @@ pub enum StakeInstruction {
 pub fn initialize(stake_pubkey: &Pubkey, authorized: &Authorized) -> Instruction {
     Instruction::new_with_bincode(
         STAKE_PROGRAM_ID,
-        &StakeInstruction::Initialize(*authorized),
+        StakeInstruction::Initialize(*authorized),
         vec![
             AccountMeta::new(*stake_pubkey, false),
             // AccountMeta::new_readonly(sysvar::rent::STAKE_PROGRAM_ID, false),
@@ -256,7 +256,7 @@ pub fn authorize(
 
     Instruction::new_with_bincode(
         STAKE_PROGRAM_ID,
-        &StakeInstruction::Authorize(*new_authorized_pubkey, stake_authorize),
+        StakeInstruction::Authorize(*new_authorized_pubkey, stake_authorize),
         account_metas,
     )
 }
@@ -292,7 +292,7 @@ pub fn withdraw(
 
     Instruction::new_with_bincode(
         STAKE_PROGRAM_ID,
-        &StakeInstruction::Withdraw(lamports),
+        StakeInstruction::Withdraw(lamports),
         account_metas,
     )
 }

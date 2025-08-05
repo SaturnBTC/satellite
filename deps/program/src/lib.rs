@@ -29,6 +29,11 @@ use arch_program::instruction::Instruction;
 
 pub use bitcoin;
 
+// Re-export commonly used functions
+pub use program::{
+    get_bitcoin_block_height, get_clock, get_remaining_compute_units, get_stack_height,
+};
+
 /// Account management and ownership verification
 pub mod account;
 /// Atomic operations for u64 values
@@ -45,6 +50,8 @@ pub mod debug_account_data;
 pub mod decode_error;
 /// Program entrypoint definitions and processing
 pub mod entrypoint;
+/// Hash type for 32-byte cryptographic hashes
+pub mod hash;
 /// Helper functions for common operations
 pub mod helper;
 /// Bitcoin transaction input signing utilities
@@ -73,6 +80,7 @@ pub mod program_stubs;
 pub mod program_utils;
 /// Public key definitions and operations
 pub mod pubkey;
+pub mod rent;
 /// Sanitization trait and error types for validating over-the-wire messages
 pub mod sanitize;
 /// Sanitized transaction processing
@@ -99,14 +107,19 @@ extern crate serde_derive;
 /// Rune management
 pub mod rune;
 
-// Rent
-pub mod rent;
-
 /// Maximum size of a Bitcoin transaction in bytes
 pub const MAX_BTC_TX_SIZE: usize = 3976;
 
 /// Maximum size of a Bitcoin rune output in bytes
 pub const MAX_BTC_RUNE_OUTPUT_SIZE: usize = 2048;
+
+pub const MAX_SIGNERS: usize = 16;
+pub const MAX_SEEDS: usize = 16;
+pub const MAX_SEED_LEN: usize = 32;
+/// Max Taproot inputs to keep tx size ≤ 4096 bytes.
+/// Each input ≈ 161 bytes (base + witness).
+/// 4096 / 161 ≈ 25
+pub const MAX_BTC_TXN_INPUTS: usize = 25;
 
 pub mod builtin {
     use super::*;

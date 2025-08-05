@@ -41,6 +41,7 @@ pub const PUBKEY_BYTES: usize = 32;
     Decode,
 )]
 #[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
+
 pub struct Pubkey(pub [u8; 32]);
 
 impl Pubkey {
@@ -138,10 +139,7 @@ impl Pubkey {
     /// `true` if the pubkey is on the curve, `false` otherwise
     #[cfg(not(target_os = "solana"))]
     pub fn is_on_curve(pubkey: &[u8]) -> bool {
-        match bitcoin::secp256k1::PublicKey::from_slice(pubkey) {
-            Ok(_) => true,
-            Err(_) => false,
-        }
+        bitcoin::secp256k1::PublicKey::from_slice(pubkey).is_ok()
     }
 
     /// Finds a valid program address and bump seed for the given seeds and program ID.

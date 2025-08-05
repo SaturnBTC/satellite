@@ -6,6 +6,8 @@
 //! a specific Bitcoin UTXO.
 
 use bitcoin::hashes::Hash;
+use bytemuck::Pod;
+use bytemuck::Zeroable;
 #[cfg(feature = "fuzzing")]
 use libfuzzer_sys::arbitrary;
 
@@ -18,7 +20,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 /// This struct stores these values in a compact 36-byte array format:
 /// - First 32 bytes: transaction ID (txid)
 /// - Last 4 bytes: output index (vout) in little-endian format
-#[derive(Clone, Debug, PartialEq, Copy, Hash, Eq, Encode, Decode)]
+#[derive(Clone, Copy, Debug, PartialEq, Hash, Eq, Encode, Decode, Pod, Zeroable)]
 #[cfg_attr(feature = "fuzzing", derive(arbitrary::Arbitrary))]
 #[repr(C)]
 pub struct UtxoMeta([u8; 36]);
@@ -180,6 +182,7 @@ impl Default for UtxoMeta {
 
 #[test]
 fn test_outpoint() {
+    use std::str::FromStr;
     assert_eq!(
         OutPoint::new(
             Txid::from_str("c5cc9251192330191366016c8dab0f67dc345bd024a206c313dbf26db0a66bb1")
@@ -199,7 +202,6 @@ fn test_outpoint() {
 
 use core::fmt;
 use std::io::{Read, Result, Write};
-use std::str::FromStr;
 
 use bitcoin::OutPoint;
 use bitcoin::Txid;

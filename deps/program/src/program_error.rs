@@ -80,6 +80,8 @@ pub enum ProgramError {
     ExecutableLamportChange,
     #[error("Account is not anchored")]
     AccountNotAnchored,
+    #[error("Not enough compute units available to complete the instruction")]
+    NotEnoughComputeUnits,
 }
 
 pub trait PrintProgramError {
@@ -135,6 +137,7 @@ impl PrintProgramError for ProgramError {
             Self::ReadonlyLamportChange => msg!("Error: ReadonlyLamportChange"),
             Self::ExecutableLamportChange => msg!("Error: ExecutableLamportChange"),
             Self::AccountNotAnchored => msg!("Error: AccountNotAnchored"),
+            Self::NotEnoughComputeUnits => msg!("Error: NotEnoughComputeUnits"),
         }
     }
 }
@@ -178,6 +181,7 @@ pub const NEGATIVE_ACCOUNT_LAMPORTS: u64 = to_builtin!(28);
 pub const READONLY_LAMPORT_CHANGE: u64 = to_builtin!(29);
 pub const EXECUTABLE_LAMPORT_CHANGE: u64 = to_builtin!(30);
 pub const ACCOUNT_NOT_ANCHORED: u64 = to_builtin!(31);
+pub const NOT_ENOUGH_COMPUTE_UNITS: u64 = to_builtin!(32);
 // Warning: Any new program errors added here must also be:
 // - Added to the below conversions
 // - Added as an equivalent to InstructionError
@@ -221,6 +225,7 @@ impl From<ProgramError> for u64 {
             ProgramError::ReadonlyLamportChange => READONLY_LAMPORT_CHANGE,
             ProgramError::ExecutableLamportChange => EXECUTABLE_LAMPORT_CHANGE,
             ProgramError::AccountNotAnchored => ACCOUNT_NOT_ANCHORED,
+            ProgramError::NotEnoughComputeUnits => NOT_ENOUGH_COMPUTE_UNITS,
             ProgramError::Custom(error) => {
                 if error == 0 {
                     CUSTOM_ZERO
@@ -263,6 +268,7 @@ impl From<u64> for ProgramError {
             INCORRECT_AUTHORITY => Self::IncorrectAuthority,
             FROM_HEX_ERROR => Self::FromHexError,
             ACCOUNT_NOT_ANCHORED => Self::AccountNotAnchored,
+            NOT_ENOUGH_COMPUTE_UNITS => Self::NotEnoughComputeUnits,
             _ => Self::Custom(error as u32),
         }
     }

@@ -151,7 +151,7 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
                 IdlAccount::DISCRIMINATOR.len() + 32 + 4 + data_len as usize,
                 10_000
             );
-            let lamports = satellite_lang::arch_program::rent::Rent::minimum_balance(space as u64);
+            let lamports = satellite_lang::arch_program::rent::minimum_rent(space);
             let seeds = &[&[nonce][..]];
             let ix = satellite_lang::arch_program::system_instruction::create_account_with_seed(
                 from,
@@ -221,7 +221,7 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
             .unwrap();
 
             if new_account_space > idl_ref.data_len() {
-                let new_rent_minimum = satellite_lang::arch_program::rent::Rent::minimum_balance(new_account_space as u64);
+                let new_rent_minimum = satellite_lang::arch_program::rent::minimum_rent(new_account_space);
                 satellite_lang::system_program::transfer(
                     satellite_lang::context::CpiContext::new(
                         accounts.system_program.to_account_info(),

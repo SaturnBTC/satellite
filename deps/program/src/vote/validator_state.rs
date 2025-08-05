@@ -63,7 +63,7 @@ mod tests {
 
     #[test]
     fn test_validator_state_address_components() {
-        let (key, bump) = get_validator_state_account_pubkey_and_bump();
+        let (key, _bump) = get_validator_state_account_pubkey_and_bump();
 
         // Manually derive the PDA to verify components
         let (pda, bump) = Pubkey::find_program_address(&[b"validator-state"], &VOTE_PROGRAM_ID);

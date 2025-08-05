@@ -7,7 +7,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use libfuzzer_sys::arbitrary;
 use serde::{Deserialize, Serialize};
 
-pub const MIN_ACCOUNT_LAMPORTS: u64 = 1024;
+pub const MIN_ACCOUNT_LAMPORTS: u64 = 1_000_000;
 
 // This is the account id for the shared validator data account
 pub const SHARED_VALIDATOR_DATA_ACCOUNT_ID: [u8; 32] = [2; 32];
@@ -139,7 +139,7 @@ use crate::entrypoint::MAX_PERMITTED_DATA_INCREASE;
 use crate::debug_account_data::debug_account_data;
 use crate::program_error::ProgramError;
 
-impl<'a> fmt::Debug for AccountInfo<'a> {
+impl fmt::Debug for AccountInfo<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut f = f.debug_struct("AccountInfo");
 

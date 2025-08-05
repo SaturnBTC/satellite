@@ -213,34 +213,6 @@ pub fn create_account_with_anchor(
     )
 }
 
-pub fn create_account_with_seed(
-    from_pubkey: &Pubkey,
-    to_pubkey: &Pubkey,
-    base: &Pubkey,
-    _seed: &str,
-    lamports: u64,
-    space: u64,
-    owner: &Pubkey,
-) -> Instruction {
-    // For Arch, seeds are not required. We include `base` as a readonly account so that
-    // existing callers can continue to pass it but otherwise fall back to the standard
-    // `CreateAccount` variant.
-    let account_metas = vec![
-        AccountMeta::new(*from_pubkey, true),
-        AccountMeta::new(*to_pubkey, true),
-        AccountMeta::new_readonly(*base, false),
-    ];
-    Instruction::new_with_bincode(
-        SYSTEM_PROGRAM_ID,
-        &SystemInstruction::CreateAccount {
-            lamports,
-            space,
-            owner: *owner,
-        },
-        account_metas,
-    )
-}
-
 /// Assigns a new owner to an account.
 ///
 /// This instruction changes the owner of an account, which determines
@@ -287,6 +259,34 @@ pub fn anchor(pubkey: &Pubkey, txid: [u8; 32], vout: u32) -> Instruction {
     Instruction::new_with_bincode(
         SYSTEM_PROGRAM_ID,
         &SystemInstruction::Anchor { txid, vout },
+        account_metas,
+    )
+}
+
+pub fn create_account_with_seed(
+    from_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
+    base: &Pubkey,
+    _seed: &str,
+    lamports: u64,
+    space: u64,
+    owner: &Pubkey,
+) -> Instruction {
+    // For Arch, seeds are not required. We include `base` as a readonly account so that
+    // existing callers can continue to pass it but otherwise fall back to the standard
+    // `CreateAccount` variant.
+    let account_metas = vec![
+        AccountMeta::new(*from_pubkey, true),
+        AccountMeta::new(*to_pubkey, true),
+        AccountMeta::new_readonly(*base, false),
+    ];
+    Instruction::new_with_bincode(
+        SYSTEM_PROGRAM_ID,
+        &SystemInstruction::CreateAccount {
+            lamports,
+            space,
+            owner: *owner,
+        },
         account_metas,
     )
 }

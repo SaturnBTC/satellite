@@ -38,6 +38,24 @@ impl RuneId {
         result[8..12].copy_from_slice(&self.tx.to_le_bytes());
         result
     }
+
+    /// Deterministically sort the two `RuneId`s and return their little-endian
+    /// byte representations.
+    ///
+    /// This is the canonical way we ensure that the *same* pair of rune always
+    /// maps to the *same* PDA seeds, regardless of call-site ordering.
+    /// The function is `const`-friendly and completely stack-allocated so it can be
+    /// evaluated at compile-time in tests.
+    pub fn get_sorted_rune_ids(rune0: &RuneId, rune1: &RuneId) -> ([u8; 12], [u8; 12]) {
+        let rune0_bytes = rune0.to_bytes();
+        let rune1_bytes = rune1.to_bytes();
+
+        if rune0_bytes <= rune1_bytes {
+            (rune0_bytes, rune1_bytes)
+        } else {
+            (rune1_bytes, rune0_bytes)
+        }
+    }
 }
 
 impl BorshSerialize for RuneId {
@@ -103,7 +121,17 @@ impl<'de> Deserialize<'de> for RuneId {
 }
 
 #[derive(
-    Debug, Copy, Clone, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Pod, Zeroable,
+    Debug,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    Pod,
+    Zeroable,
 )]
 #[repr(C)]
 pub struct RuneAmount {
@@ -142,18 +170,6 @@ impl PartialOrd for RuneAmount {
     }
 }
 
-impl PartialEq<RuneId> for RuneAmount {
-    fn eq(&self, other: &RuneId) -> bool {
-        self.id == *other
-    }
-}
-
-impl PartialEq<RuneAmount> for RuneAmount {
-    fn eq(&self, other: &RuneAmount) -> bool {
-        self.id == other.id
-    }
-}
-
 fn serialize_u128<S>(num: &u128, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
@@ -167,4 +183,10 @@ where
 {
     let s = <String as serde::Deserialize>::deserialize(deserializer)?;
     s.parse::<u128>().map_err(serde::de::Error::custom)
+}
+
+impl PartialEq<RuneId> for RuneAmount {
+    fn eq(&self, other: &RuneId) -> bool {
+        self.id == *other
+    }
 }

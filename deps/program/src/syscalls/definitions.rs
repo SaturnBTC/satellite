@@ -43,4 +43,4 @@ define_syscall!(fn sol_memcpy_(dest: *mut u8, src: *const u8, len: u64) -> u64);
 define_syscall!(fn sol_memset_(dest: *mut u8, val: u8, len: u64) -> u64);
 define_syscall!(fn sol_memmove_(dest: *mut u8, src: *const u8, len: u64) -> u64);
 
-define_syscall!(fn sol_get_stack_height() -> u64);
+define_syscall!(fn arch_get_stack_height() -> u64);

@@ -326,7 +326,7 @@ mod tests {
             let key_meta_map = BTreeMap::from_iter(
                 (0..TOO_MANY_KEYS).map(|_| (Pubkey::new_unique(), key_flags.into())),
             );
-            let payer = key_meta_map.keys().next().unwrap().clone();
+            let payer = *key_meta_map.keys().next().unwrap();
             let test_keys = CompiledKeys {
                 key_meta_map,
                 payer: Some(payer),

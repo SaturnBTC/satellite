@@ -7,10 +7,7 @@ use std::{
     slice::{from_raw_parts, from_raw_parts_mut},
 };
 extern crate alloc;
-use crate::{
-    account::AccountInfo, log::sol_log_64, program_error::ProgramError, pubkey::Pubkey,
-    utxo::UtxoMeta,
-};
+use crate::{account::AccountInfo, program_error::ProgramError, pubkey::Pubkey, utxo::UtxoMeta};
 use alloc::vec::Vec;
 /// Start address of the memory region used for program heap.
 pub const HEAP_START_ADDRESS: u64 = 0x300000000;
@@ -53,11 +50,6 @@ unsafe impl std::alloc::GlobalAlloc for BumpAllocator {
     #[inline]
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let pos_ptr = self.start as *mut usize;
-
-        let cur_pos = *pos_ptr;
-        let cur_heap_used = self.start + self.len - cur_pos;
-
-        sol_log_64(layout.size() as u64, cur_heap_used as u64, 0, 0, 0);
 
         let mut pos = *pos_ptr;
         if pos == 0 {
@@ -186,19 +178,11 @@ macro_rules! entrypoint {
 #[macro_export]
 macro_rules! custom_heap_default {
     () => {
-        #[cfg(target_os = "solana")]
         #[global_allocator]
         static A: $crate::entrypoint::BumpAllocator = $crate::entrypoint::BumpAllocator {
             start: $crate::entrypoint::HEAP_START_ADDRESS as usize,
             len: $crate::entrypoint::HEAP_LENGTH,
         };
-
-        // For regular host builds (unit tests, trybuild, etc.) fall back to the system allocator
-        // to avoid dereferencing unmapped addresses like `0x300000000`, which leads to
-        // segmentation faults during tests.
-        #[cfg(not(target_os = "solana"))]
-        #[global_allocator]
-        static A: std::alloc::System = std::alloc::System;
     };
 }
 

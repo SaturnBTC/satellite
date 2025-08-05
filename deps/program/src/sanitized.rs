@@ -1,3 +1,4 @@
+use crate::hash::Hash;
 use crate::sanitize::{Sanitize, SanitizeError};
 use crate::{compiled_keys::CompiledKeys, instruction::Instruction, pubkey::Pubkey};
 use anyhow::{anyhow, Result};
@@ -98,6 +99,7 @@ impl SanitizedMessage {
     BorshSerialize,
     BorshDeserialize,
     Default,
+    Hash,
     Encode,
     Decode,
 )]
@@ -109,7 +111,7 @@ pub struct ArchMessage {
     /// List of all account public keys used in this message
     pub account_keys: Vec<Pubkey>,
     /// The id of a recent ledger entry.
-    pub recent_blockhash: String,
+    pub recent_blockhash: Hash,
     /// List of instructions to execute
     pub instructions: Vec<SanitizedInstruction>,
 }
@@ -135,14 +137,6 @@ impl Sanitize for ArchMessage {
         // there should be at least 1 RW fee-payer account.
         if self.header.num_readonly_signed_accounts >= self.header.num_required_signatures {
             return Err(SanitizeError::IndexOutOfBounds);
-        }
-
-        if let Ok(recent_blockhash) = hex::decode(&self.recent_blockhash) {
-            if recent_blockhash.len() != 32 {
-                return Err(SanitizeError::InvalidRecentBlockhash);
-            }
-        } else {
-            return Err(SanitizeError::InvalidRecentBlockhash);
         }
 
         for ci in &self.instructions {
@@ -228,14 +222,14 @@ impl ArchMessage {
         unique_keys
     }
 
-    pub fn get_recent_blockhash(&self) -> String {
-        self.recent_blockhash.clone()
+    pub fn get_recent_blockhash(&self) -> Hash {
+        self.recent_blockhash
     }
 
     pub fn new(
         instructions: &[Instruction],
         payer: Option<Pubkey>,
-        recent_blockhash: String,
+        recent_blockhash: Hash,
     ) -> Self {
         let compiled_keys = CompiledKeys::compile(instructions, payer);
         let (header, account_keys) = compiled_keys
@@ -257,7 +251,7 @@ impl ArchMessage {
         num_readonly_signed_accounts: u8,
         num_readonly_unsigned_accounts: u8,
         account_keys: Vec<Pubkey>,
-        recent_blockhash: String,
+        recent_blockhash: Hash,
         instructions: Vec<SanitizedInstruction>,
     ) -> Self {
         Self {
@@ -289,7 +283,7 @@ impl ArchMessage {
         }
 
         // Serialize recent_blockhash
-        buffer.extend_from_slice(&hex::decode(&self.recent_blockhash).unwrap());
+        buffer.extend_from_slice(&self.recent_blockhash.to_array());
 
         // Serialize instructions
         buffer.extend_from_slice(&(self.instructions.len() as u32).to_le_bytes());
@@ -355,7 +349,8 @@ impl ArchMessage {
                 "Invalid message length: insufficient bytes for recent blockhash"
             ));
         }
-        let recent_blockhash = hex::encode(&bytes[pos..pos + 32]);
+        let recent_blockhash_bytes: [u8; 32] = bytes[pos..pos + 32].try_into().unwrap();
+        let recent_blockhash = Hash::from(recent_blockhash_bytes);
         pos += 32;
 
         // Deserialize instructions
@@ -451,6 +446,7 @@ fn compile_instructions(ixs: &[Instruction], keys: &[Pubkey]) -> Vec<SanitizedIn
     Deserialize,
     BorshSerialize,
     BorshDeserialize,
+    Hash,
     Encode,
     Decode,
 )]
@@ -478,6 +474,7 @@ pub struct SanitizedInstruction {
     BorshSerialize,
     BorshDeserialize,
     Default,
+    Hash,
     Encode,
     Decode,
 )]
@@ -516,7 +513,7 @@ impl SanitizedInstruction {
     }
 
     pub fn deserialize(bytes: &[u8]) -> Result<(Self, usize)> {
-        if bytes.len() < 1 {
+        if bytes.is_empty() {
             return Err(anyhow!("Invalid instruction length: empty buffer"));
         }
 
@@ -604,7 +601,7 @@ mod tests {
         };
 
         // Create ArchMessage from instructions
-        let message = ArchMessage::new(&[instruction_1, instruction_2], None, hex::encode([0; 32]));
+        let message = ArchMessage::new(&[instruction_1, instruction_2], None, Hash::from([0; 32]));
 
         // Print message details
         println!("Message Header:");
@@ -685,7 +682,7 @@ mod tests {
         let original_message = ArchMessage {
             header,
             account_keys,
-            recent_blockhash: hex::encode([0; 32]),
+            recent_blockhash: Hash::from([0; 32]),
             instructions: vec![instruction1, instruction2],
         };
 
@@ -848,7 +845,7 @@ mod tests {
         let message = ArchMessage {
             header,
             account_keys: account_keys.clone(),
-            recent_blockhash: hex::encode([0; 32]),
+            recent_blockhash: Hash::from([0; 32]),
             instructions: vec![instruction],
         };
 
@@ -933,7 +930,7 @@ mod tests {
         let message = ArchMessage {
             header,
             account_keys,
-            recent_blockhash: hex::encode([0; 32]),
+            recent_blockhash: Hash::from([0; 32]),
             instructions: vec![],
         };
 
@@ -1007,7 +1004,7 @@ mod tests {
         let message = ArchMessage {
             header,
             account_keys: account_keys.clone(),
-            recent_blockhash: hex::encode([0; 32]),
+            recent_blockhash: Hash::from([0; 32]),
             instructions: vec![instruction1, instruction2],
         };
 
@@ -1042,7 +1039,7 @@ mod sanitize_tests {
                 Pubkey::new_unique(), // writable non-signer
                 Pubkey::new_unique(), // readonly non-signer
             ],
-            recent_blockhash: hex::encode([0; 32]),
+            recent_blockhash: Hash::from([0; 32]),
             instructions: vec![SanitizedInstruction {
                 program_id_index: 2,
                 accounts: vec![0, 1, 3, 4],
@@ -1120,7 +1117,7 @@ mod sanitize_tests {
                 Pubkey::new_unique(), // readonly non-signer
                 Pubkey::new_unique(), // readonly non-signer
             ],
-            recent_blockhash: hex::encode([0; 32]),
+            recent_blockhash: Hash::from([0; 32]),
             instructions: vec![
                 SanitizedInstruction {
                     program_id_index: 3,
@@ -1153,7 +1150,7 @@ mod sanitize_tests {
                 Pubkey::new_unique(), // writable non-signer
                 Pubkey::new_unique(), // readonly non-signer
             ],
-            recent_blockhash: hex::encode([0; 32]),
+            recent_blockhash: Hash::from([0; 32]),
             instructions: vec![SanitizedInstruction {
                 program_id_index: 2,
                 accounts: vec![0, 1, 3, 3],
@@ -1180,7 +1177,7 @@ mod sanitize_tests {
                 malicious,
                 malicious,
             ],
-            recent_blockhash: hex::encode([0; 32]),
+            recent_blockhash: Hash::from([0; 32]),
             instructions: vec![SanitizedInstruction {
                 program_id_index: 2,
                 accounts: vec![0, 1, 3, 4],
