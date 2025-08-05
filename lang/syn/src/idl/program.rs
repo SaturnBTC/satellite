@@ -134,7 +134,7 @@ pub fn gen_idl_print_fn_program(program: &Program) -> TokenStream {
                 docs: #docs,
                 instructions: vec![#(#instructions),*],
                 accounts: accounts.into_values().collect(),
-                events: Default::default(),
+                // events: Default::default(),
                 errors: Default::default(),
                 types: types.into_values().collect(),
                 constants: Default::default(),

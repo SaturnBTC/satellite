@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 
-use satellite_lang::prelude::borsh::io::Write;
-use satellite_lang::prelude::*;
 use arch_program::pubkey::Pubkey;
 use borsh::{BorshDeserialize, BorshSerialize};
+use satellite_lang::prelude::borsh::io::Write;
+use satellite_lang::prelude::*;
 
 // Needed to declare accounts.
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");

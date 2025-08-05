@@ -347,14 +347,14 @@ mod legacy {
         }
     }
 
-    impl From<IdlEvent> for t::IdlEvent {
-        fn from(value: IdlEvent) -> Self {
-            Self {
-                discriminator: get_disc("event", &value.name),
-                name: value.name,
-            }
-        }
-    }
+    // impl From<IdlEvent> for t::IdlEvent {
+    //     fn from(value: IdlEvent) -> Self {
+    //         Self {
+    //             discriminator: get_disc("event", &value.name),
+    //             name: value.name,
+    //         }
+    //     }
+    // }
 
     impl From<IdlErrorCode> for t::IdlErrorCode {
         fn from(value: IdlErrorCode) -> Self {

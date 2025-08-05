@@ -138,11 +138,11 @@ pub struct IdlAccount {
     pub discriminator: IdlDiscriminator,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct IdlEvent {
-    pub name: String,
-    pub discriminator: IdlDiscriminator,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+// pub struct IdlEvent {
+//     pub name: String,
+//     pub discriminator: IdlDiscriminator,
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IdlConst {

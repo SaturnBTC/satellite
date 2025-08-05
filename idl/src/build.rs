@@ -9,7 +9,7 @@ use anyhow::{anyhow, Result};
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::types::{Idl, IdlEvent, IdlTypeDef};
+use crate::types::{Idl, /*IdlEvent,*/ IdlTypeDef};
 
 /// A trait that types must implement in order to include the type in the IDL definition.
 ///
