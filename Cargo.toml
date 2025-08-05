@@ -17,7 +17,7 @@ members = [
     "lang/derive/*",
     "lang/syn",
     "bitcoin",
-    "tests/btc_tx",
+    "shard_set",
 ]
 exclude = [
     "tests/swap/deps/openbook-dex",

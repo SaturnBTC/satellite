@@ -1,6 +1,3 @@
-use crate::generic::fixed_set::{FixedSet, FixedSetError};
-use bytemuck::{Pod, Zeroable};
-
 #[macro_export]
 macro_rules! declare_fixed_set {
     ($Name:ident, $T:ty, $SIZE:expr) => {
@@ -271,7 +268,7 @@ macro_rules! declare_fixed_set {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::generic::fixed_set::FixedSetError;
 
     // Use a primitive type (u32) to avoid external dependencies.
     declare_fixed_set!(TestFixedSet2, u32, 2);

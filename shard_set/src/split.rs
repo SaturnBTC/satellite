@@ -40,6 +40,8 @@
 //! All algorithms are `no_std`-compatible and rely on the fixed-size
 //! collections from `satellite_bitcoin`, keeping worst-case memory usage
 //! bounded at compile time.
+use std::cell::Ref;
+
 use arch_program::{
     rune::{RuneAmount, RuneId},
     utxo::UtxoMeta,
@@ -52,79 +54,92 @@ use satellite_bitcoin::{
 };
 use satellite_bitcoin::{safe_add, safe_div, safe_mul, safe_sub, MathError};
 
-use super::{
-    shard_set::{Selected, ShardSet},
-    StateShard,
-};
+use super::error::StateShardError;
+use super::StateShard;
 
-#[cfg(feature = "runes")]
-use crate::StateShardError;
 #[cfg(feature = "runes")]
 use ordinals::Edict;
 
 use satellite_lang::prelude::Owner;
 use satellite_lang::ZeroCopy;
 
-/// Splits the *remaining* satoshi value that belongs to the provided `shards`
+/// Redistributes the *remaining* satoshi value belonging to the provided shards
 /// back into brand-new outputs (one per **retained allocation** after
-/// dust-limit filtering) so that liquidity across all participating shards
-/// ends up as even as possible.
+/// dust-limit filtering) to achieve optimal liquidity balance across all
+/// participating shards.
 ///
-/// The function performs the following high-level steps:
-/// 1. Determine how many satoshis are still owned by the shards **after** the
-///    caller has already removed some liquidity (`removed_from_shards`) and
-///    the program has paid its share of fees.
-/// 2. Ask [`plan_btc_distribution_among_shards`] to derive an
-///    optimal per-shard allocation for that remaining amount.
-/// 3. Append one [`TxOut`] to the underlying transaction for every computed
-///    allocation, using `program_script_pubkey` to lock those outputs back to
-///    the program.
+/// This function performs the complete BTC redistribution workflow:
+/// 1. **Calculate remaining value**: Determines how many satoshis are still owned
+///    by the shards **after** the caller has removed some liquidity
+///    (`removed_from_shards`) and the program has paid transaction fees.
+/// 2. **Plan optimal distribution**: Uses [`plan_btc_distribution_among_shards`]
+///    to derive an as-even-as-possible per-shard allocation that respects the
+///    Bitcoin dust limit.
+/// 3. **Create transaction outputs**: Appends one [`TxOut`] to the underlying
+///    transaction for every computed allocation, using `program_script_pubkey`
+///    to lock those outputs back to the program.
 ///
-/// The returned vector contains **one element for each output actually
-/// created** (after dust filtering) and is **sorted in descending order by
-/// amount (largest first)**.  When allocations below the dust limit are
-/// removed, the length of the vector—and therefore the number of newly
-/// created change outputs—can be **smaller than the number of selected
-/// shards**.  Since the order no longer corresponds to the indices returned by
+/// # Output Ordering and Filtering
+///
+/// The returned vector contains **one element for each output actually created**
+/// after dust filtering and is **sorted in descending order by amount (largest
+/// first)** for deterministic behavior. When allocations below the dust limit
+/// are removed, the length of the vector—and therefore the number of newly
+/// created change outputs—can be **smaller than the number of selected shards**.
+///
+/// Since the order no longer corresponds to the indices returned by
 /// [`ShardSet::selected_indices`], callers that need to map values back to
 /// specific shards must perform that mapping explicitly.
 ///
 /// # Type Parameters
-/// * `MAX_USER_UTXOS` – Maximum amount of user-supplied UTXOs supported by
+/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs supported by
 ///   the [`TransactionBuilder`].
 /// * `MAX_SHARDS_PER_PROGRAM` – Compile-time bound on the number of shards in a
 ///   single program instance.
+/// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
+/// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
+/// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
 ///
 /// # Parameters
-/// * `tx_builder` – Mutable reference to the transaction that is currently
-///   being assembled.
-/// * `shard_set` – The [`ShardSet`] in its *Selected* state; only these shards
-///   participate in the redistribution.
+/// * `tx_builder` – Mutable reference to the transaction currently being assembled.
+/// * `selected_shards` – Slice of mutable shard references in the *Selected* state;
+///   only these shards participate in the redistribution.
 /// * `removed_from_shards` – Total satoshis that the caller already withdrew
 ///   from the selected shards during the current instruction.
 /// * `program_script_pubkey` – Script that will lock the change outputs
 ///   produced by this function (usually the program's own script).
-/// * `fee_rate` – Fee rate used to calculate how many sats were paid by the
-///   program so far.
+/// * `fee_rate` – Fee rate used to calculate how many satoshis were paid by the
+///   program for transaction fees.
+///
+/// # Returns
+/// A vector of `u128` values representing the satoshi amounts for each created
+/// output, sorted in descending order. The sum of all values equals the total
+/// redistributed amount.
 ///
 /// # Errors
-/// Propagates [`MathError`] if any of the safe-math operations overflows or
-/// underflows.
+/// * [`MathError`] – If any safe-math operation overflows or underflows during
+///   amount calculations or distribution planning.
+///
+/// # Example Scenarios
+/// * **Equal distribution**: If 3 shards each have 1000 sats and 3000 sats need
+///   redistribution, each gets 1000 sats.
+/// * **Dust filtering**: If redistribution would create outputs below the dust
+///   limit, those amounts are consolidated into larger outputs.
+/// * **Uneven remainders**: Extra satoshis from modulo operations are distributed
+///   evenly with preference given to earlier outputs.
 #[allow(clippy::too_many_arguments)]
 pub fn redistribute_remaining_btc_to_shards<
-    'slice,
     'info,
     const MAX_USER_UTXOS: usize,
     const MAX_SHARDS_PER_PROGRAM: usize,
     RS,
     U,
     S,
-    const MAX_SELECTED: usize,
 >(
     tx_builder: &mut TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
-    shard_set: &mut ShardSet<'slice, 'info, S, MAX_SELECTED, Selected>,
+    selected_shards: &[Ref<'info, S>],
     removed_from_shards: u64,
-    program_script_pubkey: ScriptBuf,
+    program_script_pubkey: &ScriptBuf,
     fee_rate: &FeeRate,
 ) -> Result<Vec<u128>, MathError>
 where
@@ -132,11 +147,15 @@ where
     U: UtxoInfoTrait<RS>,
     S: StateShard<U, RS> + ZeroCopy + Owner,
 {
-    let remaining_amount =
-        compute_unsettled_btc_in_shards(tx_builder, shard_set, removed_from_shards, fee_rate)?;
+    let remaining_amount = compute_unsettled_btc_in_shards(
+        tx_builder,
+        selected_shards,
+        removed_from_shards,
+        fee_rate,
+    )?;
 
     let mut distribution =
-        plan_btc_distribution_among_shards(tx_builder, shard_set, remaining_amount as u128)?;
+        plan_btc_distribution_among_shards(tx_builder, selected_shards, remaining_amount as u128)?;
 
     // Largest first for deterministic ordering.
     distribution.sort_by(|a, b| b.cmp(a));
@@ -151,33 +170,67 @@ where
     Ok(distribution)
 }
 
-/// Calculates how many satoshis are *still* owned by the selected shards after
-/// accounting for
-/// * funds that were already removed (`removed_from_shards`), and
-/// * fees that were paid by the program up to this point.
+/// Calculates the total satoshis still owned by the selected shards after
+/// accounting for already-removed funds and program-paid transaction fees.
 ///
-/// The helper iterates over every input that comes from a shard-managed UTXO
-/// and sums their values. Any "consolidation" UTXOs that were injected by the
-/// program itself via `TransactionBuilder::total_btc_consolidation_input` are
-/// also taken into consideration.
+/// This function performs a comprehensive audit of shard-managed UTXOs to
+/// determine how much value needs to be redistributed back to the shards.
+/// It considers:
+/// * **Shard-owned inputs**: All UTXOs from selected shards that appear as
+///   transaction inputs are counted toward the total.
+/// * **Consolidation inputs**: When the `utxo-consolidation` feature is enabled,
+///   additional UTXOs injected by the program via
+///   `TransactionBuilder::total_btc_consolidation_input` are included.
+/// * **Already removed funds**: Subtracts `removed_from_shards` that the caller
+///   has already withdrawn during the current instruction.
+/// * **Program fees**: Subtracts fees paid by the program (calculated when
+///   `utxo-consolidation` feature is active).
 ///
-/// The resulting value represents the amount that still needs to be sent back
-/// to the shards so that no satoshis are lost.
+/// The algorithm builds a deduplicated set of all transaction input metas, then
+/// iterates through each selected shard exactly once to sum the values of any
+/// UTXOs that match those metas.
+///
+/// # Type Parameters
+/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
+/// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
+/// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
+///
+/// # Parameters
+/// * `tx_builder` – Reference to the transaction builder containing the current
+///   transaction state and input UTXOs.
+/// * `selected_shards` – Slice of mutable references to the shards participating
+///   in redistribution.
+/// * `removed_from_shards` – Total satoshis already withdrawn from the selected
+///   shards during the current instruction.
+/// * `fee_rate` – Fee rate used to calculate program-paid transaction fees.
+///
+/// # Returns
+/// The number of satoshis that still need to be redistributed back to the shards
+/// to prevent value loss.
 ///
 /// # Errors
-/// Propagates [`MathError`] on arithmetic overflow.
+/// * [`MathError::Overflow`] – If the sum of shard UTXO values exceeds `u64::MAX`.
+/// * [`MathError::Underflow`] – If `removed_from_shards` or fees exceed the
+///   total shard value (indicating an inconsistent state).
+///
+/// # Implementation Notes
+/// * Duplicate UTXO metas across different shards are only counted once.
+/// * The function uses saturating addition for individual UTXO sums to prevent
+///   panics, then applies safe math for final calculations.
+/// * Feature-gated consolidation logic is conditionally compiled based on the
+///   `utxo-consolidation` feature flag.
 pub fn compute_unsettled_btc_in_shards<
-    'slice,
     'info,
     const MAX_USER_UTXOS: usize,
     const MAX_SHARDS_PER_PROGRAM: usize,
     RS,
     U,
     S,
-    const MAX_SELECTED: usize,
 >(
     tx_builder: &TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
-    shard_set: &ShardSet<'slice, 'info, S, MAX_SELECTED, Selected>,
+    selected_shards: &[Ref<'info, S>],
     removed_from_shards: u64,
     fee_rate: &FeeRate,
 ) -> Result<u64, MathError>
@@ -204,27 +257,17 @@ where
     // ---------------------------------------------------------------------
     let mut total_btc_amount: u64 = 0;
 
-    for &idx in shard_set.selected_indices() {
-        let handle = shard_set.handle_by_index(idx);
-        let shard_sum = match handle.with_ref(|shard| {
-            let mut sum: u64 = 0;
-            for utxo in shard.btc_utxos().iter() {
-                if spent_metas.contains(utxo.meta()) {
-                    sum = sum.saturating_add(utxo.value());
-                }
+    for shard in selected_shards.iter() {
+        let mut sum: u64 = 0;
+        for utxo in shard.btc_utxos().iter() {
+            if spent_metas.contains(utxo.meta()) {
+                sum = sum.saturating_add(utxo.value());
             }
-            sum
-        }) {
-            Ok(v) => v,
-            Err(_) => return Err(MathError::ConversionError),
-        };
+        }
 
-        total_btc_amount = safe_add(total_btc_amount, shard_sum)?;
+        total_btc_amount = safe_add(total_btc_amount, sum)?;
     }
 
-    // ---------------------------------------------------------------------
-    // 3. Mirror legacy logic for consolidation & fee bookkeeping.
-    // ---------------------------------------------------------------------
     let fee_paid_by_program = {
         #[cfg(feature = "utxo-consolidation")]
         {
@@ -258,20 +301,55 @@ where
     Ok(remaining_amount)
 }
 
-/// Splits `amount` satoshis across the selected shards as evenly as possible
-/// while respecting the dust limit.
+/// Plans an optimal BTC distribution across selected shards while respecting
+/// the Bitcoin dust limit and ensuring no value is lost.
+///
+/// This internal helper function splits the given `amount` of satoshis across
+/// the provided shards as evenly as possible, then applies dust limit filtering
+/// to ensure all outputs meet Bitcoin's minimum value requirements.
+///
+/// The function delegates the core balancing logic to [`balance_amount_across_shards`]
+/// and then applies [`redistribute_sub_dust_values`] to handle allocations below
+/// the dust threshold.
+///
+/// # Type Parameters
+/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
+/// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
+/// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
+///
+/// # Parameters
+/// * `tx_builder` – Reference to the transaction builder for context.
+/// * `selected_shards` – Slice of selected shards to distribute value among.
+/// * `amount` – Total satoshis to distribute across the shards.
+///
+/// # Returns
+/// A vector of `u128` values representing the final allocation per output after
+/// dust filtering. The vector may be shorter than the number of input shards if
+/// some allocations were below the dust limit and consolidated.
+///
+/// # Errors
+/// * [`MathError`] – If any arithmetic operation overflows or underflows during
+///   the distribution calculation or dust redistribution process.
+///
+/// # Dust Handling
+/// Allocations below [`DUST_LIMIT`] are automatically:
+/// 1. Removed from the output vector
+/// 2. Aggregated into a single sum
+/// 3. Redistributed evenly among the remaining valid allocations
+/// 4. If no allocations remain above dust but the total exceeds dust, a single
+///    output containing the full amount is created
 fn plan_btc_distribution_among_shards<
-    'slice,
     'info,
     const MAX_USER_UTXOS: usize,
     const MAX_SHARDS_PER_PROGRAM: usize,
     RS,
     U,
     S,
-    const MAX_SELECTED: usize,
 >(
     tx_builder: &TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
-    shard_set: &ShardSet<'slice, 'info, S, MAX_SELECTED, Selected>,
+    selected_shards: &[Ref<'info, S>],
     amount: u128,
 ) -> Result<Vec<u128>, MathError>
 where
@@ -279,16 +357,9 @@ where
     U: UtxoInfoTrait<RS>,
     S: StateShard<U, RS> + ZeroCopy + Owner,
 {
-    let mut result = balance_amount_across_shards::<
-        MAX_USER_UTXOS,
-        MAX_SHARDS_PER_PROGRAM,
-        RS,
-        U,
-        S,
-        MAX_SELECTED,
-    >(
+    let mut result = balance_amount_across_shards(
         tx_builder,
-        shard_set,
+        selected_shards,
         &RuneAmount {
             id: RuneId::BTC,
             amount,
@@ -299,47 +370,71 @@ where
     Ok(result)
 }
 
-/// Computes an as-balanced-as-possible allocation of `amount` across the
-/// provided `shard_indexes` **without** mutating either the shards themselves
-/// or the underlying [`TransactionBuilder`].
+/// Computes an optimal balanced allocation of the specified amount across the
+/// provided shards without mutating any state.
 ///
-/// The returned vector can subsequently be used by the caller to create
-/// change outputs, edicts, or to update in-memory shard state—whatever is
-/// appropriate in the higher-level context.  However, **nothing** is changed
-/// inside this helper; it is purely a *calculator*.
+/// This pure calculation function implements a sophisticated balancing algorithm
+/// that aims to equalize holdings across all selected shards after the
+/// redistribution is complete. The algorithm considers existing balances and
+/// attempts to achieve equal per-shard totals when possible.
 ///
-/// Algorithm overview:
-/// 1. Work out the current liquidity (BTC or Rune, depending on
-///    `update_by`) for each shard **excluding** any UTXOs that are already
-///    being spent in `transaction_builder`.
-/// 2. Derive the `desired_per_shard` value that would make every shard hold an
-///    equal share *after* `amount` has been redistributed.
-/// 3. If the available `amount` can fully satisfy those needs, assign the
-///    leftovers evenly (with modulo-remainder handling). Otherwise fall back
-///    to a proportional distribution so that the sum of all assignments still
-///    equals the original `amount`.
+/// # Algorithm Overview
+/// 1. **Current balance calculation**: Determines existing liquidity (BTC or Rune)
+///    for each shard, excluding any UTXOs already being spent in the transaction.
+/// 2. **Target balance derivation**: Calculates the ideal per-shard value that
+///    would result in perfect equality after redistribution.
+/// 3. **Need-based allocation**: If sufficient funds are available, each shard
+///    receives exactly what it needs to reach the target balance, with any
+///    leftover distributed evenly.
+/// 4. **Proportional fallback**: If insufficient funds exist for perfect balance,
+///    the available amount is distributed proportionally based on each shard's
+///    individual need.
 ///
-/// Invariants:
-/// * The length of the returned `Vec` equals
-///   `shard_set.selected_indices().len()` and its i-th entry refers to the i-th
-///   selected shard (order preserved).
-/// * The sum of all entries equals `amount` (modulo rounding for proportional
-///   splits that involves integer division).
+/// # Type Parameters
+/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
+/// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
+/// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
+///
+/// # Parameters
+/// * `tx_builder` – Reference to the transaction builder to check which UTXOs
+///   are already being spent.
+/// * `selected_shards` – Slice of selected shards to balance the amount across.
+/// * `rune_amount` – The amount to distribute, specified as a [`RuneAmount`] where
+///   `RuneId::BTC` indicates Bitcoin satoshis and other IDs indicate Rune tokens.
+///
+/// # Returns
+/// A vector where the i-th element represents the allocation for the i-th
+/// selected shard. The vector length always equals `selected_shards.len()` and
+/// the sum of all entries equals `rune_amount.amount` (modulo rounding in
+/// proportional scenarios).
 ///
 /// # Errors
-/// Propagates [`MathError`] if any safe-math operation overflows or underflows.
+/// * [`MathError::Overflow`] – If intermediate calculations exceed numeric limits.
+/// * [`MathError::Underflow`] – If subtraction operations go below zero.
+/// * [`MathError::DivisionOverflow`] – If division by zero occurs (e.g., empty shard list).
+///
+/// # Invariants
+/// * **Length preservation**: Output vector length always equals input shard count.
+/// * **Value conservation**: Sum of allocations equals input amount (within rounding).
+/// * **Non-negativity**: All allocation values are non-negative.
+///
+/// # Example
+/// Given shards with balances [100, 200, 300] and 150 to distribute:
+/// - Target per-shard: (100+200+300+150)/3 = 250
+/// - Needs: [150, 50, 0] (to reach 250 each)
+/// - Result: [150, 0, 0] (insufficient funds for full balancing)
 fn balance_amount_across_shards<
-    'slice,
     'info,
     const MAX_USER_UTXOS: usize,
     const MAX_SHARDS_PER_PROGRAM: usize,
     RS,
     U,
     S,
-    const MAX_SELECTED: usize,
 >(
     tx_builder: &TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
-    shard_set: &ShardSet<'slice, 'info, S, MAX_SELECTED, Selected>,
+    selected_shards: &[Ref<'info, S>],
     rune_amount: &RuneAmount,
 ) -> Result<Vec<u128>, MathError>
 where
@@ -347,7 +442,7 @@ where
     U: UtxoInfoTrait<RS>,
     S: StateShard<U, RS> + ZeroCopy + Owner,
 {
-    let num_shards = shard_set.selected_indices().len();
+    let num_shards = selected_shards.len();
 
     // Allocate result vectors on the stack.
     let mut assigned_amounts: Vec<u128> = Vec::with_capacity(num_shards);
@@ -364,10 +459,8 @@ where
     }
 
     // 1. Determine the current amount per shard and overall.
-    for &idx in shard_set.selected_indices() {
-        let handle = shard_set.handle_by_index(idx);
-
-        let current_res = handle.with_ref(|shard| match rune_amount.id {
+    for shard in selected_shards.iter() {
+        let current_res = match rune_amount.id {
             RuneId::BTC => shard
                 .btc_utxos()
                 .iter()
@@ -392,11 +485,10 @@ where
                     0
                 }
             }
-        });
+        };
 
-        let current = current_res.unwrap_or(0);
-        assigned_amounts.push(current);
-        total_current_amount = safe_add(total_current_amount, current)?;
+        assigned_amounts.push(current_res);
+        total_current_amount = safe_add(total_current_amount, current_res)?;
     }
 
     // Determine target per-shard balance.
@@ -445,13 +537,48 @@ where
     Ok(assigned_amounts)
 }
 
-/// Reallocates amounts smaller than the dust limit to the remaining amounts.
+/// Redistributes amounts below the dust limit to prevent value loss and ensure
+/// all outputs meet Bitcoin's minimum value requirements.
 ///
-/// This function is used to ensure that the amounts are evenly distributed
-/// across the shards.
+/// This function implements a dust consolidation algorithm that:
+/// 1. **Aggregates sub-dust amounts**: Sums all allocations below `dust_limit`
+/// 2. **Removes dust entries**: Filters out sub-dust allocations from the vector
+/// 3. **Redistributes dust value**: Distributes the aggregated dust evenly among
+///    remaining valid allocations
+/// 4. **Handles edge cases**: Creates a single output if only dust exists but
+///    the total exceeds the limit
 ///
-/// # Errors
-/// Returns [MathError] when the math operations fail.
+/// The redistribution ensures that no satoshis are lost while maintaining
+/// compliance with Bitcoin's dust limit rules. If the total of all sub-dust
+/// amounts is itself above the dust limit, it forms a single consolidated output.
+///
+/// # Parameters
+/// * `amounts` – Mutable vector of allocation amounts to process. Modified in-place.
+/// * `dust_limit` – Minimum value threshold below which outputs are considered dust.
+///
+/// # Returns
+/// * `Ok(())` – If redistribution completed successfully
+/// * `Err(MathError)` – If arithmetic operations overflow during redistribution
+///
+/// # Algorithm Details
+/// For remaining amounts after dust removal:
+/// - Each gets `floor(dust_sum / remaining_count)` additional value
+/// - Remainder from integer division is distributed one unit at a time to
+///   the first `remainder` outputs
+///
+/// # Examples
+/// ```text
+/// Input: [1000, 200, 300, 2000], dust_limit: 546
+/// Sub-dust: 200 + 300 = 500
+/// Remaining: [1000, 2000]
+/// Final: [1250, 2250] (500 distributed evenly)
+/// ```
+///
+/// ```text
+/// Input: [200, 300, 100], dust_limit: 546  
+/// Sub-dust: 600 (>= dust_limit)
+/// Final: [600] (single consolidated output)
+/// ```
 fn redistribute_sub_dust_values(
     amounts: &mut Vec<u128>,
     dust_limit: u128,
@@ -488,16 +615,44 @@ fn redistribute_sub_dust_values(
     Ok(())
 }
 
-/// Same as [`compute_unsettled_btc_in_shards`] but for Rune tokens.
-/// It sums up the token amount inside the `rune_utxo` of every participating
-/// shard, subtracts whatever has already been removed, and returns the number
-/// of tokens that still have to be redistributed.
+/// Calculates the total Rune token amount still owned by selected shards after
+/// accounting for tokens that have already been removed.
+///
+/// This function performs a comprehensive audit of Rune holdings across all
+/// selected shards, similar to [`compute_unsettled_btc_in_shards`] but for
+/// Rune tokens. It aggregates all Rune amounts from each shard's `rune_utxo`
+/// and subtracts any tokens specified in `removed_from_shards`.
+///
+/// # Type Parameters
+/// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
+/// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
+/// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
+///
+/// # Parameters
+/// * `selected_shards` – Slice of selected shards to audit for Rune holdings.
+/// * `removed_from_shards` – Rune amounts already withdrawn from the shards
+///   during the current instruction.
+///
+/// # Returns
+/// A [`FixedCapacitySet`] containing the net Rune amounts that still need to be
+/// redistributed back to the shards. Each [`RuneAmount`] in the set represents
+/// a different Rune ID and its corresponding quantity.
 ///
 /// # Errors
-/// Returns [`StateShardError`] if an arithmetic operation overflows.
+/// * [`StateShardError::RuneAmountAdditionOverflow`] – If aggregating Rune amounts
+///   of the same ID exceeds the maximum value.
+/// * [`StateShardError::RemovingMoreRunesThanPresentInShards`] – If
+///   `removed_from_shards` contains more tokens of a specific ID than the shards
+///   actually hold, indicating an inconsistent state.
+///
+/// # Implementation Details
+/// * Iterates through each shard exactly once to gather all Rune holdings
+/// * Uses `insert_or_modify` to aggregate amounts for Runes with identical IDs
+/// * Performs safe subtraction to account for already-removed tokens
+/// * Maintains type safety through the Rune set's fixed capacity constraints
 #[cfg(feature = "runes")]
-pub fn compute_unsettled_rune_in_shards<'slice, 'info, RS, U, S, const MAX_SELECTED: usize>(
-    shard_set: &ShardSet<'slice, 'info, S, MAX_SELECTED, Selected>,
+pub fn compute_unsettled_rune_in_shards<'info, RS, U, S>(
+    selected_shards: &[Ref<'info, S>],
     removed_from_shards: RS,
 ) -> Result<RS, StateShardError>
 where
@@ -507,33 +662,23 @@ where
 {
     let mut total_rune_amount = RS::default();
 
-    for &idx in shard_set.selected_indices().iter() {
-        let handle = shard_set.handle_by_index(idx);
-
+    for shard in selected_shards.iter() {
         // Traverse rune amounts directly without allocating an intermediate Vec.
-        let inner_res = handle
-            .with_ref(|shard| {
-                if let Some(utxo) = shard.rune_utxo() {
-                    for rune in utxo.runes().iter() {
-                        total_rune_amount.insert_or_modify::<StateShardError, _>(
-                            RuneAmount {
-                                id: rune.id,
-                                amount: rune.amount,
-                            },
-                            |r| {
-                                r.amount = safe_add(r.amount, rune.amount)
-                                    .map_err(|_| StateShardError::RuneAmountAdditionOverflow)?;
-                                Ok(())
-                            },
-                        )?;
-                    }
-                }
-                Ok::<(), StateShardError>(())
-            })
-            .map_err(|_| StateShardError::RuneAmountAdditionOverflow)?;
-
-        // Propagate potential math errors from inside the closure.
-        inner_res?;
+        if let Some(utxo) = shard.rune_utxo() {
+            for rune in utxo.runes().iter() {
+                let _ = total_rune_amount.insert_or_modify::<StateShardError, _>(
+                    RuneAmount {
+                        id: rune.id,
+                        amount: rune.amount,
+                    },
+                    |r| {
+                        r.amount = safe_add(r.amount, rune.amount)
+                            .map_err(|_| StateShardError::RuneAmountAdditionOverflow)?;
+                        Ok(())
+                    },
+                );
+            }
+        };
     }
 
     // Subtract whatever was already removed.
@@ -547,33 +692,65 @@ where
     Ok(total_rune_amount)
 }
 
-/// Thin wrapper around [`balance_amount_across_shards`] for Rune tokens. Unlike
-/// the BTC variant, there is no concept of a dust limit for Runes, so the
-/// function simply forwards the result unchanged.
+/// Plans an optimal Rune token distribution across selected shards to achieve
+/// balanced holdings without applying dust limits.
 ///
-/// The returned vector obeys the same invariants as the other distribution
-/// helpers: one value per shard index, ordered identically, summing up to the
-/// `amount` that was supplied.
+/// This function serves as the Rune equivalent of [`plan_btc_distribution_among_shards`],
+/// using the same core balancing algorithm via [`balance_amount_across_shards`]
+/// but without dust limit filtering since Runes don't have minimum value constraints
+/// like Bitcoin UTXOs.
 ///
-/// The returned `Vec` **always** contains exactly one element per index in
-/// `shard_indexes` and is ordered identically.
+/// The function processes each Rune ID separately, computing an optimal allocation
+/// for each token type across all selected shards and combining the results into
+/// per-shard Rune sets.
+///
+/// # Type Parameters
+/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
+/// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
+/// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
+///
+/// # Parameters
+/// * `tx_builder` – Mutable reference to the transaction builder for context.
+/// * `selected_shards` – Slice of selected shards to distribute tokens among.
+/// * `amounts` – Rune set containing the token amounts to distribute across shards.
+///
+/// # Returns
+/// A vector of Rune sets where each element corresponds to a selected shard and
+/// contains the optimal allocation of tokens for that shard. The vector length
+/// always equals `selected_shards.len()`.
 ///
 /// # Errors
-/// Returns [`StateShardError`] when the math operations fail.
+/// * [`StateShardError::MathErrorInBalanceAmountAcrossShards`] – If the underlying
+///   balance calculation encounters arithmetic overflow or underflow.
+/// * [`StateShardError::RuneAmountAdditionOverflow`] – If aggregating multiple
+///   Rune allocations for the same ID exceeds numeric limits.
+///
+/// # Algorithm
+/// 1. **Per-Rune processing**: Each Rune ID in `amounts` is processed separately
+/// 2. **Balance calculation**: [`balance_amount_across_shards`] computes optimal
+///    allocation for each Rune type
+/// 3. **Result aggregation**: Allocations are combined into per-shard Rune sets
+/// 4. **Zero filtering**: Shards with zero allocation for a Rune type are skipped
+///
+/// # Example
+/// Given 2 shards and amounts `{RUNE_A: 1000, RUNE_B: 2000}`:
+/// - RUNE_A gets distributed as `[500, 500]`
+/// - RUNE_B gets distributed as `[1000, 1000]`  
+/// - Result: `[{RUNE_A: 500, RUNE_B: 1000}, {RUNE_A: 500, RUNE_B: 1000}]`
 #[cfg(feature = "runes")]
 #[allow(clippy::too_many_arguments)]
 pub fn plan_rune_distribution_among_shards<
-    'slice,
     'info,
     const MAX_USER_UTXOS: usize,
     const MAX_SHARDS_PER_PROGRAM: usize,
     RS,
     U,
     S,
-    const MAX_SELECTED: usize,
 >(
     tx_builder: &mut TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
-    shard_set: &ShardSet<'slice, 'info, S, MAX_SELECTED, Selected>,
+    selected_shards: &[Ref<'info, S>],
     amounts: &RS,
 ) -> Result<Vec<RS>, StateShardError>
 where
@@ -581,19 +758,12 @@ where
     U: UtxoInfoTrait<RS>,
     S: StateShard<U, RS> + ZeroCopy + Owner,
 {
-    let num_shards = shard_set.selected_indices().len();
+    let num_shards = selected_shards.len();
     let mut result: Vec<RS> = (0..num_shards).map(|_| RS::default()).collect();
 
     for rune_amount in amounts.iter() {
-        let allocs = balance_amount_across_shards::<
-            MAX_USER_UTXOS,
-            MAX_SHARDS_PER_PROGRAM,
-            RS,
-            U,
-            S,
-            MAX_SELECTED,
-        >(tx_builder, shard_set, rune_amount)
-        .map_err(|_| StateShardError::MathErrorInBalanceAmountAcrossShards)?;
+        let allocs = balance_amount_across_shards(tx_builder, selected_shards, rune_amount)
+            .map_err(|_| StateShardError::MathErrorInBalanceAmountAcrossShards)?;
 
         for (i, amount) in allocs.iter().enumerate() {
             if *amount == 0 {
@@ -616,41 +786,73 @@ where
     Ok(result)
 }
 
-/// Splits the *remaining* amount of the specified Rune across shards and
-/// generates the corresponding edicts inside the embedded runestone.
+/// Redistributes remaining Rune tokens across shards and generates corresponding
+/// transaction outputs and runestone edicts for on-chain execution.
 ///
-/// This works analogously to
-/// [`redistribute_remaining_btc_to_shards`], but for Rune tokens instead of
-/// satoshis. In addition to creating change outputs, the function also:
-/// * Updates `transaction_builder.runestone.pointer` so that the runestone
-///   points at the *first* newly created output.
-/// * Emits an [`Edict`] for every shard (except the first) so that the Rune
-///   amounts get credited to the respective outputs on-chain.
+/// This function provides the complete Rune redistribution workflow, analogous to
+/// [`redistribute_remaining_btc_to_shards`] but for Rune tokens. In addition to
+/// planning the optimal distribution, it:
+/// * **Creates transaction outputs**: Adds one output per participating shard,
+///   each locked to `program_script_pubkey` with the minimum dust value.
+/// * **Updates runestone pointer**: Sets the pointer to the first newly created
+///   output so Runes are properly credited.
+/// * **Generates edicts**: Creates [`Edict`] entries for all outputs except the
+///   first (which receives Runes via the pointer mechanism).
 ///
-/// The returned vector follows the same sorting semantics as its BTC
-/// counterpart: one entry per participating shard, ordered from largest to
-/// smallest amount.
+/// # Type Parameters
+/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
+/// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
+/// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
 ///
 /// # Parameters
-/// The parameter list matches the BTC counterpart; the Rune to redistribute is
-/// derived implicitly from `removed_from_shards`.
+/// * `tx_builder` – Mutable reference to the transaction builder. The embedded
+///   runestone will be modified to include the necessary pointer and edicts.
+/// * `selected_shards` – Slice of selected shards to redistribute tokens among.
+/// * `removed_from_shards` – Rune amounts already withdrawn from the shards,
+///   used to calculate remaining amounts via [`compute_unsettled_rune_in_shards`].
+/// * `program_script_pubkey` – Script that will lock all newly created outputs
+///   back to the program.
+///
+/// # Returns
+/// A vector of Rune sets representing the final distribution, sorted in descending
+/// order by total Rune amount per shard. Each element corresponds to one created
+/// output and contains all Rune allocations for that output.
 ///
 /// # Errors
-/// Returns [`StateShardError`] when any safe-math operation fails.
+/// * [`StateShardError`] variants from underlying computation functions:
+///   * `RuneAmountAdditionOverflow` – If Rune amount calculations overflow
+///   * `RemovingMoreRunesThanPresentInShards` – If `removed_from_shards` exceeds holdings
+///   * `MathErrorInBalanceAmountAcrossShards` – If distribution planning fails
+///
+/// # Runestone Protocol Details
+/// * **Pointer mechanism**: The first output receives Runes automatically via the
+///   runestone pointer, requiring no explicit edict.
+/// * **Edict generation**: Subsequent outputs require explicit [`Edict`] entries
+///   specifying the Rune ID, amount, and destination output index.
+/// * **Output ordering**: Results are sorted by total Rune value for deterministic
+///   behavior, similar to the BTC redistribution function.
+///
+/// # Example
+/// For 2 shards with `{RUNE_A: 1000}` to redistribute:
+/// 1. Creates 2 outputs at indices N and N+1
+/// 2. Sets `runestone.pointer = Some(N)`
+/// 3. Adds edict: `{id: RUNE_A, amount: 500, output: N+1}`
+/// 4. First output (N) gets 500 RUNE_A via pointer
+/// 5. Second output (N+1) gets 500 RUNE_A via edict
 #[cfg(feature = "runes")]
 #[allow(clippy::too_many_arguments)]
 pub fn redistribute_remaining_rune_to_shards<
-    'slice,
     'info,
     const MAX_USER_UTXOS: usize,
     const MAX_SHARDS_PER_PROGRAM: usize,
     RS,
     U,
     S,
-    const MAX_SELECTED: usize,
 >(
     tx_builder: &mut TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
-    shard_set: &mut ShardSet<'slice, 'info, S, MAX_SELECTED, Selected>,
+    selected_shards: &[Ref<'info, S>],
     removed_from_shards: RS,
     program_script_pubkey: ScriptBuf,
 ) -> Result<Vec<RS>, StateShardError>
@@ -659,17 +861,10 @@ where
     U: UtxoInfoTrait<RS>,
     S: StateShard<U, RS> + ZeroCopy + Owner,
 {
-    let remaining_amount =
-        compute_unsettled_rune_in_shards::<RS, U, S, MAX_SELECTED>(shard_set, removed_from_shards)?;
+    let remaining_amount = compute_unsettled_rune_in_shards(selected_shards, removed_from_shards)?;
 
-    let mut distribution = plan_rune_distribution_among_shards::<
-        MAX_USER_UTXOS,
-        MAX_SHARDS_PER_PROGRAM,
-        RS,
-        U,
-        S,
-        MAX_SELECTED,
-    >(tx_builder, shard_set, &remaining_amount)?;
+    let mut distribution =
+        plan_rune_distribution_among_shards(tx_builder, selected_shards, &remaining_amount)?;
 
     // Sort descending by total rune amount for deterministic ordering.
     distribution.sort_by(|a, b| {
@@ -712,9 +907,11 @@ mod tests_loader {
     use super::super::tests::common::{
         create_btc_utxo, create_shard, leak_loaders_from_vec, MockShardZc,
     };
-    use super::ShardSet;
     use super::*;
+    // use crate::shard_set::ShardSet;
     use satellite_bitcoin::utxo_info::SingleRuneSet;
+    use satellite_lang::prelude::AccountLoader;
+    use std::cell::Ref;
 
     // Re-export for macro reuse
     use satellite_bitcoin::TransactionBuilder as TB;
@@ -726,8 +923,20 @@ mod tests_loader {
         };
     }
 
+    /// Helper function to create Ref instances directly from loaders for selected indices
+    pub fn create_shard_refs_from_loaders<'info>(
+        loaders: &'info [AccountLoader<'info, MockShardZc>],
+        indices: &[usize],
+    ) -> Result<Vec<Ref<'info, MockShardZc>>, arch_program::program_error::ProgramError> {
+        let mut refs = Vec::new();
+        for &idx in indices {
+            refs.push(loaders[idx].load()?);
+        }
+        Ok(refs)
+    }
+
     mod plan_btc_distribution_among_shards {
-        use crate::shard_set::split;
+        use super::super::super::split;
 
         use super::*;
         use satellite_bitcoin::{constants::DUST_LIMIT, utxo_info::SingleRuneSet};
@@ -743,9 +952,7 @@ mod tests_loader {
             let shards: Vec<MockShardZc> =
                 vec![create_shard(100), create_shard(200), create_shard(300)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 3;
-            let unselected: ShardSet<MockShardZc, MAX_SELECTED> = ShardSet::from_loaders(loaders);
-            let selected = unselected.select_with([0usize, 1usize, 2usize]).unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
             // Remaining amount smaller than dust → expect empty dist
             let dist = plan_btc_distribution_among_shards::<
@@ -754,8 +961,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 150u128)
+            >(&tx_builder, &shard_refs, 150u128)
             .unwrap();
             assert!(dist.is_empty());
         }
@@ -768,9 +974,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(1_000), create_shard(2_000)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 2;
-            let unselected: ShardSet<MockShardZc, MAX_SELECTED> = ShardSet::from_loaders(loaders);
-            let selected = unselected.select_with([0usize, 1usize]).unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -778,8 +982,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 0u128)
+            >(&tx_builder, &shard_refs, 0u128)
             .unwrap();
             assert!(dist.is_empty());
         }
@@ -792,9 +995,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(500)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 1;
-            let unselected: ShardSet<MockShardZc, MAX_SELECTED> = ShardSet::from_loaders(loaders);
-            let selected = unselected.select_with([0usize]).unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -802,8 +1003,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 1_000u128)
+            >(&tx_builder, &shard_refs, 1_000u128)
             .unwrap();
 
             assert_eq!(dist, vec![1_000]);
@@ -817,10 +1017,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 3;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1, 2])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -828,8 +1025,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 1_500u128)
+            >(&tx_builder, &shard_refs, 1_500u128)
             .unwrap();
 
             assert_eq!(dist, vec![1_500]);
@@ -843,10 +1039,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 3;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1, 2])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
             let amount = 1_001u128;
             let dist = plan_btc_distribution_among_shards::<
@@ -855,8 +1048,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, amount)
+            >(&tx_builder, &shard_refs, amount)
             .unwrap();
             assert_eq!(dist.iter().sum::<u128>(), amount);
             assert_eq!(dist, vec![amount]);
@@ -879,10 +1071,7 @@ mod tests_loader {
             let used_meta = shard1.btc_utxos()[0].meta;
 
             let loaders = leak_loaders_from_vec(vec![shard1, shard2]);
-            const MAX_SELECTED: usize = 2;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             // Mark first shard's utxo as spent
             tx_builder.transaction.version = Version::TWO;
@@ -899,8 +1088,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 1_000u128)
+            >(&tx_builder, &shard_refs, 1_000u128)
             .unwrap();
 
             assert_eq!(dist, vec![1_000]);
@@ -919,10 +1107,7 @@ mod tests_loader {
                 create_shard(4_000),
             ];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 4;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([1usize, 2usize])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[1, 2]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -930,8 +1115,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 2_000u128)
+            >(&tx_builder, &shard_refs, 2_000u128)
             .unwrap();
 
             assert_eq!(dist.iter().sum::<u128>(), 2_000);
@@ -946,10 +1130,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(u64::MAX), create_shard(u64::MAX)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 2;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -957,8 +1138,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 1_000u128)
+            >(&tx_builder, &shard_refs, 1_000u128)
             .unwrap();
 
             assert_eq!(dist, vec![1_000]);
@@ -972,10 +1152,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 2;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             // Odd amount
             let dist_odd = plan_btc_distribution_among_shards::<
@@ -984,8 +1161,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 2_041u128)
+            >(&tx_builder, &shard_refs, 2_041u128)
             .unwrap();
             assert_eq!(dist_odd, vec![1_021, 1_020]);
             assert_eq!(dist_odd.iter().sum::<u128>(), 2_041);
@@ -997,8 +1173,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 2_000u128)
+            >(&tx_builder, &shard_refs, 2_000u128)
             .unwrap();
             assert_eq!(dist_even, vec![1_000, 1_000]);
         }
@@ -1011,10 +1186,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(1_000), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 2;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -1022,8 +1194,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 2_041u128)
+            >(&tx_builder, &shard_refs, 2_041u128)
             .unwrap();
 
             assert_eq!(dist.iter().sum::<u128>(), 2_041);
@@ -1038,10 +1209,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 1;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -1049,8 +1217,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, (DUST_LIMIT as u128) - 1u128)
+            >(&tx_builder, &shard_refs, (DUST_LIMIT as u128) - 1u128)
             .unwrap();
 
             assert!(dist.is_empty());
@@ -1064,10 +1231,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 1;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -1075,8 +1239,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, DUST_LIMIT as u128)
+            >(&tx_builder, &shard_refs, DUST_LIMIT as u128)
             .unwrap();
 
             assert_eq!(dist, vec![DUST_LIMIT as u128]);
@@ -1090,10 +1253,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 2;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let amount = (DUST_LIMIT as u128) * 2u128;
             let dist = plan_btc_distribution_among_shards::<
@@ -1102,8 +1262,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, amount)
+            >(&tx_builder, &shard_refs, amount)
             .unwrap();
 
             assert_eq!(dist, vec![DUST_LIMIT as u128, DUST_LIMIT as u128]);
@@ -1117,10 +1276,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 3;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1, 2])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
             let amount = 1_600u128; // provisional 533/533/534 (< dust)
             let dist = plan_btc_distribution_among_shards::<
@@ -1129,8 +1285,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, amount)
+            >(&tx_builder, &shard_refs, amount)
             .unwrap();
 
             assert_eq!(dist, vec![amount]);
@@ -1141,8 +1296,8 @@ mod tests_loader {
     // compute_unsettled_btc_in_shards --------------------------------
     // ---------------------------------------------------------------
     mod compute_unsettled_btc_in_shards {
+        use super::super::compute_unsettled_btc_in_shards;
         use super::*;
-        use crate::shard_set::split::compute_unsettled_btc_in_shards;
         use bitcoin::{OutPoint, ScriptBuf, Sequence, TxIn, Witness};
         use satellite_bitcoin::fee_rate::FeeRate;
 
@@ -1156,17 +1311,14 @@ mod tests_loader {
             // Two shards with 1_000 and 500 sats respectively
             let shard1 = create_shard(1_000);
             let shard2 = create_shard(500);
+
+            // Capture meta before moving shards into loaders
+            let spent_meta = shard1.btc_utxos()[0].meta;
+
             let loaders = leak_loaders_from_vec(vec![shard1, shard2]);
-            const MAX_SELECTED: usize = 2;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1usize])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             // Spend shard 0's UTXO in the transaction
-            let spent_meta = selected
-                .handle_by_index(0)
-                .with_ref(|shard| shard.btc_utxos()[0].meta)
-                .unwrap();
             tx_builder.transaction.input.push(TxIn {
                 previous_output: OutPoint::new(spent_meta.to_txid(), spent_meta.vout()),
                 script_sig: ScriptBuf::new(),
@@ -1180,8 +1332,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 0, &FeeRate(1.0))
+            >(&tx_builder, &shard_refs, 0, &FeeRate(1.0))
             .unwrap();
 
             // Only shard 0's 1000 sats are unsettled (shard 1 untouched)
@@ -1193,17 +1344,17 @@ mod tests_loader {
     // Edge-case helpers & stress tests --------------------------------
     // ---------------------------------------------------------------
     mod edge_cases {
-        use super::*;
-        use crate::shard_set::split::{
+        use super::super::super::tests::common::add_btc_utxos_bulk;
+        use super::super::super::tests::common::random_utxo_meta;
+        use super::super::{
             balance_amount_across_shards as balance_loader, compute_unsettled_btc_in_shards,
             plan_btc_distribution_among_shards, redistribute_sub_dust_values,
         };
-        use crate::shard_set::tests::common::add_btc_utxos_bulk;
-        use crate::shard_set::tests::common::random_utxo_meta;
-        use satellite_lang::prelude::AccountLoader;
+        use super::*;
         use bitcoin::{OutPoint, ScriptBuf, Sequence, TxIn, Witness};
         use satellite_bitcoin::MathError;
         use satellite_bitcoin::{constants::DUST_LIMIT, fee_rate::FeeRate};
+        use satellite_lang::prelude::AccountLoader;
 
         // ---- redistribute_sub_dust_values tests ----
         #[test]
@@ -1240,9 +1391,7 @@ mod tests_loader {
 
             // Empty loaders slice
             let loaders: &[AccountLoader<'static, MockShardZc>] = &[];
-            const MAX_SELECTED: usize = 0;
-            let unselected: ShardSet<MockShardZc, MAX_SELECTED> = ShardSet::from_loaders(loaders);
-            let selected = unselected.select_with([] as [usize; 0]).unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[]).unwrap();
 
             let result = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -1250,8 +1399,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 1_000u128);
+            >(&tx_builder, &shard_refs, 1_000u128);
 
             assert!(matches!(result, Err(MathError::DivisionOverflow)));
         }
@@ -1278,10 +1426,8 @@ mod tests_loader {
                 .collect();
 
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 10;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-                .unwrap();
+            let shard_refs =
+                create_shard_refs_from_loaders(&loaders, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
                 MAX_USER_UTXOS,
@@ -1289,8 +1435,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 10_000u128)
+            >(&tx_builder, &shard_refs, 10_000u128)
             .unwrap();
 
             assert_eq!(dist.iter().sum::<u128>(), 10_000u128);
@@ -1305,10 +1450,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 3;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1, 2])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
             let amount = (DUST_LIMIT as u128) * 3 - 1u128;
             let dist = plan_btc_distribution_among_shards::<
@@ -1317,8 +1459,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, amount)
+            >(&tx_builder, &shard_refs, amount)
             .unwrap();
 
             assert!(dist.len() < 3);
@@ -1333,10 +1474,7 @@ mod tests_loader {
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 3;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1, 2])
-                .unwrap();
+            let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
             let amount = (DUST_LIMIT as u128) * 3 + 1u128;
             let dist = plan_btc_distribution_among_shards::<
@@ -1345,8 +1483,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, amount)
+            >(&tx_builder, &shard_refs, amount)
             .unwrap();
 
             assert_eq!(dist.len(), 3);
@@ -1374,10 +1511,8 @@ mod tests_loader {
             shard2.add_btc_utxo(utxo2);
 
             let loaders = leak_loaders_from_vec(vec![shard1, shard2]);
-            const MAX_SELECTED: usize = 2;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1])
-                .unwrap();
+            // Load shard references directly (indices 0 and 1)
+            let shard_refs = super::create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             // Spend the shared UTXO in the tx
             tx_builder.transaction.input.push(TxIn {
@@ -1393,8 +1528,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, 0, &FeeRate(1.0))
+            >(&tx_builder, &shard_refs, 0, &FeeRate(1.0))
             .unwrap();
 
             // Should count only once (value from first shard = 1_000)
@@ -1412,10 +1546,7 @@ mod tests_loader {
 
             let shard = create_shard(0);
             let loaders = leak_loaders_from_vec(vec![shard]);
-            const MAX_SELECTED: usize = 1;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize])
-                .unwrap();
+            let shard_refs = super::create_shard_refs_from_loaders(&loaders, &[0]).unwrap();
 
             // Add a huge rune amount -> expect overflow handled gracefully (Err)
             let rune_amount = RuneAmount {
@@ -1428,8 +1559,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
-            >(&tx_builder, &selected, &rune_amount);
+            >(&tx_builder, &shard_refs, &rune_amount);
 
             // Should succeed and return the full allocation for the single shard.
             assert_eq!(result.unwrap(), vec![u128::MAX]);
@@ -1448,23 +1578,19 @@ mod tests_loader {
 
             let shards = vec![create_shard(1_000), create_shard(2_000)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 2;
-            let mut selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1])
-                .unwrap();
+            let mut shard_refs = super::create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
-            let dist = crate::shard_set::split::redistribute_remaining_btc_to_shards::<
+            let dist = super::super::redistribute_remaining_btc_to_shards::<
                 MAX_USER_UTXOS,
                 MAX_SHARDS_PER_PROGRAM,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
             >(
                 &mut tx_builder,
-                &mut selected,
+                &mut shard_refs,
                 0,
-                ScriptBuf::new(),
+                &ScriptBuf::new(),
                 &FeeRate(1.0),
             )
             .unwrap();
@@ -1488,10 +1614,7 @@ mod tests_loader {
             shard2.add_btc_utxo(create_btc_utxo(u64::MAX, 2));
 
             let loaders = leak_loaders_from_vec(vec![shard1, shard2]);
-            const MAX_SELECTED_OVER: usize = 2;
-            let selected = ShardSet::<MockShardZc, MAX_SELECTED_OVER>::from_loaders(loaders)
-                .select_with([0usize, 1])
-                .unwrap();
+            let shard_refs = super::create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let rune_amount = RuneAmount {
                 id: RuneId::BTC,
@@ -1503,8 +1626,7 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED_OVER,
-            >(&tx_builder, &selected, &rune_amount);
+            >(&tx_builder, &shard_refs, &rune_amount);
 
             assert!(res.is_err());
         }
@@ -1514,7 +1636,6 @@ mod tests_loader {
         #[test]
         fn runestone_pointer_update() {
             use bitcoin::{Amount, TxOut};
-            use ordinals::RuneId;
 
             const MAX_USER_UTXOS: usize = 0;
             const MAX_SHARDS_PER_PROGRAM: usize = 2;
@@ -1536,10 +1657,7 @@ mod tests_loader {
             // Two empty shards (no BTC / Rune UTXOs needed for this test)
             let shards = vec![create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
-            const MAX_SELECTED: usize = 2;
-            let mut selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-                .select_with([0usize, 1usize])
-                .unwrap();
+            let mut shard_refs = super::create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             // Invoke the rune redistribution helper (no runes to distribute)
             crate::split::redistribute_remaining_rune_to_shards::<
@@ -1548,10 +1666,9 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-                MAX_SELECTED,
             >(
                 &mut tx_builder,
-                &mut selected,
+                &mut shard_refs,
                 SingleRuneSet::default(),
                 ScriptBuf::new(),
             )
@@ -1576,7 +1693,7 @@ mod tests_loader {
 #[cfg(all(test, feature = "runes"))]
 mod rune_tests_loader {
     use super::*;
-    use crate::shard_set::ShardSet;
+    // use crate::shard_set::ShardSet;
     use crate::tests::common::{
         create_rune_utxo, create_shard, leak_loaders_from_vec, MockShardZc,
     };
@@ -1607,17 +1724,14 @@ mod rune_tests_loader {
         shard2.set_rune_utxo(create_rune_utxo(50, 1));
 
         let loaders = leak_loaders_from_vec(vec![shard1, shard2]);
-        const MAX_SELECTED: usize = 2;
-        let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-            .select_with([0usize, 1usize])
-            .unwrap();
+        let shard_refs =
+            super::tests_loader::create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
         let unsettled = crate::split::compute_unsettled_rune_in_shards::<
             SingleRuneSet,
             satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
             MockShardZc,
-            MAX_SELECTED,
-        >(&selected, SingleRuneSet::default())
+        >(&shard_refs, SingleRuneSet::default())
         .unwrap();
 
         assert_eq!(unsettled.find(&RuneId::new(1, 1)).unwrap().amount, 150);
@@ -1642,10 +1756,8 @@ mod rune_tests_loader {
         shard2.set_rune_utxo(create_rune_utxo(300, 2));
 
         let loaders = leak_loaders_from_vec(vec![shard0, shard1, shard2]);
-        const MAX_SELECTED: usize = 3;
-        let selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-            .select_with([0usize, 1usize, 2usize])
-            .unwrap();
+        let shard_refs =
+            super::tests_loader::create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
         // Distribute 600 runes proportionally
         let mut target = SingleRuneSet::default();
@@ -1662,8 +1774,7 @@ mod rune_tests_loader {
             SingleRuneSet,
             satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
             MockShardZc,
-            MAX_SELECTED,
-        >(&mut tx_builder, &selected, &target)
+        >(&mut tx_builder, &shard_refs, &target)
         .unwrap();
 
         assert_eq!(dist.len(), 3);
@@ -1693,10 +1804,8 @@ mod rune_tests_loader {
         shard2.set_rune_utxo(create_rune_utxo(300, 2));
 
         let loaders = leak_loaders_from_vec(vec![shard0, shard1, shard2]);
-        const MAX_SELECTED: usize = 3;
-        let mut selected = ShardSet::<MockShardZc, MAX_SELECTED>::from_loaders(loaders)
-            .select_with([0usize, 1usize, 2usize])
-            .unwrap();
+        let mut shard_refs =
+            super::tests_loader::create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
         // Remove 150 runes total
         let mut removed = SingleRuneSet::default();
@@ -1713,8 +1822,7 @@ mod rune_tests_loader {
             SingleRuneSet,
             satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
             MockShardZc,
-            MAX_SELECTED,
-        >(&mut tx_builder, &mut selected, removed, ScriptBuf::new())
+        >(&mut tx_builder, &mut shard_refs, removed, ScriptBuf::new())
         .unwrap();
 
         // Expect proportional (75, 150, 225) regardless of ordering

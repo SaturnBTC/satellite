@@ -56,14 +56,14 @@ use bitcoin::{
     absolute::LockTime, transaction::Version, OutPoint, ScriptBuf, Sequence, Transaction, TxIn,
     TxOut, Txid, Witness,
 };
-use mempool::{MempoolData, MempoolInfo, TxStatus};
+pub use mempool::{AccountMempoolInfo, MempoolData, MempoolDataView, MempoolInfo, TxStatus};
+
 #[cfg(feature = "runes")]
 use ordinals::{Artifact, Runestone};
 
-pub use satellite_collections::generic::{fixed_list::FixedList, fixed_set::FixedCapacitySet};
-pub use satellite_math::*;
-pub use satellite_collections::*;
+use satellite_collections::generic::{fixed_list::FixedList, fixed_set::FixedCapacitySet};
 
+use crate::btc_utxo_holder::BtcUtxoHolder;
 use crate::{
     arch::create_account,
     bytes::txid_to_bytes_big_endian,
@@ -83,6 +83,7 @@ use crate::{
 use crate::{consolidation::add_consolidation_utxos, input_calc::ARCH_INPUT_SIZE};
 
 mod arch;
+pub mod btc_utxo_holder;
 pub mod bytes;
 mod calc_fee;
 mod consolidation;
@@ -756,9 +757,9 @@ impl<
     }
 
     #[cfg(feature = "runes")]
-    pub fn new_with_transaction<const MAX_UTXOS: usize, const MAX_ACCOUNTS: usize>(
+    pub fn new_with_transaction(
         transaction: Transaction,
-        mempool_data: &MempoolData<MAX_UTXOS, MAX_ACCOUNTS>,
+        mempool_data: &impl MempoolDataView,
         user_utxos: &[UtxoInfo<RuneSet>],
     ) -> Result<Self, BitcoinTxError> {
         if transaction.input.len() != user_utxos.len() {
@@ -1027,11 +1028,11 @@ impl<
         &mut self,
         utxo: &UtxoInfo<RuneSet>,
         status: &TxStatus,
-        tx_in: &TxIn,
+        tx_in: TxIn,
     ) -> Result<(), BitcoinTxError> {
         self.add_tx_status(utxo, status);
 
-        self.transaction.input.push(tx_in.clone());
+        self.transaction.input.push(tx_in);
 
         self.total_btc_input += utxo.value;
 
@@ -1177,7 +1178,7 @@ impl<
     ///
     /// # Errors
     /// * [`BitcoinTxError::NotEnoughBtcInPool`] – not enough value in `utxos` to satisfy `amount`.
-    pub fn find_btc_in_program_utxos<T>(
+    pub fn find_btc_in_utxos<T>(
         &mut self,
         utxos: &[T],
         program_info_pubkey: &Pubkey,
@@ -1233,6 +1234,173 @@ impl<
 
         utxo_indices.truncate(selected_count);
         Ok((utxo_indices, btc_amount))
+    }
+
+    /// Greedily selects UTXOs until at least `amount` satoshis are gathered.
+    ///
+    /// Selection strategy:
+    /// * With the `utxo-consolidation` feature **enabled**: prefer UTXOs **without** the
+    ///   `needs_consolidation` flag, then sort by descending value.
+    /// * Without the feature: simply sort by descending value.
+    ///
+    /// Returns the **indices** of the chosen items inside the original slice plus the total value
+    /// selected.
+    ///
+    /// # Errors
+    /// * [`BitcoinTxError::NotEnoughBtcInPool`] – not enough value in `utxos` to satisfy `amount`.
+    pub fn find_btc_in_utxos_from_holder<BtcHolder>(
+        &mut self,
+        holder: &[BtcHolder],
+        program_info_pubkey: &Pubkey,
+        amount: u64,
+    ) -> Result<(Vec<usize>, u64), BitcoinTxError>
+    where
+        BtcHolder: BtcUtxoHolder,
+    {
+        use satellite_collections::generic::fixed_list::FixedList;
+
+        // Running total of satoshis gathered so far.
+        let mut btc_amount: u64 = 0;
+
+        // Track (holder_idx, utxo_idx) pairs already consumed.
+        let mut selected_pairs: FixedList<(usize, usize), MAX_INPUTS_TO_SIGN> = FixedList::new();
+
+        // We will check if a (holder_idx, utxo_idx) pair has already been selected by
+        // searching `selected_pairs` on demand. This avoids borrowing issues with closures.
+
+        // Early exit if there are no available UTXOs at all.
+        if holder.iter().all(|h| h.btc_utxos().is_empty()) {
+            return Err(BitcoinTxError::NotEnoughBtcInPool);
+        }
+
+        // Greedily pick the best next UTXO until we satisfy `amount` or run out of options.
+        loop {
+            if btc_amount >= amount {
+                break;
+            }
+
+            // Find the best candidate among *unselected* UTXOs.
+            let mut best: Option<(usize, usize)> = None;
+
+            #[cfg(feature = "utxo-consolidation")]
+            {
+                for (h_idx, h) in holder.iter().enumerate() {
+                    for (u_idx, utxo) in h.btc_utxos().iter().enumerate() {
+                        if selected_pairs
+                            .iter()
+                            .any(|&(h, u)| h == h_idx && u == u_idx)
+                        {
+                            continue;
+                        }
+
+                        match best {
+                            None => best = Some((h_idx, u_idx)),
+                            Some((bh, bu)) => {
+                                let best_utxo = &holder[bh].btc_utxos()[bu];
+
+                                // Prefer UTXOs that do NOT need consolidation.
+                                let candidate_pref = utxo.needs_consolidation.is_some();
+                                let best_pref = best_utxo.needs_consolidation.is_some();
+
+                                if (!candidate_pref && best_pref)
+                                    || (candidate_pref == best_pref && utxo.value > best_utxo.value)
+                                {
+                                    best = Some((h_idx, u_idx));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            #[cfg(not(feature = "utxo-consolidation"))]
+            {
+                for (h_idx, h) in holder.iter().enumerate() {
+                    for (u_idx, utxo) in h.btc_utxos().iter().enumerate() {
+                        if selected_pairs
+                            .iter()
+                            .any(|&(h, u)| h == h_idx && u == u_idx)
+                        {
+                            continue;
+                        }
+
+                        match best {
+                            None => best = Some((h_idx, u_idx)),
+                            Some((bh, bu)) => {
+                                let best_utxo = &holder[bh].btc_utxos()[bu];
+                                if utxo.value > best_utxo.value {
+                                    best = Some((h_idx, u_idx));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // No more candidates available.
+            let (best_h, best_u) = match best {
+                Some(pair) => pair,
+                None => return Err(BitcoinTxError::NotEnoughBtcInPool),
+            };
+
+            let utxo = &holder[best_h].btc_utxos()[best_u];
+
+            // Build a new UtxoInfo<RuneSet> from the data we need. This avoids any unsafe casts
+            // and keeps the code `no_std`-friendly.
+            let utxo_clone: UtxoInfo<RuneSet> = {
+                #[cfg(feature = "runes")]
+                {
+                    let mut runes = RuneSet::default();
+                    for r in utxo.runes.as_slice() {
+                        // Ignore error if the rune set is full – it would only happen with
+                        // mismatching generic parameters which should be caught at compile time.
+                        let _ = runes.insert(*r);
+                    }
+
+                    UtxoInfo {
+                        meta: utxo.meta,
+                        value: utxo.value,
+                        runes,
+                        #[cfg(feature = "utxo-consolidation")]
+                        needs_consolidation: utxo.needs_consolidation,
+                        #[cfg(not(feature = "utxo-consolidation"))]
+                        // Phantom needed when consolidation not enabled but RuneSet is generic.
+                        #[cfg(not(feature = "runes"))]
+                        _phantom: core::marker::PhantomData::<RuneSet>,
+                    }
+                }
+
+                #[cfg(not(feature = "runes"))]
+                {
+                    // Construct via the public API to avoid accessing private fields.
+                    use crate::utxo_info::UtxoInfoTrait;
+
+                    let mut ui = UtxoInfo::<RuneSet>::default();
+                    ui.meta = utxo.meta;
+                    ui.value = utxo.value;
+
+                    #[cfg(feature = "utxo-consolidation")]
+                    {
+                        *ui.needs_consolidation_mut() = utxo.needs_consolidation;
+                    }
+
+                    ui
+                }
+            };
+
+            // Add the input – treat as confirmed.
+            self.add_tx_input(&utxo_clone, &TxStatus::Confirmed, program_info_pubkey)?;
+
+            btc_amount += utxo_clone.value;
+            selected_pairs
+                .push((best_h, best_u))
+                .map_err(|_| BitcoinTxError::InputToSignListFull)?;
+        }
+
+        // Convert selected holder indices into a Vec for the return value.
+        let indices_vec: Vec<usize> = selected_pairs.iter().map(|(h_idx, _)| *h_idx).collect();
+
+        Ok((indices_vec, btc_amount))
     }
 
     /// Automatically adjusts the transaction to meet the target fee rate.
@@ -1355,11 +1523,11 @@ impl<
     /// * `new_potential_inputs_and_outputs` – hypothetical inputs/outputs the caller *may* add
     ///    later; needed to keep size estimations accurate.
     #[cfg(feature = "utxo-consolidation")]
-    pub fn add_consolidation_utxos<T: AsRef<UtxoInfo<RuneSet>>>(
+    pub fn add_consolidation_utxos<BtcHolder: BtcUtxoHolder>(
         &mut self,
         pool_pubkey: &Pubkey,
         fee_rate: &FeeRate,
-        pool_shard_btc_utxos: &[T],
+        pool_shard_btc_utxos: &[BtcHolder],
         new_potential_inputs_and_outputs: &NewPotentialInputsAndOutputs,
     ) {
         let (total_consolidation_input_amount, extra_tx_size) = add_consolidation_utxos(
@@ -1608,24 +1776,6 @@ impl<
         add_rune_input(&mut self.total_rune_inputs, rune)?;
 
         Ok(())
-    }
-}
-
-impl<'info, const MAX_MODIFIED_ACCOUNTS: usize, const MAX_INPUTS_TO_SIGN: usize, RuneSet> Drop
-    for TransactionBuilder<'info, MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN, RuneSet>
-where
-    RuneSet: FixedCapacitySet<Item = RuneAmount> + Default,
-{
-    fn drop(&mut self) {
-        // Only attempt to finalize if there is at least one input in the transaction. This
-        // prevents unnecessary work for empty builders and mirrors the explicit `finalize()`
-        // call that would normally be made by callers.
-        if !self.transaction.input.is_empty() {
-            // We deliberately ignore any error returned by `finalize()` because the `drop` method
-            // cannot propagate errors. Any failure here would have to be handled by the runtime
-            // observing Arch's state, and panicking inside `drop` is undesirable.
-            let _ = self.finalize();
-        }
     }
 }
 
@@ -2493,7 +2643,7 @@ mod tests {
 
             let utxo_refs: Vec<&UtxoInfo<SingleRuneSet>> = utxos.iter().collect();
             let (found_utxo_indices, found_amount) = transaction_builder
-                .find_btc_in_program_utxos(&utxo_refs, &PUBKEY, amount)
+                .find_btc_in_utxos(&utxo_refs, &PUBKEY, amount)
                 .unwrap();
 
             assert_eq!(found_utxo_indices.len(), 1, "Found a single UTXO");
@@ -2514,7 +2664,7 @@ mod tests {
 
             let utxo_refs: Vec<&UtxoInfo<SingleRuneSet>> = utxos.iter().collect();
             let (found_utxo_indices, found_amount) = transaction_builder
-                .find_btc_in_program_utxos(&utxo_refs, &PUBKEY, amount)
+                .find_btc_in_utxos(&utxo_refs, &PUBKEY, amount)
                 .unwrap();
 
             assert_eq!(found_utxo_indices.len(), 1, "Found a single UTXO");
@@ -2540,7 +2690,7 @@ mod tests {
 
             let utxo_refs: Vec<&UtxoInfo<SingleRuneSet>> = utxos.iter().collect();
             let (found_utxo_indices, found_amount) = transaction_builder
-                .find_btc_in_program_utxos(&utxo_refs, &PUBKEY, amount)
+                .find_btc_in_utxos(&utxo_refs, &PUBKEY, amount)
                 .unwrap();
 
             assert_eq!(found_utxo_indices.len(), 2, "Found two UTXOs");

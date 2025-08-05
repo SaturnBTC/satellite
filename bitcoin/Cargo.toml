@@ -2,11 +2,18 @@
 name = "satellite-bitcoin"
 version = "0.1.0"
 edition = "2021"
+description = "High-level Bitcoin utilities and re-exports for the Satellite project."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/your-org/satellite"
+documentation = "https://docs.rs/satellite-bitcoin"
+readme = "README.md"
+keywords = ["bitcoin", "satellite"]
+categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-satellite-math = { path = "./math" }
-satellite-collections = { path = "./collections" }
-satellite-bitcoin-transactions = { path = "./transactions" } 
+satellite-math = { version = "0.1", path = "./math" }
+satellite-collections = { version = "0.1", path = "./collections" }
+satellite-bitcoin-transactions = { version = "0.1", path = "./transactions" } 
 
 [features]
 # Forward common features to the underlying `satellite-bitcoin-transactions` crate so
@@ -15,7 +22,7 @@ satellite-bitcoin-transactions = { path = "./transactions" }
 
 default = [
     "satellite-bitcoin-transactions/utxo-consolidation",
-    "satellite-bitcoin-transactions/serde",
+    "satellite-bitcoin-transactions/runes",
 ]
 
 runes = ["satellite-bitcoin-transactions/runes"]

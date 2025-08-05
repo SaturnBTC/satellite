@@ -16,26 +16,26 @@ use arch_program::program_error::ProgramError;
 /// usable in lower-level contexts – the bound will be required when we
 /// implement `StateShard` for `ShardHandle` itself in a later step.
 #[derive(Copy, Clone)]
-pub struct ShardHandle<'slice, 'info, S>
+pub struct ShardHandle<'info, S>
 where
     S: ZeroCopy + Owner,
 {
-    loader: &'slice AccountLoader<'info, S>,
+    loader: &'info AccountLoader<'info, S>,
 }
 
-impl<'slice, 'info, S> ShardHandle<'slice, 'info, S>
+impl<'info, S> ShardHandle<'info, S>
 where
     S: ZeroCopy + Owner,
 {
     /// Wrap an existing [`AccountLoader`].
     #[inline]
-    pub const fn new(loader: &'slice AccountLoader<'info, S>) -> Self {
+    pub const fn new(loader: &'info AccountLoader<'info, S>) -> Self {
         Self { loader }
     }
 
     /// Access the wrapped loader.
     #[inline]
-    pub const fn loader(&self) -> &'slice AccountLoader<'info, S> {
+    pub const fn loader(&self) -> &'info AccountLoader<'info, S> {
         self.loader
     }
 

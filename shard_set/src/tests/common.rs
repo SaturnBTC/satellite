@@ -3,17 +3,17 @@
 // NOTE: The entire module is only compiled when running tests.
 #![cfg(test)]
 
-use crate::shard_set::StateShard;
+use super::super::shard::StateShard;
 
-use satellite_lang::prelude::AccountLoader;
-use satellite_lang::prelude::Owner;
-use satellite_lang::Discriminator;
-use satellite_lang::ZeroCopy;
 use arch_program::utxo;
 use arch_program::{account::AccountInfo, pubkey::Pubkey, utxo::UtxoMeta};
 use bytemuck::{Pod, Zeroable};
 use satellite_bitcoin::utxo_info::UtxoInfoTrait;
 use satellite_bitcoin::utxo_info::{SingleRuneSet, UtxoInfo};
+use satellite_lang::prelude::AccountLoader;
+use satellite_lang::prelude::Owner;
+use satellite_lang::Discriminator;
+use satellite_lang::ZeroCopy;
 
 // Increased capacity to comfortably cover edge-case tests that require up to
 // 5 UTXOs per shard × 10 shards. 64 is a convenient power-of-two that leaves
@@ -185,7 +185,7 @@ pub fn create_loader() -> AccountLoader<'static, MockShardZc> {
 
     let account_ref: &'static AccountInfo<'static> = Box::leak(Box::new(account_info));
 
-    AccountLoader::try_from_unchecked(&Pubkey::default(), account_ref).expect("create loader")
+    AccountLoader::try_from_unchecked(account_ref).expect("create loader")
 }
 
 // ------------------------------------------------------------------

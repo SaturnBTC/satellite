@@ -38,7 +38,9 @@
 /// Each boolean represents whether the corresponding index is set.
 #[derive(Debug)]
 pub struct FixedBitSet<const SIZE: usize> {
-    included: [bool; SIZE],
+    /// Bit mask holding up to 64 flags. A compile-time or runtime assertion
+    /// guarantees that `SIZE` never exceeds 64.
+    mask: u64,
     count: usize,
 }
 
@@ -63,10 +65,8 @@ impl<const SIZE: usize> FixedBitSet<SIZE> {
     /// assert_eq!(bitset.count(), 0);
     /// ```
     pub fn new() -> Self {
-        Self {
-            included: [false; SIZE],
-            count: 0,
-        }
+        debug_assert!(SIZE <= 64, "FixedBitSet only supports SIZE ≤ 64");
+        Self { mask: 0, count: 0 }
     }
 
     /// Returns the number of set bits in the bit set.
@@ -124,7 +124,10 @@ impl<const SIZE: usize> FixedBitSet<SIZE> {
     /// assert!(!bitset.contains(10));
     /// ```
     pub fn contains(&self, index: usize) -> bool {
-        index < SIZE && self.included[index]
+        if index >= SIZE {
+            return false;
+        }
+        (self.mask & (1u64 << index)) != 0
     }
 
     /// Sets the bit at the given index.
@@ -143,8 +146,12 @@ impl<const SIZE: usize> FixedBitSet<SIZE> {
     /// assert!(!bitset.insert(10)); // Out of bounds
     /// ```
     pub fn insert(&mut self, index: usize) -> bool {
-        if index < SIZE && !self.included[index] {
-            self.included[index] = true;
+        if index >= SIZE {
+            return false;
+        }
+        let bit = 1u64 << index;
+        if (self.mask & bit) == 0 {
+            self.mask |= bit;
             self.count += 1;
             true
         } else {
@@ -170,8 +177,12 @@ impl<const SIZE: usize> FixedBitSet<SIZE> {
     /// assert!(!bitset.remove(10)); // Out of bounds
     /// ```
     pub fn remove(&mut self, index: usize) -> bool {
-        if index < SIZE && self.included[index] {
-            self.included[index] = false;
+        if index >= SIZE {
+            return false;
+        }
+        let bit = 1u64 << index;
+        if (self.mask & bit) != 0 {
+            self.mask &= !bit;
             self.count -= 1;
             true
         } else {
@@ -224,11 +235,12 @@ impl<const SIZE: usize> FixedBitSet<SIZE> {
     /// ```
     pub fn collect_sorted(&self, buffer: &mut [usize; SIZE]) -> usize {
         let mut count = 0;
-        for (index, &included) in self.included.iter().enumerate() {
-            if included && count < SIZE {
-                buffer[count] = index;
-                count += 1;
-            }
+        let mut m = self.mask;
+        while m != 0 && count < SIZE {
+            let idx = m.trailing_zeros() as usize;
+            buffer[count] = idx;
+            count += 1;
+            m &= m - 1; // clear lowest set bit
         }
         count
     }
@@ -249,10 +261,22 @@ impl<const SIZE: usize> FixedBitSet<SIZE> {
     /// assert_eq!(indices, vec![2, 4, 6]);
     /// ```
     pub fn iter(&self) -> impl Iterator<Item = usize> + '_ {
-        self.included
-            .iter()
-            .enumerate()
-            .filter_map(|(index, &included)| if included { Some(index) } else { None })
+        // Custom iterator using mask snapshot to avoid repeated `contains` calls.
+        struct BitIter {
+            mask: u64,
+        }
+        impl Iterator for BitIter {
+            type Item = usize;
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.mask == 0 {
+                    return None;
+                }
+                let idx = self.mask.trailing_zeros() as usize;
+                self.mask &= self.mask - 1;
+                Some(idx)
+            }
+        }
+        BitIter { mask: self.mask }
     }
 
     /// Unsets all bits in the bit set.
@@ -272,7 +296,7 @@ impl<const SIZE: usize> FixedBitSet<SIZE> {
     /// assert_eq!(bitset.count(), 0);
     /// ```
     pub fn clear(&mut self) {
-        self.included.fill(false);
+        self.mask = 0;
         self.count = 0;
     }
 }

@@ -66,13 +66,26 @@ impl<const MAX_UTXOS: usize, const MAX_ACCOUNTS: usize> Default
     }
 }
 
-pub(crate) fn generate_mempool_info<
-    const MAX_UTXOS: usize,
-    const MAX_ACCOUNTS: usize,
-    RuneSet: FixedCapacitySet<Item = RuneAmount>,
->(
+pub trait MempoolDataView {
+    fn get_utxo_status(&self, txid: [u8; 32]) -> TxStatus;
+    fn get_mempool_info_for_accounts(&self, n_accounts: usize) -> &[AccountMempoolInfo];
+}
+
+impl<const MAX_UTXOS: usize, const MAX_ACCOUNTS: usize> MempoolDataView
+    for MempoolData<MAX_UTXOS, MAX_ACCOUNTS>
+{
+    fn get_utxo_status(&self, txid: [u8; 32]) -> TxStatus {
+        self.get_utxo_status(txid)
+    }
+
+    fn get_mempool_info_for_accounts(&self, n_accounts: usize) -> &[AccountMempoolInfo] {
+        self.get_mempool_info_for_accounts(n_accounts)
+    }
+}
+
+pub(crate) fn generate_mempool_info<RuneSet: FixedCapacitySet<Item = RuneAmount>>(
     user_utxos: &[UtxoInfo<RuneSet>],
-    mempool_data: &MempoolData<MAX_UTXOS, MAX_ACCOUNTS>,
+    mempool_data: &impl MempoolDataView,
 ) -> MempoolInfo {
     let mut mempool_info = MempoolInfo::default();
     for (i, utxo) in user_utxos.iter().enumerate() {
@@ -107,7 +120,7 @@ mod tests {
     use super::*;
     use crate::utxo_info::{SingleRuneSet, UtxoInfoTrait};
     use arch_program::utxo::UtxoMeta;
-    
+
     /// Convenience helper to construct a mock `UtxoInfo` with the desired txid/vout.
     fn make_utxo(txid: [u8; 32], vout: u32) -> UtxoInfo<SingleRuneSet> {
         UtxoInfo::new(UtxoMeta::from(txid, vout), 0)
@@ -146,7 +159,7 @@ mod tests {
 
         let user_utxos = vec![make_utxo(txid1, 0), make_utxo(txid2, 1)];
 
-        let info = generate_mempool_info::<MAX_UTXOS, MAX_ACCOUNTS, SingleRuneSet>(
+        let info = generate_mempool_info::<SingleRuneSet>(
             &user_utxos,
             &mempool_data,
         );
@@ -179,7 +192,7 @@ mod tests {
         // Two UTXOs share the same transaction id but different vouts.
         let user_utxos = vec![make_utxo(txid, 0), make_utxo(txid, 1)];
 
-        let info = generate_mempool_info::<MAX_UTXOS, MAX_ACCOUNTS, SingleRuneSet>(
+        let info = generate_mempool_info::<SingleRuneSet>(
             &user_utxos,
             &mempool_data,
         );
@@ -213,7 +226,7 @@ mod tests {
         // Only one UTXO is pending, the other txid is not in the mempool (confirmed).
         let user_utxos = vec![make_utxo(pending_txid, 0), make_utxo(confirmed_txid, 0)];
 
-        let info = generate_mempool_info::<MAX_UTXOS, MAX_ACCOUNTS, SingleRuneSet>(
+        let info = generate_mempool_info::<SingleRuneSet>(
             &user_utxos,
             &mempool_data,
         );

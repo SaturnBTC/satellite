@@ -5,7 +5,7 @@ use arch_program::{input_to_sign::InputToSign, pubkey::Pubkey, rune::RuneAmount,
 use bitcoin::{Transaction, TxIn, TxOut};
 
 #[cfg(feature = "utxo-consolidation")]
-use crate::mempool::MempoolInfo;
+use crate::{btc_utxo_holder::BtcUtxoHolder, mempool::MempoolInfo};
 #[cfg(feature = "utxo-consolidation")]
 use satellite_collections::generic::fixed_set::FixedCapacitySet;
 use satellite_collections::generic::push_pop::PushPopCollection;
@@ -13,23 +13,22 @@ use satellite_collections::generic::push_pop::PushPopCollection;
 #[cfg(feature = "utxo-consolidation")]
 use crate::{
     calc_fee::estimate_tx_size_with_additional_inputs_outputs, error::BitcoinTxError,
-    fee_rate::FeeRate, NewPotentialInputsAndOutputs, UtxoInfo,
+    fee_rate::FeeRate, NewPotentialInputsAndOutputs,
 };
 
 #[cfg(feature = "utxo-consolidation")]
-pub fn add_consolidation_utxos<RS, T, C>(
+pub fn add_consolidation_utxos<BtcHolder, C>(
     transaction: &mut Transaction,
     _tx_statuses: &mut MempoolInfo,
     inputs_to_sign: &mut C,
     pool_pubkey: &Pubkey,
-    pool_shard_btc_utxos: &[T],
+    shards: &[BtcHolder],
     mempool_fee_rate: &FeeRate,
     new_potential_inputs_and_outputs: &NewPotentialInputsAndOutputs,
     program_input_size: usize,
 ) -> (u64, usize)
 where
-    RS: FixedCapacitySet<Item = RuneAmount> + Default,
-    T: AsRef<UtxoInfo<RS>>,
+    BtcHolder: BtcUtxoHolder,
     C: PushPopCollection<InputToSign>,
 {
     use bitcoin::{OutPoint, ScriptBuf, Sequence, TxIn, Witness};
@@ -45,50 +44,52 @@ where
         witness: Witness::new(),
     };
 
-    for utxo_ref in pool_shard_btc_utxos.iter() {
-        let utxo = utxo_ref.as_ref();
+    for shard in shards.iter() {
+        let utxos = shard.btc_utxos();
 
-        // Check consolidation criteria first (cheaper check)
-        let should_consolidate = utxo
-            .needs_consolidation
-            .get()
-            .map(|fee_rate| fee_rate >= mempool_fee_rate.0)
-            .unwrap_or(false);
+        for utxo in utxos {
+            // Check consolidation criteria first (cheaper check)
+            let should_consolidate = utxo
+                .needs_consolidation
+                .get()
+                .map(|fee_rate| fee_rate >= mempool_fee_rate.0)
+                .unwrap_or(false);
 
-        if !should_consolidate {
-            continue;
-        }
+            if !should_consolidate {
+                continue;
+            }
 
-        let outpoint = utxo.meta.to_outpoint();
+            let outpoint = utxo.meta.to_outpoint();
 
-        // Only include if not already in transaction
-        if transaction
-            .input
-            .iter()
-            .any(|input| input.previous_output == outpoint)
-        {
-            continue;
-        }
+            // Only include if not already in transaction
+            if transaction
+                .input
+                .iter()
+                .any(|input| input.previous_output == outpoint)
+            {
+                continue;
+            }
 
-        // Create TxIn more efficiently by modifying template
-        let mut tx_in = tx_in_template.clone();
-        tx_in.previous_output = outpoint;
+            // Create TxIn more efficiently by modifying template
+            let mut tx_in = tx_in_template.clone();
+            tx_in.previous_output = outpoint;
 
-        // If adding an input fails because tx gets too big, stop
-        if let Ok(()) = safe_add_input_to_transaction(
-            transaction,
-            inputs_to_sign,
-            pool_pubkey,
-            &tx_in,
-            &new_potential_inputs_and_outputs,
-        ) {
-            total_input_amount += utxo.value; // Add btc utxo from pool
-            additional_inputs_to_consolidate += 1;
-            // All program outputs are confirmed by default.
-            // tx_statuses.total_fee += 0;
-            // tx_statuses.total_size += 0;
-        } else {
-            break; // Stop iteration on first error
+            // If adding an input fails because tx gets too big, stop
+            if let Ok(()) = safe_add_input_to_transaction(
+                transaction,
+                inputs_to_sign,
+                pool_pubkey,
+                &tx_in,
+                &new_potential_inputs_and_outputs,
+            ) {
+                total_input_amount += utxo.value; // Add btc utxo from pool
+                additional_inputs_to_consolidate += 1;
+                // All program outputs are confirmed by default.
+                // tx_statuses.total_fee += 0;
+                // tx_statuses.total_size += 0;
+            } else {
+                break; // Stop iteration on first error
+            }
         }
     }
 
@@ -172,7 +173,7 @@ pub fn safe_add_output_to_transaction(
 mod tests {
     use crate::{
         input_calc::ARCH_INPUT_SIZE,
-        utxo_info::{SingleRuneSet, UtxoInfoTrait},
+        utxo_info::{SingleRuneSet, UtxoInfo, UtxoInfoTrait},
         NewPotentialInputAmount, NewPotentialOutputAmount,
     };
 

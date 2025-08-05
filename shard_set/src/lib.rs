@@ -224,17 +224,38 @@
 #[cfg(test)]
 mod tests;
 
+mod account_loader;
+mod error;
+mod select;
 mod shard;
 mod shard_handle;
 mod shard_indices;
-mod shard_set;
+// mod shard_set;
 mod split;
 mod update;
+
+#[cfg(feature = "examples")]
+pub mod example;
 
 pub use shard::{AccountUtxos, StateShard};
 pub use shard_handle::ShardHandle;
 pub use shard_indices::IntoShardIndices;
-pub use shard_set::ShardSet;
-pub use shard_set::{Selected, Unselected};
+// pub use shard_set::{
+//     // States
+//     Created,
+//     Loaded,
+//     Selected,
+//     ShardBatchMut,
+//     // Legacy aliases (deprecated)
+//     ShardSet,
+//     // New clear naming
+//     ShardSetBuilder,
+//     ShardSetInspector,
+//     ShardSetMutator,
+//     ShardSetSelection,
+//     Unselected,
+// };
 
-pub use satellite_bitcoin::{declare_fixed_array, declare_fixed_option, declare_fixed_set};
+pub use select::*;
+pub use split::*;
+pub use update::*;

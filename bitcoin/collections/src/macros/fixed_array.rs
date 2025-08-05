@@ -1,5 +1,3 @@
-use bytemuck::{Pod, Zeroable};
-
 /// This macro declares a new array type for a specified type
 #[macro_export]
 macro_rules! declare_fixed_array {
@@ -26,38 +24,49 @@ macro_rules! declare_fixed_array {
         };
 
         impl $Name {
-            /// Creates a new, empty `FixedArray`.
+            /// Creates a new, empty `FixedArray` without incurring large
+            /// stack allocations.
             ///
-            /// Panics if `N` (the capacity) is greater than `u16::MAX`.
+            /// Instead of constructing the backing array on the stack using
+            /// `core::array::from_fn` (which results in a >4 KiB stack frame
+            /// when `$T` is large and `$SIZE` is high), we rely on
+            /// `core::mem::zeroed()` to directly initialise the returned
+            /// value in the _caller-provided out-pointer_.
+            ///
+            /// This pattern avoids exceeding the 4096-byte stack limit of
+            /// Solana BPF programs while still guaranteeing a fully-zeroed,
+            /// POD-safe structure thanks to the `Pod + Zeroable` bounds on
+            /// both the wrapper and the contained type.
             pub fn new() -> Self {
+                // Ensures the capacity check is still performed without
+                // forcing the compiler to materialise the whole array on the
+                // stack.
                 assert!(
                     $SIZE <= u16::MAX as usize,
                     "Capacity N exceeds u16 for count field"
                 );
-                Self {
-                    items: core::array::from_fn(|_| <$T>::default()),
-                    count: 0,
-                    _padding: [0; 14],
-                }
+
+                // SAFETY: `$Name` and `$T` are `Pod + Zeroable`, therefore a
+                // byte-wise zeroed instance is a valid value. The returned
+                // object has `count = 0`, `items` fully zeroed, and the
+                // padding cleared.
+                unsafe { core::mem::zeroed() }
             }
 
             /// Creates a new `FixedArray` from a slice.
             ///
-            /// Copies elements from the `input_slice` into the new `FixedArray`
-            /// up to the capacity `N` of the `FixedArray` or the length of the slice,
-            /// whichever is smaller.
+            /// This method is **only** compiled for non-BPF targets (unit tests, off-chain
+            /// code, etc.). On Solana/Arch BPF we provide a minimal stub to avoid large
+            /// stack frames that would otherwise blow past the 4 KiB limit even if the
+            /// function is never called.
+            #[cfg(not(target_os = "solana"))]
             pub fn from_slice(input_slice: &[$T]) -> Self {
-                let mut fa = Self::new(); // Initialize with default (empty with capacity N)
-                let num_to_copy = std::cmp::min(input_slice.len(), $SIZE);
+                let mut fa = Self::new(); // Construct directly in the return slot (see new())
+                let num_to_copy = core::cmp::min(input_slice.len(), $SIZE);
 
                 for i in 0..num_to_copy {
-                    // This clone is necessary because `input_slice` elements are borrowed,
-                    // and `fa.items` owns its elements.
-                    // The `add` method handles putting the item into `fa.items[fa.count]`
-                    // and incrementing `fa.count`.
-                    // Since `fa` is new and empty, `add` should not return Err here,
-                    // so we can `.ok()` it (or `.unwrap()` if absolutely certain).
-                    fa.add(input_slice[i].clone()).unwrap();
+                    // Safe because we stay within bounds and `fa` is initialised.
+                    fa.add(input_slice[i].clone());
                 }
                 fa
             }
@@ -249,7 +258,6 @@ macro_rules! declare_fixed_array {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, bytemuck::Pod, bytemuck::Zeroable)]
     #[repr(C)]

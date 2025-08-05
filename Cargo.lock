@@ -1019,15 +1019,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "btc_tx_test"
-version = "0.1.0"
-dependencies = [
- "arch_program",
- "bytemuck",
- "satellite-lang",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4252,6 +4243,18 @@ dependencies = [
  "num 0.4.3",
  "primitive-types",
  "thiserror 1.0.66",
+]
+
+[[package]]
+name = "satellite-shard"
+version = "0.1.0"
+dependencies = [
+ "arch_program",
+ "bitcoin",
+ "bytemuck",
+ "ordinals",
+ "satellite-bitcoin",
+ "satellite-lang",
 ]
 
 [[package]]

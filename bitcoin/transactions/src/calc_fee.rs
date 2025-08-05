@@ -1,8 +1,8 @@
 use std::cmp::min;
 
+use crate::mempool::MempoolInfo;
 use arch_program::input_to_sign::InputToSign;
 use bitcoin::{Amount, ScriptBuf, Transaction, TxOut};
-use crate::mempool::MempoolInfo;
 use satellite_collections::generic::push_pop::{PushPopCollection, PushPopError};
 use satellite_math::{safe_add, safe_sub};
 
@@ -403,7 +403,8 @@ mod tests {
             &mut transaction,
             &mut inputs_to_sign,
             &new_potential_inputs_and_outputs,
-        );
+        )
+        .unwrap();
 
         assert_eq!(transaction.input.len(), 2);
         assert_eq!(transaction.output.len(), 3);
@@ -434,7 +435,8 @@ mod tests {
             &mut transaction,
             &mut inputs_to_sign,
             &new_potential_inputs_and_outputs,
-        );
+        )
+        .unwrap();
 
         assert_eq!(transaction.input.len(), 2);
         assert_eq!(inputs_to_sign.items.len(), 0); // No signers should be added
@@ -555,8 +557,12 @@ mod tests {
         transaction
             .input
             .push(create_mock_tx_in(create_mock_outpoint([2; 32], 0)));
-        inputs_to_sign.push(InputToSign { index: 0, signer });
-        inputs_to_sign.push(InputToSign { index: 1, signer });
+        inputs_to_sign
+            .push(InputToSign { index: 0, signer })
+            .unwrap();
+        inputs_to_sign
+            .push(InputToSign { index: 1, signer })
+            .unwrap();
 
         let potential_input = create_mock_tx_in(create_mock_outpoint([3; 32], 0));
         let new_potential_inputs_and_outputs = NewPotentialInputsAndOutputs {
@@ -572,7 +578,8 @@ mod tests {
             &mut transaction,
             &mut inputs_to_sign,
             &new_potential_inputs_and_outputs,
-        );
+        )
+        .unwrap();
 
         // Should have 2 existing + 3 new = 5 total inputs
         assert_eq!(transaction.input.len(), 5);
@@ -595,10 +602,12 @@ mod tests {
             transaction
                 .input
                 .push(create_mock_tx_in(create_mock_outpoint([i as u8; 32], 0)));
-            inputs_to_sign.push(InputToSign {
-                index: i as u32,
-                signer,
-            });
+            inputs_to_sign
+                .push(InputToSign {
+                    index: i as u32,
+                    signer,
+                })
+                .unwrap();
         }
 
         // Add some outputs
@@ -659,7 +668,8 @@ mod tests {
             &mut transaction,
             &mut inputs_to_sign,
             &new_potential_inputs_and_outputs,
-        );
+        )
+        .unwrap();
 
         // Nothing should be added
         assert_eq!(transaction.input.len(), 0);

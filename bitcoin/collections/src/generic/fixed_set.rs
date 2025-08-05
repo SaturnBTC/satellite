@@ -53,7 +53,7 @@ impl std::fmt::Display for FixedSetError {
 /// ```
 ///
 /// [`declare_fixed_set!`]: crate::declare_fixed_set
-pub trait FixedCapacitySet: Default {
+pub trait FixedCapacitySet: Default + Clone {
     /// The element type stored in the set.
     type Item: Copy + PartialEq + Default;
 

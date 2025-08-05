@@ -140,7 +140,6 @@ impl<'info, T: ZeroCopy + Owner> AccountLoader<'info, T> {
     /// Constructs a new `Loader` from an uninitialized account.
     #[inline(never)]
     pub fn try_from_unchecked(
-        _program_id: &Pubkey,
         acc_info: &'info AccountInfo<'info>,
     ) -> Result<AccountLoader<'info, T>> {
         if acc_info.owner != &T::owner() {

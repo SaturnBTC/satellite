@@ -1,5 +1,3 @@
-use bytemuck::{Pod, Zeroable};
-
 #[macro_export]
 macro_rules! declare_fixed_option {
     ($Name:ident, $T:ty, $padding:expr) => {
@@ -127,7 +125,7 @@ macro_rules! declare_fixed_option {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use bytemuck::{Pod, Zeroable};
 
     // Dummy UtxoInfo for testing
     #[derive(Clone, Copy, Debug, PartialEq, Eq, Pod, Zeroable)]

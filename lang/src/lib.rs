@@ -43,7 +43,6 @@ pub mod error;
 pub mod event;
 #[doc(hidden)]
 pub mod idl;
-pub mod shard_set;
 pub mod system_program;
 pub mod utxo_parser;
 mod vec;

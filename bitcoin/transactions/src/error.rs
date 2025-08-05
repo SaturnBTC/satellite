@@ -98,8 +98,6 @@ impl From<BitcoinTxError> for u32 {
     }
 }
 
-// === Runtime decoding support ==============================================
-
 impl DecodeError<BitcoinTxError> for BitcoinTxError {
     fn type_of() -> &'static str {
         "BitcoinTxError"

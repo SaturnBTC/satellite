@@ -202,6 +202,33 @@ where
     }
 }
 
+#[cfg(feature = "runes")]
+impl<RS> TryFrom<UtxoMeta> for UtxoInfo<RS>
+where
+    RS: FixedCapacitySet<Item = RuneAmount> + Default,
+{
+    type Error = ProgramError;
+
+    fn try_from(value: UtxoMeta) -> std::result::Result<Self, ProgramError> {
+        // Fetch rune amount (at most one) from the UTXO.
+        let runes = get_runes(&value)?;
+
+        let outpoint = value.to_outpoint();
+
+        let ui_value =
+            get_bitcoin_tx_output_value(txid_to_bytes_big_endian(&outpoint.txid), outpoint.vout)
+                .ok_or(BitcoinTxError::TransactionNotFound)?;
+
+        Ok(UtxoInfo {
+            meta: value.clone(),
+            value: ui_value,
+            runes: runes,
+            #[cfg(feature = "utxo-consolidation")]
+            needs_consolidation: FixedOptionF64::none(),
+        })
+    }
+}
+
 // When the "runes" feature is disabled, fallback implementation without rune handling.
 #[cfg(not(feature = "runes"))]
 impl TryFrom<&UtxoMeta> for UtxoInfo<SingleRuneSet> {
