@@ -148,7 +148,7 @@ pub fn generate(program: &Program) -> proc_macro2::TokenStream {
 
                     // Invoke user defined handler.
                     let result = #program_name::#ix_method_name(
-                        anchor_lang::context::Context::new(
+                        satellite_lang::context::Context::new(
                             __program_id,
                             &mut __accounts,
                             __remaining_accounts,
