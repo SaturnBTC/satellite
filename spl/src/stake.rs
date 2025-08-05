@@ -1,17 +1,14 @@
 use satellite_lang::{
-    context::CpiContext,
     arch_program::{
         account::AccountInfo,
         pubkey::Pubkey,
         stake::{
             self,
-            program::ID,
+            program::STAKE_PROGRAM_ID,
             state::{StakeAuthorize, StakeState},
         },
-    },
-    Accounts, Result,
+    }, context::CpiContext, Accounts, AnchorDeserialize, Result
 };
-use borsh::BorshDeserialize;
 use std::ops::Deref;
 
 // CPI functions
@@ -19,14 +16,14 @@ use std::ops::Deref;
 pub fn authorize<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, Authorize<'info>>,
     stake_authorize: StakeAuthorize,
-    custodian: Option<AccountInfo<'info>>,
+    // custodian: Option<AccountInfo<'info>>,
 ) -> Result<()> {
     let ix = stake::instruction::authorize(
         ctx.accounts.stake.key,
         ctx.accounts.authorized.key,
         ctx.accounts.new_authorized.key,
         stake_authorize,
-        custodian.as_ref().map(|c| c.key),
+        // custodian.as_ref().map(|c| c.key),
     );
     let mut account_infos = vec![
         ctx.accounts.stake,
@@ -50,7 +47,7 @@ pub fn withdraw<'info>(
         ctx.accounts.withdrawer.key,
         ctx.accounts.to.key,
         amount,
-        custodian.as_ref().map(|c| c.key),
+        // custodian.as_ref().map(|c| c.key),
     );
     let mut account_infos = vec![
         ctx.accounts.stake,
@@ -136,7 +133,7 @@ impl satellite_lang::AccountDeserialize for StakeAccount {
     }
 
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
-        StakeState::deserialize(buf).map(Self).map_err(Into::into)
+        StakeState::deserialize_reader(buf).map(Self).map_err(Into::into)
     }
 }
 
@@ -144,7 +141,7 @@ impl satellite_lang::AccountSerialize for StakeAccount {}
 
 impl satellite_lang::Owner for StakeAccount {
     fn owner() -> Pubkey {
-        ID
+        STAKE_PROGRAM_ID
     }
 }
 
@@ -161,6 +158,6 @@ pub struct Stake;
 
 impl satellite_lang::Id for Stake {
     fn id() -> Pubkey {
-        ID
+        STAKE_PROGRAM_ID
     }
 }

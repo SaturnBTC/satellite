@@ -20,8 +20,8 @@ pub mod token;
 // #[cfg(feature = "token_2022")]
 // pub mod token_interface;
 
-#[cfg(feature = "governance")]
-pub mod governance;
+// #[cfg(feature = "governance")]
+// pub mod governance;
 
 #[cfg(feature = "stake")]
 pub mod stake;

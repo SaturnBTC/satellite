@@ -30,7 +30,7 @@ pub const IDL_IX_TAG_LE: &[u8] = IDL_IX_TAG.to_le_bytes().as_slice();
 
 // The Pubkey that is stored as the 'authority' on the IdlAccount when the authority
 // is "erased".
-pub const ERASED_AUTHORITY: Pubkey = Pubkey([0u8; 32]);
+pub const ERASED_AUTHORITY: Pubkey = Pubkey::new_from_array([0u8; 32]);
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub enum IdlInstruction {
