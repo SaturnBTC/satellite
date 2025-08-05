@@ -273,16 +273,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "anchor-derive-utxo-parser"
-version = "0.1.0"
-dependencies = [
- "anchor-syn",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "anchor-syn"
 version = "0.31.1"
 dependencies = [
@@ -4295,14 +4285,12 @@ dependencies = [
  "anchor-derive-accounts",
  "anchor-derive-serde",
  "anchor-derive-space",
- "anchor-derive-utxo-parser",
  "arch_program",
  "base64 0.21.7",
  "bincode",
  "bitcoin 0.32.5",
  "borsh 1.5.7",
  "bytemuck",
- "satellite-bitcoin",
  "satellite-lang-idl",
  "thiserror 1.0.66",
 ]

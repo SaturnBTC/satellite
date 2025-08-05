@@ -6,8 +6,6 @@ use arch_program::account::AccountMeta;
 use arch_program::pubkey::Pubkey;
 use std::fmt;
 
-pub use crate::btc_tx_builder::BtcTxBuilderAny;
-
 /// Provides non-argument inputs to the program.
 ///
 /// # Example
@@ -49,63 +47,6 @@ where
             .field("remaining_accounts", &self.remaining_accounts)
             .field("bumps", &self.bumps)
             .finish()
-    }
-}
-
-// Introduce BtcContext wrapper that carries a guaranteed builder reference.
-pub struct BtcContext<'a, 'b, 'c, 'ctx, 'info, T: Bumps> {
-    /// All the usual context data.
-    pub base: Context<'a, 'b, 'c, 'info, T>,
-    /// Mandatory Bitcoin transaction builder.
-    pub btc_tx_builder: &'ctx mut dyn BtcTxBuilderAny<'info>,
-}
-
-// Allow transparent access to the underlying `Context` fields.
-impl<'a, 'b, 'c, 'ctx, 'info, T: Bumps> core::ops::Deref
-    for BtcContext<'a, 'b, 'c, 'ctx, 'info, T>
-{
-    type Target = Context<'a, 'b, 'c, 'info, T>;
-    #[inline(always)]
-    fn deref(&self) -> &Self::Target {
-        &self.base
-    }
-}
-
-impl<'a, 'b, 'c, 'ctx, 'info, T: Bumps> core::ops::DerefMut
-    for BtcContext<'a, 'b, 'c, 'ctx, 'info, T>
-{
-    #[inline(always)]
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.base
-    }
-}
-
-impl<T> fmt::Debug for BtcContext<'_, '_, '_, '_, '_, T>
-where
-    T: fmt::Debug + Bumps,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("BtcContext")
-            .field("base", &self.base)
-            .finish()
-    }
-}
-
-impl<'a, 'b, 'c, 'ctx, 'info, T> BtcContext<'a, 'b, 'c, 'ctx, 'info, T>
-where
-    T: Bumps + Accounts<'info, T::Bumps>,
-{
-    pub fn new(
-        program_id: &'a Pubkey,
-        accounts: &'b mut T,
-        remaining_accounts: &'c [AccountInfo<'info>],
-        bumps: T::Bumps,
-        btc_tx_builder: &'ctx mut dyn BtcTxBuilderAny<'info>,
-    ) -> Self {
-        Self {
-            base: Context::new(program_id, accounts, remaining_accounts, bumps),
-            btc_tx_builder,
-        }
     }
 }
 

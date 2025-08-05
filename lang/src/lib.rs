@@ -35,7 +35,6 @@ use std::{collections::BTreeSet, fmt::Debug, io::Write};
 mod account_meta;
 pub mod accounts;
 mod bpf_writer;
-mod btc_tx_builder;
 mod common;
 pub mod context;
 pub mod error;
@@ -44,7 +43,6 @@ pub mod event;
 #[doc(hidden)]
 pub mod idl;
 pub mod system_program;
-pub mod utxo_parser;
 mod vec;
 
 #[cfg(feature = "lazy-account")]
@@ -58,7 +56,6 @@ pub use anchor_attribute_program::{declare_program, instruction, program};
 pub use anchor_derive_accounts::Accounts;
 pub use anchor_derive_serde::{AnchorDeserialize, AnchorSerialize};
 pub use anchor_derive_space::InitSpace;
-pub use anchor_derive_utxo_parser::UtxoParser;
 
 pub use arch_program;
 /// Borsh is the default serialization format for instructions and accounts.
@@ -402,15 +399,14 @@ pub mod prelude {
         access_control, account, accounts::account::Account,
         accounts::account_loader::AccountLoader, accounts::interface::Interface,
         accounts::interface_account::InterfaceAccount, accounts::program::Program,
-        accounts::shards::Shards, accounts::signer::Signer,
-        accounts::system_account::SystemAccount, accounts::unchecked_account::UncheckedAccount,
-        arch_program::bpf_loader::LoaderState, constant, context::BtcContext, context::Context,
-        context::CpiContext, declare_id, declare_program, err, error, event, instruction, program,
-        pubkey, require, require_eq, require_gt, require_gte, require_keys_eq, require_keys_neq,
-        require_neq, source, system_program::System, utxo_parser::TryFromUtxos, zero_copy,
+        accounts::signer::Signer, accounts::system_account::SystemAccount,
+        accounts::unchecked_account::UncheckedAccount, arch_program::bpf_loader::LoaderState,
+        constant, context::Context, context::CpiContext, declare_id, declare_program, err, error,
+        event, instruction, program, pubkey, require, require_eq, require_gt, require_gte,
+        require_keys_eq, require_keys_neq, require_neq, source, system_program::System, zero_copy,
         AccountDeserialize, AccountSerialize, Accounts, AccountsClose, AccountsExit,
         AnchorDeserialize, AnchorSerialize, Discriminator, Id, InitSpace, Key, Lamports, Owner,
-        Result, Space, ToAccountInfo, ToAccountInfos, ToAccountMetas, UtxoParser,
+        Result, Space, ToAccountInfo, ToAccountInfos, ToAccountMetas,
     };
 
     pub use anchor_attribute_error::*;
@@ -431,8 +427,6 @@ pub mod prelude {
 
     #[cfg(feature = "lazy-account")]
     pub use super::accounts::lazy_account::LazyAccount;
-
-    pub use satellite_bitcoin;
 }
 
 /// Internal module used by macros and unstable apis.
@@ -607,8 +601,10 @@ macro_rules! require_keys_eq {
     };
     ($value1: expr, $value2: expr $(,)?) => {
         if $value1 != $value2 {
-            return Err(error!(satellite_lang::error::ErrorCode::RequireKeysEqViolated)
-                .with_pubkeys(($value1, $value2)));
+            return Err(
+                error!(satellite_lang::error::ErrorCode::RequireKeysEqViolated)
+                    .with_pubkeys(($value1, $value2)),
+            );
         }
     };
 }
@@ -739,8 +735,3 @@ macro_rules! source {
         }
     };
 }
-
-// Re-export satellite crates at the crate root so programs can simply depend on
-// `satellite-lang` and access Bitcoin-related helpers without listing the satellite
-// crates explicitly.
-pub use satellite_bitcoin;

@@ -33,73 +33,12 @@ use syn::{
 };
 
 #[derive(Debug)]
-pub struct BtcTxCfg {
-    pub max_inputs_to_sign: usize,
-    pub max_modified_accounts: usize,
-    pub rune_capacity: usize,
-}
-
-impl Parse for BtcTxCfg {
-    fn parse(input: ParseStream) -> ParseResult<Self> {
-        // Parse named arguments in the form `key = value, ...`
-        let args = input.parse_terminated::<_, Comma>(NamedArg::parse)?;
-        let mut cfg = BtcTxCfg {
-            max_inputs_to_sign: 0,
-            max_modified_accounts: 0,
-            rune_capacity: 0,
-        };
-        for arg in args {
-            let ident_str = arg.name.to_string();
-            match ident_str.as_str() {
-                "max_inputs_to_sign" => {
-                    if let Expr::Lit(expr_lit) = &arg.value {
-                        if let Lit::Int(lit_int) = &expr_lit.lit {
-                            cfg.max_inputs_to_sign = lit_int.base10_parse()?;
-                        } else {
-                            return Err(ParseError::new(expr_lit.lit.span(), "expected integer"));
-                        }
-                    } else {
-                        return Err(ParseError::new(arg.value.span(), "expected integer"));
-                    }
-                }
-                "max_modified_accounts" => {
-                    if let Expr::Lit(expr_lit) = &arg.value {
-                        if let Lit::Int(lit_int) = &expr_lit.lit {
-                            cfg.max_modified_accounts = lit_int.base10_parse()?;
-                        } else {
-                            return Err(ParseError::new(expr_lit.lit.span(), "expected integer"));
-                        }
-                    } else {
-                        return Err(ParseError::new(arg.value.span(), "expected integer"));
-                    }
-                }
-                "rune_capacity" => {
-                    if let Expr::Lit(expr_lit) = &arg.value {
-                        if let Lit::Int(lit_int) = &expr_lit.lit {
-                            cfg.rune_capacity = lit_int.base10_parse()?;
-                        } else {
-                            return Err(ParseError::new(expr_lit.lit.span(), "expected integer"));
-                        }
-                    } else {
-                        return Err(ParseError::new(arg.value.span(), "expected integer"));
-                    }
-                }
-                _ => return Err(ParseError::new(arg.name.span(), "invalid btc_tx_cfg argument")),
-            }
-        }
-        Ok(cfg)
-    }
-}
-
-#[derive(Debug)]
 pub struct Program {
     pub ixs: Vec<Ix>,
     pub name: Ident,
     pub docs: Option<Vec<String>>,
     pub program_mod: ItemMod,
     pub fallback_fn: Option<FallbackFn>,
-    /// Optional bitcoin-transaction configuration provided via the `btc_tx` attribute.
-    pub btc_tx_cfg: Option<BtcTxCfg>,
 }
 
 impl Parse for Program {
@@ -404,10 +343,6 @@ impl Field {
             //         Sysvar<#account>
             //     }
             // }
-            Ty::Shards(ty) => {
-                let inner = &ty.inner;
-                quote! { satellite_lang::accounts::shards::Shards<'info, #inner> }
-            }
             _ => quote! {
                 #container_ty<#account_ty>
             },
@@ -448,7 +383,7 @@ impl Field {
                 quote! { UncheckedAccount::try_from(&#field) }
             }
             Ty::Account(AccountTy { boxed, .. })
-            /*| Ty::InterfaceAccount(InterfaceAccountTy { boxed, .. }) */ => {
+            | Ty::InterfaceAccount(InterfaceAccountTy { boxed, .. }) => {
                 let stream = if checked {
                     quote! {
                         match #container_ty::try_from(&#field) {
@@ -543,7 +478,6 @@ impl Field {
             Ty::InterfaceAccount(_) => {
                 quote! { satellite_lang::accounts::interface_account::InterfaceAccount }
             }
-            Ty::Shards(_) => quote! { satellite_lang::accounts::shards::Shards },
             Ty::AccountInfo => quote! {},
             Ty::UncheckedAccount => quote! {},
             Ty::Signer => quote! {},
@@ -593,10 +527,6 @@ impl Field {
                 quote! {
                     #ident
                 }
-            }
-            Ty::Shards(ty) => {
-                let inner = &ty.inner;
-                quote! { #inner }
             }
             // Ty::Sysvar(ty) => match ty {
             //     SysvarTy::Clock => quote! {Clock},
@@ -648,8 +578,6 @@ pub enum Ty {
     Program(ProgramTy),
     Interface(InterfaceTy),
     InterfaceAccount(InterfaceAccountTy),
-    /// A vector of account/account loader shards.
-    Shards(ShardsTy),
     Signer,
     SystemAccount,
     // ProgramData,
@@ -709,13 +637,6 @@ pub struct InterfaceTy {
     pub account_type_path: TypePath,
 }
 
-// The inner type of a `Shards<'info, T>` container.
-#[derive(Debug, PartialEq, Eq)]
-pub struct ShardsTy {
-    /// The type path of the inner account container, e.g. `Account<'info, Foo>`.
-    pub inner: TypePath,
-}
-
 #[derive(Debug)]
 pub struct Error {
     pub name: String,
@@ -770,9 +691,6 @@ pub struct ConstraintGroup {
     pub token_account: Option<ConstraintTokenAccountGroup>,
     pub mint: Option<ConstraintTokenMintGroup>,
     pub realloc: Option<ConstraintReallocGroup>,
-    // When `shards = N` or `shards = "rest"` is specified on an account field this entry holds
-    // the parsed configuration.
-    pub shards: Option<ConstraintShards>,
 }
 
 impl ConstraintGroup {
@@ -815,7 +733,6 @@ pub enum Constraint {
     TokenAccount(ConstraintTokenAccountGroup),
     Mint(ConstraintTokenMintGroup),
     Realloc(ConstraintReallocGroup),
-    Shards(ConstraintShards),
 }
 
 // Constraint token is a single keyword in a `#[account(<TOKEN>)]` attribute.
@@ -851,7 +768,6 @@ pub enum ConstraintToken {
     Realloc(Context<ConstraintRealloc>),
     ReallocPayer(Context<ConstraintReallocPayer>),
     ReallocZero(Context<ConstraintReallocZero>),
-    Shards(Context<ConstraintShards>),
     // extensions
     // ExtensionGroupPointerAuthority(Context<ConstraintExtensionAuthority>),
     // ExtensionGroupPointerGroupAddress(Context<ConstraintExtensionGroupPointerGroupAddress>),
@@ -981,13 +897,6 @@ pub struct ConstraintPayer {
 #[derive(Debug, Clone)]
 pub struct ConstraintSpace {
     pub space: Expr,
-}
-
-#[derive(Debug, Clone)]
-pub struct ConstraintShards {
-    /// The expression provided to `shards = ...`.
-    /// It can be an integer literal e.g. `3` or an identifier / string literal `rest`.
-    pub len: Expr,
 }
 
 // // extension constraints

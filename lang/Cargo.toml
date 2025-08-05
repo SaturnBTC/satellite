@@ -34,8 +34,6 @@ idl-build = [
 init-if-needed = ["anchor-derive-accounts/init-if-needed"]
 interface-instructions = ["anchor-attribute-program/interface-instructions"]
 lazy-account = ["anchor-attribute-account/lazy-account", "anchor-derive-serde/lazy-account"]
-runes = ["satellite-bitcoin/runes"]
-utxo-consolidation = ["satellite-bitcoin/utxo-consolidation"]
 
 [dependencies]
 anchor-attribute-access-control = { path = "./attribute/access-control", version = "0.31.1" }
@@ -46,7 +44,6 @@ anchor-attribute-program = { path = "./attribute/program", version = "0.31.1" }
 anchor-derive-accounts = { path = "./derive/accounts", version = "0.31.1" }
 anchor-derive-serde = { path = "./derive/serde", version = "0.31.1" }
 anchor-derive-space = { path = "./derive/space", version = "0.31.1" }
-anchor-derive-utxo-parser = { path = "./derive/utxo_parser", version = "0.1.0" }
 
 # `satellite-lang-idl` should only be included with `idl-build` feature
 satellite-lang-idl = { path = "../idl", version = "0.1.2", optional = true }
@@ -58,5 +55,3 @@ bytemuck = "1.14"
 arch_program = { path = "../deps/program", version = "0.5.3" }
 thiserror = "1.0.61"
 bitcoin = "0.32.5"
-
-satellite-bitcoin = { workspace = true }

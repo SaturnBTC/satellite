@@ -93,20 +93,6 @@ pub fn generate(program: &Program) -> proc_macro2::TokenStream {
 
     let event_cpi_mod = generate_event_cpi_mod();
 
-    // Generate support code for optional btc_tx feature
-    let btc_support: proc_macro2::TokenStream = if let Some(cfg) = &program.btc_tx_cfg {
-        let max_inputs = cfg.max_inputs_to_sign;
-        let max_modified = cfg.max_modified_accounts;
-        let rune_capacity = cfg.rune_capacity;
-        let rune_set_ident = syn::Ident::new("__BtcRuneSet", Span::call_site());
-        quote! {
-            satellite_lang::satellite_bitcoin::declare_fixed_set!(#rune_set_ident, satellite_lang::arch_program::rune::RuneAmount, #rune_capacity);
-            type __BtcTxBuilder<'info> = satellite_lang::satellite_bitcoin::TransactionBuilder<'info, #max_modified, #max_inputs, #rune_set_ident>;
-        }
-    } else {
-        quote! {}
-    };
-
     let non_inlined_handlers: Vec<proc_macro2::TokenStream> = program
         .ixs
         .iter()
@@ -127,36 +113,6 @@ pub fn generate(program: &Program) -> proc_macro2::TokenStream {
                     result.serialize(&mut return_data).unwrap();
                     satellite_lang::arch_program::program::set_return_data(&return_data);
                 },
-            };
-            // Context creation depending on btc_tx presence
-            let ctx_creation = if let Some(cfg) = &program.btc_tx_cfg {
-                let max_inputs = cfg.max_inputs_to_sign;
-                let max_modified = cfg.max_modified_accounts;
-                quote! {
-                    let mut __btc_tx_builder: __BtcTxBuilder<'info> = satellite_lang::satellite_bitcoin::TransactionBuilder::<'info, #max_modified, #max_inputs, __BtcRuneSet>::new();
-                    let result = #program_name::#ix_method_name(
-                        satellite_lang::context::BtcContext::new(
-                            __program_id,
-                            &mut __accounts,
-                            __remaining_accounts,
-                            __bumps,
-                            &mut __btc_tx_builder as &mut dyn satellite_lang::context::BtcTxBuilderAny<'info>,
-                        ),
-                        #(#ix_arg_names),*
-                    )?;
-                }
-            } else {
-                quote! {
-                    let result = #program_name::#ix_method_name(
-                        satellite_lang::context::Context::new(
-                            __program_id,
-                            &mut __accounts,
-                            __remaining_accounts,
-                            __bumps,
-                        ),
-                        #(#ix_arg_names),*
-                    )?;
-                }
             };
 
             quote! {
@@ -191,7 +147,15 @@ pub fn generate(program: &Program) -> proc_macro2::TokenStream {
                     )?;
 
                     // Invoke user defined handler.
-                    #ctx_creation
+                    let result = #program_name::#ix_method_name(
+                        anchor_lang::context::Context::new(
+                            __program_id,
+                            &mut __accounts,
+                            __remaining_accounts,
+                            __bumps,
+                        ),
+                        #(#ix_arg_names),*
+                    )?;
 
                     // Maybe set Solana return data.
                     #maybe_set_return_data
@@ -221,7 +185,6 @@ pub fn generate(program: &Program) -> proc_macro2::TokenStream {
             pub mod __global {
                 use super::*;
 
-                #btc_support
                 #(#non_inlined_handlers)*
             }
 

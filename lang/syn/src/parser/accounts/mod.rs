@@ -59,66 +59,6 @@ pub fn parse(accounts_struct: &syn::ItemStruct) -> ParseResult<AccountsStruct> {
 }
 
 fn constraints_cross_checks(fields: &[AccountField]) -> ParseResult<()> {
-    // Validate correct usage of the `shards` constraint before any other checks.
-    for (idx, field) in fields.iter().enumerate() {
-        match field {
-            AccountField::Field(f) => {
-                let has_shards_constraint = f.constraints.shards.is_some();
-                let is_shards_ty = matches!(f.ty, Ty::Shards(_));
-                if has_shards_constraint && !is_shards_ty {
-                    return Err(ParseError::new(
-                        f.ident.span(),
-                        "the `shards` constraint can only be used on fields of type `Shards<'info, T>` (e.g. `Shards<'info, AccountLoader<'info, Foo>>`)",
-                    ));
-                }
-                if is_shards_ty && !has_shards_constraint {
-                    return Err(ParseError::new(
-                        f.ident.span(),
-                        "fields of type `Shards<'info, T>` require an accompanying `#[account(shards = ...)]` constraint specifying the number of shards or \"rest\"",
-                    ));
-                }
-
-                // Additional rule: when `shards = "rest"` is used, the field must be the last
-                // one in the Accounts struct. This ensures that it consumes all remaining
-                // accounts without affecting the parsing of subsequent fields.
-                if let Some(shards_ctx) = &f.constraints.shards {
-                    if let syn::Expr::Lit(expr_lit) = &shards_ctx.len {
-                        match &expr_lit.lit {
-                            syn::Lit::Str(lit_str) => {
-                                if lit_str.value() == "rest" && idx != fields.len() - 1 {
-                                    return Err(ParseError::new(
-                                        f.ident.span(),
-                                        "`shards = \"rest\"` must be the last account defined in the Accounts struct",
-                                    ));
-                                }
-                            }
-                            syn::Lit::Int(lit_int) => {
-                                // Enforce an upper bound of 50 shards when a numeric literal is provided.
-                                if let Ok(val) = lit_int.base10_parse::<u64>() {
-                                    if val > 50 {
-                                        return Err(ParseError::new(
-                                            f.ident.span(),
-                                            "the `shards` constraint cannot exceed 50 (maximum allowed is 50)",
-                                        ));
-                                    }
-                                }
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-            }
-            AccountField::CompositeField(c) => {
-                if c.constraints.shards.is_some() {
-                    return Err(ParseError::new(
-                        c.ident.span(),
-                        "the `shards` constraint cannot be applied to composite account structs. Apply it to a field of type `Shards<'info, T>` instead",
-                    ));
-                }
-            }
-        }
-    }
-
     // COMMON ERROR MESSAGE
     let message = |constraint: &str, field: &str, required: bool| {
         if required {
@@ -258,7 +198,7 @@ fn constraints_cross_checks(fields: &[AccountField]) -> ParseResult<()> {
                     }
                 }
 
-                // // Make sure initialized token accounts are always declared after their corresponding mint.
+                // Make sure initialized token accounts are always declared after their corresponding mint.
                 InitKind::Mint { .. } => {
                     if init_fields.iter().enumerate().any(|(f_pos, f)| {
                         match &f.constraints.init.as_ref().unwrap().kind {
@@ -398,7 +338,6 @@ fn is_field_primitive(f: &syn::Field) -> ParseResult<bool> {
             | "Program"
             | "Interface"
             | "InterfaceAccount"
-            | "Shards"
             | "Signer"
             | "SystemAccount"
             | "ProgramData"
@@ -418,7 +357,6 @@ fn parse_ty(f: &syn::Field) -> ParseResult<(Ty, bool)> {
         "Program" => Ty::Program(parse_program_ty(&path)?),
         "Interface" => Ty::Interface(parse_interface_ty(&path)?),
         "InterfaceAccount" => Ty::InterfaceAccount(parse_interface_account_ty(&path)?),
-        "Shards" => Ty::Shards(parse_shards_ty(&path)?),
         "Signer" => Ty::Signer,
         "SystemAccount" => Ty::SystemAccount,
         // "ProgramData" => Ty::ProgramData,
@@ -426,75 +364,6 @@ fn parse_ty(f: &syn::Field) -> ParseResult<(Ty, bool)> {
     };
 
     Ok((ty, optional))
-}
-
-// Parses a `Shards<'info, T>` path into a `ShardsTy` capturing the inner account container type.
-fn parse_shards_ty(path: &syn::Path) -> ParseResult<ShardsTy> {
-    // Expect first segment to be `Shards` with angle bracketed args.
-    let segments = &path.segments[0];
-    let syn::PathArguments::AngleBracketed(args) = &segments.arguments else {
-        return Err(ParseError::new(
-            segments.arguments.span(),
-            "expected angle brackets with lifetime and inner type",
-        ));
-    };
-
-    if args.args.len() != 2 {
-        return Err(ParseError::new(
-            args.args.span(),
-            "Shards must have two generic parameters: lifetime and inner type",
-        ));
-    }
-
-    // Helper that determines how deeply Shards containers are nested in a given `TypePath`.
-    fn shards_depth_of_ty_path(ty_path: &syn::TypePath) -> usize {
-        let last_segment = match ty_path.path.segments.last() {
-            Some(seg) => seg,
-            None => return 0,
-        };
-
-        if last_segment.ident == "Shards" {
-            // Found another Shards container. Recurse into its inner generic argument.
-            if let syn::PathArguments::AngleBracketed(inner_args) = &last_segment.arguments {
-                if inner_args.args.len() == 2 {
-                    if let syn::GenericArgument::Type(syn::Type::Path(inner_tp)) =
-                        &inner_args.args[1]
-                    {
-                        return 1 + shards_depth_of_ty_path(inner_tp);
-                    }
-                }
-            }
-            // It's a Shards but we couldn't inspect generics – count as 1.
-            1
-        } else {
-            0
-        }
-    }
-
-    let inner_ty_path = match &args.args[1] {
-        syn::GenericArgument::Type(syn::Type::Path(ty_path)) => (*ty_path).clone(),
-        _ => {
-            return Err(ParseError::new(
-                args.args[1].span(),
-                "second generic argument must be a type",
-            ))
-        }
-    };
-
-    // Enforce a maximum nesting depth of 2 `Shards` containers.
-    // Outer `Shards` (being parsed here) counts as depth 1.
-    let total_depth = 1 + shards_depth_of_ty_path(&inner_ty_path);
-    const MAX_SHARDS_NESTING: usize = 2;
-    if total_depth > MAX_SHARDS_NESTING {
-        return Err(ParseError::new(
-            path.span(),
-            &format!("`Shards` nesting depth exceeds the maximum of {MAX_SHARDS_NESTING}."),
-        ));
-    }
-
-    Ok(ShardsTy {
-        inner: inner_ty_path,
-    })
 }
 
 fn option_to_inner_path(path: &Path) -> ParseResult<Path> {
