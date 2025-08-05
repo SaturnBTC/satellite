@@ -352,8 +352,7 @@ pub fn generate_constraint_owner(f: &Field, c: &ConstraintOwner) -> proc_macro2:
     let ident = &f.ident;
     let maybe_deref = match &f.ty {
         Ty::Account(AccountTy { boxed, .. })
-        // | Ty::InterfaceAuccount(InterfaceAccountTy { boxed, .. })
-        => *boxed,
+        | Ty::InterfaceAccount(InterfaceAccountTy { boxed, .. }) => *boxed,
         _ => false,
     }
     .then(|| quote!(*))
@@ -534,16 +533,13 @@ fn generate_constraint_init_group(
             };
 
             (
-                {
-                    // build seed vec with optional shard index
-                    quote! {
-                        let (__pda_address, __bump) = Pubkey::find_program_address(
-                            &[#maybe_seeds_plus_comma],
-                            __program_id,
-                        );
-                        __bumps.#field = #bump;
-                        #validate_pda
-                    }
+                quote! {
+                    let (__pda_address, __bump) = Pubkey::find_program_address(
+                        &[#maybe_seeds_plus_comma],
+                        __program_id,
+                    );
+                    __bumps.#field = #bump;
+                    #validate_pda
                 },
                 quote! {
                     &[
