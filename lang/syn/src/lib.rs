@@ -759,7 +759,7 @@ pub struct ConstraintGroup {
     pub mutable: Option<ConstraintMut>,
     pub signer: Option<ConstraintSigner>,
     pub owner: Option<ConstraintOwner>,
-    // pub rent_exempt: Option<ConstraintRentExempt>,
+    pub rent_exempt: Option<ConstraintRentExempt>,
     pub seeds: Option<ConstraintSeedsGroup>,
     pub executable: Option<ConstraintExecutable>,
     pub has_one: Vec<ConstraintHasOne>,
@@ -806,7 +806,7 @@ pub enum Constraint {
     HasOne(ConstraintHasOne),
     Raw(ConstraintRaw),
     Owner(ConstraintOwner),
-    // RentExempt(ConstraintRentExempt),
+    RentExempt(ConstraintRentExempt),
     Seeds(ConstraintSeedsGroup),
     // AssociatedToken(ConstraintAssociatedToken),
     Executable(ConstraintExecutable),
@@ -829,7 +829,7 @@ pub enum ConstraintToken {
     HasOne(Context<ConstraintHasOne>),
     Raw(Context<ConstraintRaw>),
     Owner(Context<ConstraintOwner>),
-    // RentExempt(Context<ConstraintRentExempt>),
+    RentExempt(Context<ConstraintRentExempt>),
     Seeds(Context<ConstraintSeeds>),
     Executable(Context<ConstraintExecutable>),
     Close(Context<ConstraintClose>),
@@ -942,11 +942,11 @@ pub struct ConstraintAddress {
     pub error: Option<Expr>,
 }
 
-// #[derive(Debug, Clone)]
-// pub enum ConstraintRentExempt {
-//     Enforce,
-//     Skip,
-// }
+#[derive(Debug, Clone)]
+pub enum ConstraintRentExempt {
+    Enforce,
+    Skip,
+}
 
 #[derive(Debug, Clone)]
 pub struct ConstraintInitGroup {

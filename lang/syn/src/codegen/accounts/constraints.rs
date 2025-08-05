@@ -6,15 +6,6 @@ use crate::*;
 pub fn generate(f: &Field, accs: &AccountsStruct) -> proc_macro2::TokenStream {
     let constraints = linearize(&f.constraints);
 
-    // let rent = if constraints
-    //     .iter()
-    //     .any(|c| matches!(c, Constraint::RentExempt(ConstraintRentExempt::Enforce)))
-    // {
-    //     quote! { let __anchor_rent = Rent::get()?; }
-    // } else {
-    //     quote! {}
-    // };
-
     let checks: Vec<proc_macro2::TokenStream> = constraints
         .iter()
         .map(|c| generate_constraint(f, c, accs))
@@ -50,7 +41,6 @@ pub fn generate(f: &Field, accs: &AccountsStruct) -> proc_macro2::TokenStream {
     }
 
     quote! {
-        // #rent
         #all_checks
     }
 }
@@ -80,7 +70,7 @@ pub fn linearize(c_group: &ConstraintGroup) -> Vec<Constraint> {
         has_one,
         raw,
         owner,
-        // rent_exempt,
+        rent_exempt,
         seeds,
         executable,
         close,
@@ -120,9 +110,9 @@ pub fn linearize(c_group: &ConstraintGroup) -> Vec<Constraint> {
     if let Some(c) = owner {
         constraints.push(Constraint::Owner(c));
     }
-    // if let Some(c) = rent_exempt {
-    //     constraints.push(Constraint::RentExempt(c));
-    // }
+    if let Some(c) = rent_exempt {
+        constraints.push(Constraint::RentExempt(c));
+    }
     if let Some(c) = executable {
         constraints.push(Constraint::Executable(c));
     }
@@ -154,7 +144,7 @@ fn generate_constraint(
         Constraint::Signer(c) => generate_constraint_signer(f, c),
         Constraint::Raw(c) => generate_constraint_raw(&f.ident, c),
         Constraint::Owner(c) => generate_constraint_owner(f, c),
-        // Constraint::RentExempt(c) => generate_constraint_rent_exempt(f, c),
+        Constraint::RentExempt(c) => generate_constraint_rent_exempt(f, c),
         Constraint::Seeds(c) => generate_constraint_seeds(f, c),
         Constraint::Executable(c) => generate_constraint_executable(f, c),
         Constraint::Close(c) => generate_constraint_close(f, c, accs),
@@ -163,7 +153,7 @@ fn generate_constraint(
         // Constraint::TokenAccount(c) => generate_constraint_token_account(f, c, accs),
         // Constraint::Mint(c) => generate_constraint_mint(f, c, accs),
         Constraint::Realloc(c) => generate_constraint_realloc(f, c, accs),
-        Constraint::Shards(_c) => quote!{},
+        Constraint::Shards(_c) => quote! {},
     }
 }
 
@@ -389,24 +379,24 @@ pub fn generate_constraint_owner(f: &Field, c: &ConstraintOwner) -> proc_macro2:
     }
 }
 
-// pub fn generate_constraint_rent_exempt(
-//     f: &Field,
-//     c: &ConstraintRentExempt,
-// ) -> proc_macro2::TokenStream {
-//     let ident = &f.ident;
-//     let name_str = ident.to_string();
-//     let info = quote! {
-//         #ident.to_account_info()
-//     };
-//     match c {
-//         ConstraintRentExempt::Skip => quote! {},
-//         ConstraintRentExempt::Enforce => quote! {
-//             if !__anchor_rent.is_exempt(#info.lamports(), #info.try_data_len()?) {
-//                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintRentExempt).with_account_name(#name_str));
-//             }
-//         },
-//     }
-// }
+pub fn generate_constraint_rent_exempt(
+    f: &Field,
+    c: &ConstraintRentExempt,
+) -> proc_macro2::TokenStream {
+    let ident = &f.ident;
+    let name_str = ident.to_string();
+    let info = quote! {
+        #ident.to_account_info()
+    };
+    match c {
+        ConstraintRentExempt::Skip => quote! {},
+        ConstraintRentExempt::Enforce => quote! {
+            if !satellite_lang::arch_program::rent::Rent::is_exempt(#info.lamports(), #info.try_data_len()?) {
+                return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintRentExempt).with_account_name(#name_str));
+            }
+        },
+    }
+}
 
 fn generate_constraint_realloc(
     f: &Field,
@@ -432,10 +422,8 @@ fn generate_constraint_realloc(
             return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::AccountDuplicateReallocs).with_account_name(#account_name));
         }
 
-        // let __anchor_rent = satellite_lang::prelude::Rent::get()?;
         let __field_info = #field.to_account_info();
-        let __new_rent_minimum = satellite_lang::arch_program::account::MIN_ACCOUNT_LAMPORTS;
-        // let __new_rent_minimum = __anchor_rent.minimum_balance(#new_space);
+        let __new_rent_minimum = satellite_lang::arch_program::rent::Rent::minimum_balance(#new_space);
 
         let __delta_space = (::std::convert::TryInto::<isize>::try_into(#new_space).unwrap())
             .checked_sub(::std::convert::TryInto::try_into(__field_info.data_len()).unwrap())
@@ -835,212 +823,212 @@ fn generate_constraint_init_group(
 
         //     let payer_optional_check = check_scope.generate_check(payer);
 
-            // // let mut extensions = vec![];
-            // // if group_pointer_authority.is_some() || group_pointer_group_address.is_some() {
-            // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::GroupPointer});
-            // // }
+        // // let mut extensions = vec![];
+        // // if group_pointer_authority.is_some() || group_pointer_group_address.is_some() {
+        // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::GroupPointer});
+        // // }
 
-            // // if group_member_pointer_authority.is_some()
-            // //     || group_member_pointer_member_address.is_some()
-            // // {
-            // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::GroupMemberPointer});
-            // // }
+        // // if group_member_pointer_authority.is_some()
+        // //     || group_member_pointer_member_address.is_some()
+        // // {
+        // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::GroupMemberPointer});
+        // // }
 
-            // // if metadata_pointer_authority.is_some() || metadata_pointer_metadata_address.is_some() {
-            // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::MetadataPointer});
-            // // }
+        // // if metadata_pointer_authority.is_some() || metadata_pointer_metadata_address.is_some() {
+        // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::MetadataPointer});
+        // // }
 
-            // // if close_authority.is_some() {
-            // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::MintCloseAuthority});
-            // // }
+        // // if close_authority.is_some() {
+        // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::MintCloseAuthority});
+        // // }
 
-            // // if transfer_hook_authority.is_some() || transfer_hook_program_id.is_some() {
-            // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::TransferHook});
-            // // }
+        // // if transfer_hook_authority.is_some() || transfer_hook_program_id.is_some() {
+        // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::TransferHook});
+        // // }
 
-            // // if permanent_delegate.is_some() {
-            // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::PermanentDelegate});
-            // // }
+        // // if permanent_delegate.is_some() {
+        // //     extensions.push(quote! {::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::PermanentDelegate});
+        // // }
 
-            // // let mint_space = if extensions.is_empty() {
-            // //     quote! { ::anchor_spl::token::Mint::LEN }
-            // // } else {
-            // //     quote! { ::anchor_spl::token_interface::find_mint_account_size(Some(&vec![#(#extensions),*]))? }
-            // // };
-            // // let mint_space = quote! { satellite_lang::arch_program::account::MIN_ACCOUNT_LAMPORTS };
+        // // let mint_space = if extensions.is_empty() {
+        // //     quote! { ::anchor_spl::token::Mint::LEN }
+        // // } else {
+        // //     quote! { ::anchor_spl::token_interface::find_mint_account_size(Some(&vec![#(#extensions),*]))? }
+        // // };
+        // // let mint_space = quote! { satellite_lang::arch_program::account::MIN_ACCOUNT_LAMPORTS };
 
-            // // let extensions = if extensions.is_empty() {
-            // //     quote! {Option::<&::anchor_spl::token_interface::ExtensionsVec>::None}
-            // // } else {
-            // //     quote! {Option::<&::anchor_spl::token_interface::ExtensionsVec>::Some(&vec![#(#extensions),*])}
-            // // };
+        // // let extensions = if extensions.is_empty() {
+        // //     quote! {Option::<&::anchor_spl::token_interface::ExtensionsVec>::None}
+        // // } else {
+        // //     quote! {Option::<&::anchor_spl::token_interface::ExtensionsVec>::Some(&vec![#(#extensions),*])}
+        // // };
 
-            // // let freeze_authority = match freeze_authority {
-            // //     Some(fa) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#fa.key()) },
-            // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let freeze_authority = match freeze_authority {
+        // //     Some(fa) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#fa.key()) },
+        // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let group_pointer_authority = match group_pointer_authority {
-            // //     Some(gpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gpa.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let group_pointer_authority = match group_pointer_authority {
+        // //     Some(gpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gpa.key()) },
+        // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let group_pointer_group_address = match group_pointer_group_address {
-            // //     Some(gpga) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gpga.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let group_pointer_group_address = match group_pointer_group_address {
+        // //     Some(gpga) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gpga.key()) },
+        // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let group_member_pointer_authority = match group_member_pointer_authority {
-            // //     Some(gmpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gmpa.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let group_member_pointer_authority = match group_member_pointer_authority {
+        // //     Some(gmpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gmpa.key()) },
+        // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let group_member_pointer_member_address = match group_member_pointer_member_address {
-            // //     Some(gmpma) => {
-            // //         quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gmpma.key()) }
-            // //     }
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let group_member_pointer_member_address = match group_member_pointer_member_address {
+        // //     Some(gmpma) => {
+        // //         quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#gmpma.key()) }
+        // //     }
+        // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let metadata_pointer_authority = match metadata_pointer_authority {
-            // //     Some(mpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#mpa.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let metadata_pointer_authority = match metadata_pointer_authority {
+        // //     Some(mpa) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#mpa.key()) },
+        // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let metadata_pointer_metadata_address = match metadata_pointer_metadata_address {
-            // //     Some(mpma) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#mpma.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let metadata_pointer_metadata_address = match metadata_pointer_metadata_address {
+        // //     Some(mpma) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#mpma.key()) },
+        // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let close_authority = match close_authority {
-            // //     Some(ca) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#ca.key()) },
-            // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let close_authority = match close_authority {
+        // //     Some(ca) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#ca.key()) },
+        // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let permanent_delegate = match permanent_delegate {
-            // //     Some(pd) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#pd.key()) },
-            // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let permanent_delegate = match permanent_delegate {
+        // //     Some(pd) => quote! { Option::<&satellite_lang::prelude::Pubkey>::Some(&#pd.key()) },
+        // //     None => quote! { Option::<&satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let transfer_hook_authority = match transfer_hook_authority {
-            // //     Some(tha) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#tha.key()) },
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let transfer_hook_authority = match transfer_hook_authority {
+        // //     Some(tha) => quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#tha.key()) },
+        // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // // let transfer_hook_program_id = match transfer_hook_program_id {
-            // //     Some(thpid) => {
-            // //         quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#thpid.key()) }
-            // //     }
-            // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
-            // // };
+        // // let transfer_hook_program_id = match transfer_hook_program_id {
+        // //     Some(thpid) => {
+        // //         quote! { Option::<satellite_lang::prelude::Pubkey>::Some(#thpid.key()) }
+        // //     }
+        // //     None => quote! { Option::<satellite_lang::prelude::Pubkey>::None },
+        // // };
 
-            // let create_account = generate_create_account(
-            //     field,
-            //     mint_space,
-            //     quote! {&#token_program.key()},
-            //     quote! {#payer},
-            //     seeds_with_bump,
-            // );
+        // let create_account = generate_create_account(
+        //     field,
+        //     mint_space,
+        //     quote! {&#token_program.key()},
+        //     quote! {#payer},
+        //     seeds_with_bump,
+        // );
 
-            // quote! {
-            //     // Define the bump and pda variable.
-            //     #find_pda
+        // quote! {
+        //     // Define the bump and pda variable.
+        //     #find_pda
 
-            //     let #field: #ty_decl = ({ #[inline(never)] || {
-            //         // Checks that all the required accounts for this operation are present.
-            //         #optional_checks
+        //     let #field: #ty_decl = ({ #[inline(never)] || {
+        //         // Checks that all the required accounts for this operation are present.
+        //         #optional_checks
 
-            //         let owner_program = AsRef::<AccountInfo>::as_ref(&#field).owner;
-            //         if !#if_needed || owner_program == &satellite_lang::arch_program::system_program::SYSTEM_PROGRAM_ID {
-            //             // Define payer variable.
-            //             #payer_optional_check
+        //         let owner_program = AsRef::<AccountInfo>::as_ref(&#field).owner;
+        //         if !#if_needed || owner_program == &satellite_lang::arch_program::system_program::SYSTEM_PROGRAM_ID {
+        //             // Define payer variable.
+        //             #payer_optional_check
 
-            //             // Create the account with the system program.
-            //             #create_account
+        //             // Create the account with the system program.
+        //             #create_account
 
-            //             // // Initialize extensions.
-            //             // if let Some(extensions) = #extensions {
-            //             //     for e in extensions {
-            //             //         match e {
-            //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::GroupPointer => {
-            //             //                 ::anchor_spl::token_interface::group_pointer_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::GroupPointerInitialize {
-            //             //                     token_program_id: #token_program.to_account_info(),
-            //             //                     mint: #field.to_account_info(),
-            //             //                 }), #group_pointer_authority, #group_pointer_group_address)?;
-            //             //             },
-            //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::GroupMemberPointer => {
-            //             //                 ::anchor_spl::token_interface::group_member_pointer_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::GroupMemberPointerInitialize {
-            //             //                     token_program_id: #token_program.to_account_info(),
-            //             //                     mint: #field.to_account_info(),
-            //             //                 }), #group_member_pointer_authority, #group_member_pointer_member_address)?;
-            //             //             },
-            //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::MetadataPointer => {
-            //             //                 ::anchor_spl::token_interface::metadata_pointer_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::MetadataPointerInitialize {
-            //             //                     token_program_id: #token_program.to_account_info(),
-            //             //                     mint: #field.to_account_info(),
-            //             //                 }), #metadata_pointer_authority, #metadata_pointer_metadata_address)?;
-            //             //             },
-            //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::MintCloseAuthority => {
-            //             //                 ::anchor_spl::token_interface::mint_close_authority_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::MintCloseAuthorityInitialize {
-            //             //                     token_program_id: #token_program.to_account_info(),
-            //             //                     mint: #field.to_account_info(),
-            //             //                 }), #close_authority)?;
-            //             //             },
-            //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::TransferHook => {
-            //             //                 ::anchor_spl::token_interface::transfer_hook_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::TransferHookInitialize {
-            //             //                     token_program_id: #token_program.to_account_info(),
-            //             //                     mint: #field.to_account_info(),
-            //             //                 }), #transfer_hook_authority, #transfer_hook_program_id)?;
-            //             //             },
-            //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::NonTransferable => {
-            //             //                 ::anchor_spl::token_interface::non_transferable_mint_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::NonTransferableMintInitialize {
-            //             //                     token_program_id: #token_program.to_account_info(),
-            //             //                     mint: #field.to_account_info(),
-            //             //                 }))?;
-            //             //             },
-            //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::PermanentDelegate => {
-            //             //                 ::anchor_spl::token_interface::permanent_delegate_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::PermanentDelegateInitialize {
-            //             //                     token_program_id: #token_program.to_account_info(),
-            //             //                     mint: #field.to_account_info(),
-            //             //                 }), #permanent_delegate.unwrap())?;
-            //             //             },
-            //             //             // All extensions specified by the user should be implemented.
-            //             //             // If this line runs, it means there is a bug in the codegen.
-            //             //             _ => unimplemented!("{e:?}"),
-            //             //         }
-            //             //     };
-            //             // }
+        //             // // Initialize extensions.
+        //             // if let Some(extensions) = #extensions {
+        //             //     for e in extensions {
+        //             //         match e {
+        //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::GroupPointer => {
+        //             //                 ::anchor_spl::token_interface::group_pointer_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::GroupPointerInitialize {
+        //             //                     token_program_id: #token_program.to_account_info(),
+        //             //                     mint: #field.to_account_info(),
+        //             //                 }), #group_pointer_authority, #group_pointer_group_address)?;
+        //             //             },
+        //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::GroupMemberPointer => {
+        //             //                 ::anchor_spl::token_interface::group_member_pointer_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::GroupMemberPointerInitialize {
+        //             //                     token_program_id: #token_program.to_account_info(),
+        //             //                     mint: #field.to_account_info(),
+        //             //                 }), #group_member_pointer_authority, #group_member_pointer_member_address)?;
+        //             //             },
+        //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::MetadataPointer => {
+        //             //                 ::anchor_spl::token_interface::metadata_pointer_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::MetadataPointerInitialize {
+        //             //                     token_program_id: #token_program.to_account_info(),
+        //             //                     mint: #field.to_account_info(),
+        //             //                 }), #metadata_pointer_authority, #metadata_pointer_metadata_address)?;
+        //             //             },
+        //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::MintCloseAuthority => {
+        //             //                 ::anchor_spl::token_interface::mint_close_authority_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::MintCloseAuthorityInitialize {
+        //             //                     token_program_id: #token_program.to_account_info(),
+        //             //                     mint: #field.to_account_info(),
+        //             //                 }), #close_authority)?;
+        //             //             },
+        //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::TransferHook => {
+        //             //                 ::anchor_spl::token_interface::transfer_hook_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::TransferHookInitialize {
+        //             //                     token_program_id: #token_program.to_account_info(),
+        //             //                     mint: #field.to_account_info(),
+        //             //                 }), #transfer_hook_authority, #transfer_hook_program_id)?;
+        //             //             },
+        //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::NonTransferable => {
+        //             //                 ::anchor_spl::token_interface::non_transferable_mint_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::NonTransferableMintInitialize {
+        //             //                     token_program_id: #token_program.to_account_info(),
+        //             //                     mint: #field.to_account_info(),
+        //             //                 }))?;
+        //             //             },
+        //             //             ::anchor_spl::token_interface::spl_token_2022::extension::ExtensionType::PermanentDelegate => {
+        //             //                 ::anchor_spl::token_interface::permanent_delegate_initialize(satellite_lang::context::CpiContext::new(#token_program.to_account_info(), ::anchor_spl::token_interface::PermanentDelegateInitialize {
+        //             //                     token_program_id: #token_program.to_account_info(),
+        //             //                     mint: #field.to_account_info(),
+        //             //                 }), #permanent_delegate.unwrap())?;
+        //             //             },
+        //             //             // All extensions specified by the user should be implemented.
+        //             //             // If this line runs, it means there is a bug in the codegen.
+        //             //             _ => unimplemented!("{e:?}"),
+        //             //         }
+        //             //     };
+        //             // }
 
-            //             // Initialize the mint account.
-            //             let cpi_program = #token_program.to_account_info();
-            //             let accounts = ::anchor_spl::token_interface::InitializeMint2 {
-            //                 mint: #field.to_account_info(),
-            //             };
-            //             let cpi_ctx = satellite_lang::context::CpiContext::new(cpi_program, accounts);
-            //             ::anchor_spl::token_interface::initialize_mint2(cpi_ctx, #decimals, &#owner.key(), #freeze_authority)?;
-            //         }
+        //             // Initialize the mint account.
+        //             let cpi_program = #token_program.to_account_info();
+        //             let accounts = ::anchor_spl::token_interface::InitializeMint2 {
+        //                 mint: #field.to_account_info(),
+        //             };
+        //             let cpi_ctx = satellite_lang::context::CpiContext::new(cpi_program, accounts);
+        //             ::anchor_spl::token_interface::initialize_mint2(cpi_ctx, #decimals, &#owner.key(), #freeze_authority)?;
+        //         }
 
-            //         let pa: #ty_decl = #from_account_info_unchecked;
-            //         if #if_needed {
-            //             if pa.mint_authority != satellite_lang::arch_program::program_option::COption::Some(#owner.key()) {
-            //                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintMintMintAuthority).with_account_name(#name_str));
-            //             }
-            //             if pa.freeze_authority
-            //                 .as_ref()
-            //                 .map(|fa| #freeze_authority.as_ref().map(|expected_fa| fa != *expected_fa).unwrap_or(true))
-            //                 .unwrap_or(#freeze_authority.is_some()) {
-            //                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintMintFreezeAuthority).with_account_name(#name_str));
-            //             }
-            //             if pa.decimals != #decimals {
-            //                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintMintDecimals).with_account_name(#name_str).with_values((pa.decimals, #decimals)));
-            //             }
-            //             if owner_program != &#token_program.key() {
-            //                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintMintTokenProgram).with_account_name(#name_str).with_pubkeys((*owner_program, #token_program.key())));
-            //             }
-            //         }
-            //         Ok(pa)
-            //     }})()?;
-            // }
+        //         let pa: #ty_decl = #from_account_info_unchecked;
+        //         if #if_needed {
+        //             if pa.mint_authority != satellite_lang::arch_program::program_option::COption::Some(#owner.key()) {
+        //                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintMintMintAuthority).with_account_name(#name_str));
+        //             }
+        //             if pa.freeze_authority
+        //                 .as_ref()
+        //                 .map(|fa| #freeze_authority.as_ref().map(|expected_fa| fa != *expected_fa).unwrap_or(true))
+        //                 .unwrap_or(#freeze_authority.is_some()) {
+        //                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintMintFreezeAuthority).with_account_name(#name_str));
+        //             }
+        //             if pa.decimals != #decimals {
+        //                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintMintDecimals).with_account_name(#name_str).with_values((pa.decimals, #decimals)));
+        //             }
+        //             if owner_program != &#token_program.key() {
+        //                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintMintTokenProgram).with_account_name(#name_str).with_pubkeys((*owner_program, #token_program.key())));
+        //             }
+        //         }
+        //         Ok(pa)
+        //     }})()?;
+        // }
         // }
         InitKind::Program { owner } | InitKind::Interface { owner } => {
             // Define the space variable.
@@ -1128,8 +1116,7 @@ fn generate_constraint_init_group(
                         }
 
                         {
-                            // let required_lamports = __anchor_rent.minimum_balance(space);
-                            let required_lamports = satellite_lang::arch_program::account::MIN_ACCOUNT_LAMPORTS;
+                            let required_lamports = satellite_lang::arch_program::rent::Rent::minimum_balance(space);
                             if pa.to_account_info().lamports() < required_lamports {
                                 return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintRentExempt).with_account_name(#name_str));
                             }
@@ -1225,7 +1212,7 @@ fn generate_constraint_seeds(f: &Field, c: &ConstraintSeedsGroup) -> proc_macro2
                     } else {
                         quote!( __bumps.#name = __bump_first; )
                     }
-                },
+                }
                 Some(_b) => {
                     // When an explicit bump is supplied we leave the bumps struct untouched
                     // because users are tracking it themselves.
@@ -1712,8 +1699,7 @@ fn generate_create_account(
         if __current_lamports == 0 {
             // Create the token account with right amount of lamports and space, and the correct owner.
             let space = #space;
-            // let lamports = __anchor_rent.minimum_balance(space);
-            let lamports = satellite_lang::arch_program::account::MIN_ACCOUNT_LAMPORTS;
+            let lamports = satellite_lang::arch_program::rent::Rent::minimum_balance(space);
             let cpi_accounts = satellite_lang::system_program::CreateAccount {
                 from: #payer.to_account_info(),
                 to: #field.to_account_info()
@@ -1723,11 +1709,9 @@ fn generate_create_account(
         } else {
             require_keys_neq!(#payer.key(), #field.key(), satellite_lang::error::ErrorCode::TryingToInitPayerAsProgramAccount);
             // Fund the account for rent exemption.
-            // let required_lamports = __anchor_rent
-            //     .minimum_balance(#space)
-            //     .max(1)
-            //     .saturating_sub(__current_lamports);
-            let required_lamports = satellite_lang::arch_program::account::MIN_ACCOUNT_LAMPORTS.saturating_sub(__current_lamports);
+            let required_lamports = satellite_lang::arch_program::rent::Rent::minimum_balance(#space)
+                .max(1)
+                .saturating_sub(__current_lamports);
             if required_lamports > 0 {
                 let cpi_accounts = satellite_lang::system_program::Transfer {
                     from: #payer.to_account_info(),
