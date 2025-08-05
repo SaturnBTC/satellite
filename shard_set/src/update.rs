@@ -651,13 +651,9 @@ where
     for edict in &runestone.edicts {
         let rune_amount = edict.amount;
         let index = edict.output;
-        let pos = new_program_outputs
-            .iter()
-            .position(|u| u.meta().vout() == index)
-            .ok_or(StateShardError::OutputEdictIsNotInTransaction)?;
 
         let output = new_program_outputs
-            .get_mut(pos)
+            .get_mut(index as usize)
             .ok_or(StateShardError::OutputEdictIsNotInTransaction)?;
 
         let rune_id = RuneId::new(edict.id.block, edict.id.tx);
