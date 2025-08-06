@@ -434,7 +434,7 @@ impl Field {
                     }
                 } else {
                     quote! {
-                        match #container_ty::try_from_unchecked(#owner_addr, &#field) {
+                        match #container_ty::try_from_unchecked(&#field) {
                             Ok(val) => val,
                             Err(e) => return Err(e.with_account_name(#field_str))
                         }
@@ -451,7 +451,7 @@ impl Field {
                     }
                 } else {
                     quote! {
-                        match #container_ty::try_from_unchecked(#owner_addr, &#field) {
+                        match #container_ty::try_from_unchecked(&#field) {
                             Ok(val) => val,
                             Err(e) => return Err(e.with_account_name(#field_str))
                         }
