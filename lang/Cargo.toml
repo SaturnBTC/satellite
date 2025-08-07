@@ -54,4 +54,3 @@ borsh = { version = "1.4.0" }
 bytemuck = "1.14"
 arch_program = { path = "../deps/program", version = "0.5.3" }
 thiserror = "1.0.61"
-bitcoin = "0.32.5"
