@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 arch_program = { workspace = true }
-bitcoin = "0.32.5"
+bitcoin = { version = "0.32.5", features = ["serde"] }
 bytemuck = "1.14"
 satellite-bitcoin = { workspace = true }
 satellite-lang = { path = "../lang", version = "0.31.1" }
