@@ -22,7 +22,7 @@ use {
     },
 };
 
-declare_id!("hausS13jsjafwWwGqZTUQRmWyvyxn9EQpqMwV1PBBmk");
+declare_id!("0a6593863cba461564eae41373721546eb0151c9308276bbd4ad2a1c3a42107b");
 
 const PREFIX: &str = "auction_house";
 const FEE_PAYER: &str = "fee_payer";

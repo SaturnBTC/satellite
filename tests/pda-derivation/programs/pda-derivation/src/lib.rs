@@ -9,7 +9,7 @@ use satellite_apl::{
     token::{Mint, Token, TokenAccount},
 };
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 
 pub const MY_SEED: [u8; 2] = *b"hi";
 pub const MY_SEED_BYTES: &[u8] = b"hi";

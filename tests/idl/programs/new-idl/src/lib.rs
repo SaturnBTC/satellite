@@ -1,6 +1,6 @@
 use satellite_lang::prelude::*;
 
-declare_id!("Newid11111111111111111111111111111111111111");
+declare_id!("058c198865762e9bbc887304c1ee24dc8d59eb2026b98238b9ed7b8000000000");
 
 #[program]
 pub mod new_idl {

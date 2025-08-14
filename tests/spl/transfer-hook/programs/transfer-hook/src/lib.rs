@@ -30,7 +30,7 @@ use {
     },
 };
 
-declare_id!("9vaEfNU4HquQJuNQ6HYrpJW518a3n4wNUt5mAMY2UUHW");
+declare_id!("8496db9b7bb0a77a4ce764870776c8bdb084909cdaf3b61630ebafecb866b7b1");
 
 fn check_token_account_is_transferring(account_data: &[u8]) -> Result<()> {
     let token_account = StateWithExtensions::<Token2022Account>::unpack(account_data)?;

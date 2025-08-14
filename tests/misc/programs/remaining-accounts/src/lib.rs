@@ -8,7 +8,7 @@ use context::*;
 mod account;
 mod context;
 
-declare_id!("RemainingAccounts11111111111111111111111111");
+declare_id!("0650a501e94bd3b441cab863c435da3983521dd7ed2537dbd5875d3d50000000");
 
 #[program]
 pub mod remaining_accounts {

@@ -2,7 +2,7 @@
 
 use satellite_lang::prelude::*;
 
-declare_id!("Docs111111111111111111111111111111111111111");
+declare_id!("0347ae633db807e549346c69ea2ee34769729b788517b0789178ec0000000000");
 
 /// Documentation comment for constant
 #[constant]

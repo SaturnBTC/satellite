@@ -3,7 +3,7 @@ use callee::cpi::accounts::CpiReturn;
 use callee::program::Callee;
 use callee::{self, CpiReturnAccount};
 
-declare_id!("HmbTLCmaGvZhKnn1Zfa1JVnp7vkMV4DYVxPLWBVoN65L");
+declare_id!("f92780f032082341785fefc65f955f3c6d386c360c29f74c96fc5f95ead2c857");
 
 #[program]
 pub mod caller {

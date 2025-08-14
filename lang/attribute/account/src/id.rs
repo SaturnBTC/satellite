@@ -4,7 +4,8 @@
 //!
 //! Convenience macro to declare a static public key and functions to interact with it
 //!
-//! Input: a single literal base58 string representation of a program's id
+//! Input: a single literal string representation of a program's id
+//! Accepts only hex (64 hex chars, optionally prefixed with `0x`).
 
 extern crate proc_macro;
 
@@ -114,9 +115,16 @@ fn parse_pubkey(
     id_literal: &LitStr,
     pubkey_type: &proc_macro2::TokenStream,
 ) -> Result<proc_macro2::TokenStream> {
-    let id_vec = bs58::decode(id_literal.value())
-        .into_vec()
-        .map_err(|_| syn::Error::new_spanned(id_literal, "failed to decode base58 string"))?;
+    let raw = id_literal.value();
+    let s = raw.strip_prefix("0x").unwrap_or(&raw);
+    if s.len() != 64 || !s.chars().all(|c| c.is_ascii_hexdigit()) {
+        return Err(syn::Error::new_spanned(
+            id_literal,
+            "program id must be 64 hex chars (optionally prefixed with 0x)",
+        ));
+    }
+    let id_vec = hex::decode(s)
+        .map_err(|_| syn::Error::new_spanned(id_literal, "failed to decode hex string"))?;
     let id_array = <[u8; 32]>::try_from(<&[u8]>::clone(&&id_vec[..])).map_err(|_| {
         syn::Error::new_spanned(
             id_literal,

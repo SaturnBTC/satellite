@@ -524,7 +524,8 @@ pub fn zero_copy(
 
 /// Convenience macro to define a static public key.
 ///
-/// Input: a single literal base58 string representation of a Pubkey.
+/// Input: a single literal string representation of a Pubkey.
+/// Accepts only hex (64 hex chars, optionally prefixed with `0x`).
 #[proc_macro]
 pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let pk = parse_macro_input!(input as id::Pubkey);
@@ -533,6 +534,9 @@ pub fn pubkey(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
 /// Defines the program's ID. This should be used at the root of all Anchor
 /// based programs.
+///
+/// Input: a single literal string representation of a program ID.
+/// Accepts only hex (64 hex chars, optionally prefixed with `0x`).
 #[proc_macro]
 pub fn declare_id(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     #[cfg(feature = "idl-build")]

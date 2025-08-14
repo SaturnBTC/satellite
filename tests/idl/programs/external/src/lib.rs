@@ -1,6 +1,6 @@
 use satellite_lang::prelude::*;
 
-declare_id!("Externa1111111111111111111111111111111111111");
+declare_id!("cf794749d58bda6ab20f4533af68a74e07cfc691985bc4aa1e270c6000000000");
 
 #[program]
 pub mod external {

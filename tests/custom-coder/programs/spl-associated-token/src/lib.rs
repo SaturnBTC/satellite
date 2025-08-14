@@ -2,7 +2,7 @@
 
 use satellite_lang::prelude::*;
 
-declare_id!("4dUGnkre6uBhX1abB4ofkoecGN4aDXdiWSaWLUjVw6bh");
+declare_id!("35eace8447a0bf4e778945268cb5b2be52002538bee0c6a8061f15f3c4b48b40");
 
 // See https://solana.stackexchange.com/a/1858/471
 #[program]

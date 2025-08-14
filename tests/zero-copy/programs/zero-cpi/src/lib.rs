@@ -3,7 +3,7 @@ use zero_copy::cpi::accounts::UpdateBar;
 use zero_copy::program::ZeroCopy;
 use zero_copy::{self, Bar, Foo};
 
-declare_id!("ErjUjtqKE5AGWUsjseSJCVLtddM6rhaMbDqmhzraF9h6");
+declare_id!("cde56b864d8901814f3e6bcb8e41826c370c1ef69656b699eba1c2eb8670c755");
 
 #[program]
 pub mod zero_cpi {

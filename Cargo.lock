@@ -151,7 +151,7 @@ name = "anchor-attribute-account"
 version = "0.31.1"
 dependencies = [
  "anchor-syn",
- "bs58",
+ "hex",
  "proc-macro2",
  "quote",
  "syn 1.0.109",

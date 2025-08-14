@@ -42,7 +42,7 @@ use std::ops::{Deref, DerefMut};
 /// use satellite_lang::prelude::*;
 /// use other_program::Auth;
 ///
-/// declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+/// declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 ///
 /// #[program]
 /// mod hello_anchor {
@@ -71,7 +71,7 @@ use std::ops::{Deref, DerefMut};
 /// // In a different program
 ///
 /// ...
-/// declare_id!("FEZGUxNhZWpYPj9MJCrZJvUo1iF9ys34UHx52y4SzVW9");
+/// declare_id!("d37ca6ddc9b6350184bcbec820b71dd8d095090d4501f295d30e600d5013db62");
 /// #[account]
 /// #[derive(Default)]
 /// pub struct Auth {

@@ -1,6 +1,6 @@
 use satellite_lang::prelude::*;
 
-declare_id!("Dec1areProgram11111111111111111111111111111");
+declare_id!("033d7cfe950f3fb9a002c067c34f0a1bec11301c885fca41c6d1435740000000");
 
 declare_program!(external);
 use external::program::External;

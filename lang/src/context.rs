@@ -77,7 +77,7 @@ where
 ///
 /// use satellite_lang::prelude::*;
 ///
-/// declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+/// declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 ///
 /// #[program]
 /// pub mod callee {
@@ -121,7 +121,7 @@ where
 /// use satellite_lang::prelude::*;
 /// use callee::{self, program::Callee};
 ///
-/// declare_id!("Sxg7dBh5VLT8S1o6BqncZCPq9nhHHukjfVd6ohQJeAk");
+/// declare_id!("06a678b1181d2f79fd9d249178cb1afbedf05d3f8a012f5f9a1e8f2a469fba81");
 ///
 /// #[program]
 /// pub mod caller {

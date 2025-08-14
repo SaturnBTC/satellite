@@ -9,7 +9,7 @@ use satellite_apl::token::{self, Mint, TokenAccount, Transfer};
 use lockup::{CreateVesting, RealizeLock, Realizor, Vesting};
 use std::convert::Into;
 
-declare_id!("HmbTLCmaGvZhKnn1Zfa1JVnp7vkMV4DYVxPLWBVoN65L");
+declare_id!("f92780f032082341785fefc65f955f3c6d386c360c29f74c96fc5f95ead2c857");
 
 #[program]
 mod registry {

@@ -408,13 +408,12 @@ impl std::str::FromStr for Pubkey {
     type Err = &'static str;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        // Decode the provided base58 string into raw bytes.
-        let bytes = bs58::decode(s)
-            .into_vec()
-            .map_err(|_| "Invalid base58 string for Pubkey")?;
-        if bytes.len() != 32 {
-            return Err("Invalid length for Pubkey (expected 32 bytes)");
+        let hex_str = s.strip_prefix("0x").unwrap_or(s);
+        if hex_str.len() != 64 || !hex_str.chars().all(|c| c.is_ascii_hexdigit()) {
+            return Err("Invalid hex string for Pubkey (expect 64 hex chars, optional 0x prefix)");
         }
+        let bytes = hex::decode(hex_str).map_err(|_| "Invalid hex string for Pubkey")?;
+        if bytes.len() != 32 { return Err("Invalid length for Pubkey (expected 32 bytes)"); }
         Ok(Pubkey::from_slice(&bytes))
     }
 }

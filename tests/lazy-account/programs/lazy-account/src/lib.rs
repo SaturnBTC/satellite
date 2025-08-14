@@ -7,7 +7,7 @@
 
 use satellite_lang::prelude::*;
 
-declare_id!("LazyAccount11111111111111111111111111111111");
+declare_id!("05047a8aabfe933061e8696002e17afa9398ff646567d446f4081eb500000000");
 
 #[program]
 pub mod lazy_account {

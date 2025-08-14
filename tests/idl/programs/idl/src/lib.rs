@@ -1,7 +1,7 @@
 use satellite_lang::prelude::*;
 use satellite_apl::{token, token_interface};
 
-declare_id!("id11111111111111111111111111111111111111111");
+declare_id!("0aa984bc897d79b97e689f0319d67bf9cf8e178be59e7cd5c1ec6c0000000000");
 
 #[constant]
 pub const U8: u8 = 6;

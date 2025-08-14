@@ -3,7 +3,7 @@
 
 use satellite_lang::prelude::*;
 
-declare_id!("2dhGsWUzy5YKUsjZdLHLmkNpUDAXkNa9MYWsPc4Ziqzy");
+declare_id!("184222337033c1cb64bf8347abc9c82d0a90a129ff1eea859919492bb697d8ea");
 
 #[program]
 pub mod events {

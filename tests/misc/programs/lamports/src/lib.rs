@@ -1,6 +1,6 @@
 use satellite_lang::prelude::*;
 
-declare_id!("Lamports11111111111111111111111111111111111");
+declare_id!("050438f18b61c2fc84fe9d76def0c7394111f93969e77554641ae8a000000000");
 
 #[program]
 pub mod lamports {
