@@ -23,5 +23,5 @@ pub fn minimum_rent(data_len: usize) -> u64 {
 
 pub fn is_exempt(lamports: u64, data_len: usize) -> bool {
     let minimum_balance = minimum_rent(data_len);
-    lamports >= minimum_balance && data_len == 0
+    lamports >= minimum_balance
 }
