@@ -4,7 +4,7 @@ mod declare_program;
 
 use declare_program::DeclareProgram;
 use quote::{quote, ToTokens};
-use syn::{parse_macro_input, AttributeArgs, NestedMeta, Meta, ItemMod};
+use syn::{parse_macro_input, AttributeArgs, ItemMod, Meta, NestedMeta};
 
 /// The `#[program]` attribute defines the module containing all instruction
 /// handlers defining all entries into a Solana program.

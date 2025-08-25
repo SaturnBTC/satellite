@@ -32,7 +32,7 @@ pub fn generate(accs: &AccountsStruct) -> proc_macro2::TokenStream {
                     // `init` and `zero` accounts are special cased as they are
                     // deserialized by constraints. Here, we just take out the
                     // AccountInfo for later use at constraint validation time.
-                    if is_init(af) || f.constraints.zeroed.is_some() {                  
+                    if is_init(af) || f.constraints.zeroed.is_some() {
                         let name = &f.ident;
                         // Optional accounts have slightly different behavior here and
                         // we can't leverage the try_accounts implementation for zero and init.

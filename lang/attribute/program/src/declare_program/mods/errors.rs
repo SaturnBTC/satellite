@@ -1,5 +1,5 @@
-use satellite_lang_idl::types::Idl;
 use quote::{format_ident, quote};
+use satellite_lang_idl::types::Idl;
 
 pub fn gen_errors_mod(idl: &Idl) -> proc_macro2::TokenStream {
     let errors = idl.errors.iter().map(|e| {

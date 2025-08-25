@@ -35,7 +35,8 @@ pub fn example_workflow<'info>(
     let inspector = builder.load_all()?;
 
     // Now we can inspect all shards to make informed selection decisions
-    let total_balance: u64 = inspector.for_each(|shard| shard.balance)
+    let total_balance: u64 = inspector
+        .for_each(|shard| shard.balance)
         .iter()
         .filter_map(|opt| opt.as_ref())
         .sum();

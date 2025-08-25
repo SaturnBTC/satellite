@@ -1,6 +1,6 @@
-use satellite_lang_idl::types::Idl;
 use heck::CamelCase;
 use quote::{format_ident, quote};
+use satellite_lang_idl::types::Idl;
 
 use super::common::{convert_idl_type_to_syn_type, gen_accounts_common};
 

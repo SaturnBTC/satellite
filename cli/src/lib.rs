@@ -4,10 +4,6 @@ use crate::config::{
     TestValidator, WithPath, SHUTDOWN_WAIT, STARTUP_WAIT,
 };
 use anchor_client::Cluster;
-use satellite_lang::idl::{IdlAccount, IdlInstruction, ERASED_AUTHORITY};
-use satellite_lang::{AccountDeserialize, AnchorDeserialize, AnchorSerialize, Discriminator};
-use satellite_lang_idl::convert::convert_idl;
-use satellite_lang_idl::types::{Idl, IdlArrayLen, IdlDefinedFields, IdlType, IdlTypeDefTy};
 use anyhow::{anyhow, Context, Result};
 use checks::{check_anchor_version, check_deps, check_idl_build_feature, check_overflow};
 use clap::{CommandFactory, Parser};
@@ -21,6 +17,10 @@ use regex::{Regex, RegexBuilder};
 use reqwest::blocking::multipart::{Form, Part};
 use reqwest::blocking::Client;
 use rust_template::{ProgramTemplate, TestTemplate};
+use satellite_lang::idl::{IdlAccount, IdlInstruction, ERASED_AUTHORITY};
+use satellite_lang::{AccountDeserialize, AnchorDeserialize, AnchorSerialize, Discriminator};
+use satellite_lang_idl::convert::convert_idl;
+use satellite_lang_idl::types::{Idl, IdlArrayLen, IdlDefinedFields, IdlType, IdlTypeDefTy};
 use semver::{Version, VersionReq};
 use serde::Deserialize;
 use serde_json::{json, Map, Value as JsonValue};

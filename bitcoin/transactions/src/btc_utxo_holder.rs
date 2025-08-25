@@ -20,7 +20,6 @@ where
     }
 }
 
-
 impl BtcUtxoHolder for UtxoInfo {
     #[inline]
     fn btc_utxos(&self) -> &[UtxoInfo] {

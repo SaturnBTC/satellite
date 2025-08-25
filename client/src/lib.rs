@@ -69,11 +69,11 @@
 //!
 //! [`RpcClient::new_mock`]: https://docs.rs/solana-client/2.1.0/solana_client/rpc_client/struct.RpcClient.html#method.new_mock
 
+use futures::{Future, StreamExt};
+use regex::Regex;
 use satellite_lang::arch_program::program_error::ProgramError;
 use satellite_lang::arch_program::pubkey::Pubkey;
 use satellite_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
-use futures::{Future, StreamExt};
-use regex::Regex;
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::nonblocking::rpc_client::RpcClient as AsyncRpcClient;
 use solana_client::rpc_config::{
@@ -108,10 +108,10 @@ use tokio::{
     task::JoinHandle,
 };
 
-pub use satellite_lang;
 pub use cluster::Cluster;
 #[cfg(feature = "async")]
 pub use nonblocking::ThreadSafeSigner;
+pub use satellite_lang;
 pub use solana_account_decoder;
 pub use solana_client;
 pub use solana_sdk;
@@ -387,9 +387,9 @@ pub fn handle_program_log<T: satellite_lang::Event + satellite_lang::AnchorDeser
     self_program_str: &str,
     l: &str,
 ) -> Result<(Option<T>, Option<String>, bool), ClientError> {
-    use satellite_lang::__private::base64;
     use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
+    use satellite_lang::__private::base64;
 
     // Log emitted from the current program.
     if let Some(log) = l

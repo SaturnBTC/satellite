@@ -413,7 +413,9 @@ impl std::str::FromStr for Pubkey {
             return Err("Invalid hex string for Pubkey (expect 64 hex chars, optional 0x prefix)");
         }
         let bytes = hex::decode(hex_str).map_err(|_| "Invalid hex string for Pubkey")?;
-        if bytes.len() != 32 { return Err("Invalid length for Pubkey (expected 32 bytes)"); }
+        if bytes.len() != 32 {
+            return Err("Invalid length for Pubkey (expected 32 bytes)");
+        }
         Ok(Pubkey::from_slice(&bytes))
     }
 }

@@ -1,6 +1,3 @@
-use satellite_lang_idl::types::{
-    Idl, IdlInstruction, IdlInstructionAccountItem, IdlInstructionAccounts,
-};
 use anchor_syn::{
     codegen::accounts::{__client_accounts, __cpi_client_accounts},
     parser::accounts,
@@ -8,6 +5,9 @@ use anchor_syn::{
 };
 use heck::CamelCase;
 use quote::{format_ident, quote};
+use satellite_lang_idl::types::{
+    Idl, IdlInstruction, IdlInstructionAccountItem, IdlInstructionAccounts,
+};
 
 use super::common::{convert_idl_type_to_syn_type, gen_discriminator, get_canonical_program_id};
 

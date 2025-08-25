@@ -16,7 +16,7 @@ lazy-account = []
 
 [dependencies]
 anchor-syn = { path = "../../syn", version = "0.31.1" }
-borsh-derive-internal = { workspace = true }
+borsh-derive-internal = { path = "../../../deps/borsh-derive-internal", version = "0.10.4" }
 proc-macro2 = "1"
 syn = { version = "1", features = ["full"] }
 quote = "1"

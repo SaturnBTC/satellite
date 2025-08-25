@@ -159,10 +159,7 @@ mod tests {
 
         let user_utxos = vec![make_utxo(txid1, 0), make_utxo(txid2, 1)];
 
-        let info = generate_mempool_info::<SingleRuneSet>(
-            &user_utxos,
-            &mempool_data,
-        );
+        let info = generate_mempool_info::<SingleRuneSet>(&user_utxos, &mempool_data);
 
         assert_eq!(info.total_fee, 150);
         assert_eq!(info.total_size, 275);
@@ -192,10 +189,7 @@ mod tests {
         // Two UTXOs share the same transaction id but different vouts.
         let user_utxos = vec![make_utxo(txid, 0), make_utxo(txid, 1)];
 
-        let info = generate_mempool_info::<SingleRuneSet>(
-            &user_utxos,
-            &mempool_data,
-        );
+        let info = generate_mempool_info::<SingleRuneSet>(&user_utxos, &mempool_data);
 
         assert_eq!(info.total_fee, 80);
         assert_eq!(info.total_size, 160);
@@ -226,10 +220,7 @@ mod tests {
         // Only one UTXO is pending, the other txid is not in the mempool (confirmed).
         let user_utxos = vec![make_utxo(pending_txid, 0), make_utxo(confirmed_txid, 0)];
 
-        let info = generate_mempool_info::<SingleRuneSet>(
-            &user_utxos,
-            &mempool_data,
-        );
+        let info = generate_mempool_info::<SingleRuneSet>(&user_utxos, &mempool_data);
 
         assert_eq!(info.total_fee, 30);
         assert_eq!(info.total_size, 60);

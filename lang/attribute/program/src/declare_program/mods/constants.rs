@@ -1,5 +1,5 @@
-use satellite_lang_idl::types::{Idl, IdlType};
 use quote::{format_ident, quote, ToTokens};
+use satellite_lang_idl::types::{Idl, IdlType};
 
 use super::common::{convert_idl_type_to_syn_type, gen_docs};
 

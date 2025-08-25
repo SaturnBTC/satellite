@@ -1,6 +1,6 @@
-use satellite_lang::error_code;
 use arch_program::{program_error::ProgramError, pubkey::Pubkey};
 use borsh::io::Error as BorshIoError;
+use satellite_lang::error_code;
 use std::fmt::{Debug, Display};
 use std::num::TryFromIntError;
 
