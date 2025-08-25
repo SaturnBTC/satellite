@@ -7,7 +7,9 @@ use satellite_lang::{
             program::STAKE_PROGRAM_ID,
             state::{StakeAuthorize, StakeState},
         },
-    }, context::CpiContext, Accounts, AnchorDeserialize, Result
+    },
+    context::CpiContext,
+    Accounts, Result,
 };
 use std::ops::Deref;
 
@@ -25,14 +27,14 @@ pub fn authorize<'info>(
         stake_authorize,
         // custodian.as_ref().map(|c| c.key),
     );
-    let mut account_infos = vec![
+    let account_infos = vec![
         ctx.accounts.stake,
-        ctx.accounts.clock,
+        // ctx.accounts.clock,
         ctx.accounts.authorized,
     ];
-    if let Some(c) = custodian {
-        account_infos.push(c);
-    }
+    // if let Some(c) = custodian {
+    //     account_infos.push(c);
+    // }
     satellite_lang::arch_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
         .map_err(Into::into)
 }
@@ -40,7 +42,7 @@ pub fn authorize<'info>(
 pub fn withdraw<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, Withdraw<'info>>,
     amount: u64,
-    custodian: Option<AccountInfo<'info>>,
+    // custodian: Option<AccountInfo<'info>>,
 ) -> Result<()> {
     let ix = stake::instruction::withdraw(
         ctx.accounts.stake.key,
@@ -49,16 +51,16 @@ pub fn withdraw<'info>(
         amount,
         // custodian.as_ref().map(|c| c.key),
     );
-    let mut account_infos = vec![
+    let account_infos = vec![
         ctx.accounts.stake,
         ctx.accounts.to,
-        ctx.accounts.clock,
-        ctx.accounts.stake_history,
+        // ctx.accounts.clock,
+        // ctx.accounts.stake_history,
         ctx.accounts.withdrawer,
     ];
-    if let Some(c) = custodian {
-        account_infos.push(c);
-    }
+    // if let Some(c) = custodian {
+    //     account_infos.push(c);
+    // }
     satellite_lang::arch_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
         .map_err(Into::into)
 }
@@ -69,7 +71,7 @@ pub fn deactivate_stake<'info>(
     let ix = stake::instruction::deactivate_stake(ctx.accounts.stake.key, ctx.accounts.staker.key);
     satellite_lang::arch_program::program::invoke_signed(
         &ix,
-        &[ctx.accounts.stake, ctx.accounts.clock, ctx.accounts.staker],
+        &[ctx.accounts.stake, ctx.accounts.staker],
         ctx.signer_seeds,
     )
     .map_err(Into::into)
@@ -87,9 +89,8 @@ pub struct Authorize<'info> {
 
     /// The new authority to replace the existing authority
     pub new_authorized: AccountInfo<'info>,
-
-    /// Clock sysvar
-    pub clock: AccountInfo<'info>,
+    // /// Clock sysvar
+    // pub clock: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -102,12 +103,11 @@ pub struct Withdraw<'info> {
 
     /// Account to send withdrawn lamports to
     pub to: AccountInfo<'info>,
+    // /// Clock sysvar
+    // pub clock: AccountInfo<'info>,
 
-    /// Clock sysvar
-    pub clock: AccountInfo<'info>,
-
-    /// StakeHistory sysvar
-    pub stake_history: AccountInfo<'info>,
+    // /// StakeHistory sysvar
+    // pub stake_history: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -117,9 +117,8 @@ pub struct DeactivateStake<'info> {
 
     /// The stake account's stake authority
     pub staker: AccountInfo<'info>,
-
-    /// Clock sysvar
-    pub clock: AccountInfo<'info>,
+    // /// Clock sysvar
+    // pub clock: AccountInfo<'info>,
 }
 
 // State
@@ -133,7 +132,16 @@ impl satellite_lang::AccountDeserialize for StakeAccount {
     }
 
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
-        StakeState::deserialize_reader(buf).map(Self).map_err(Into::into)
+        let needed = StakeState::size_of();
+        if buf.len() < needed {
+            return Err(satellite_lang::error::ErrorCode::AccountDidNotDeserialize.into());
+        }
+        let head = &buf[..needed];
+        // SAFETY: We rely on the stake program using a fixed, on-chain binary
+        // layout identical to `StakeState` with `size_of()` bytes. Read an
+        // unaligned copy from the account data into a local value.
+        let value = unsafe { core::ptr::read_unaligned(head.as_ptr() as *const StakeState) };
+        Ok(Self(value))
     }
 }
 
