@@ -293,6 +293,33 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                 _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
             }
         }
+        "metadata" => {
+            stream.parse::<Token![:]>()?;
+            stream.parse::<Token![:]>()?;
+            let kw = stream.call(Ident::parse_any)?.to_string();
+            stream.parse::<Token![=]>()?;
+
+            let span = ident
+                .span()
+                .join(stream.span())
+                .unwrap_or_else(|| ident.span());
+
+            match kw.as_str() {
+                "mint" => ConstraintToken::MetadataMint(Context::new(
+                    span,
+                    ConstraintMetadataMint {
+                        mint: stream.parse()?,
+                    },
+                )),
+                "update_authority" => ConstraintToken::MetadataUpdateAuthority(Context::new(
+                    span,
+                    ConstraintMetadataUpdateAuthority {
+                        update_authority: stream.parse()?,
+                    },
+                )),
+                _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
+            }
+        }
         "associated_token" => {
             stream.parse::<Token![:]>()?;
             stream.parse::<Token![:]>()?;
@@ -543,6 +570,8 @@ pub struct ConstraintGroupBuilder<'ty> {
     pub realloc: Option<Context<ConstraintRealloc>>,
     pub realloc_payer: Option<Context<ConstraintReallocPayer>>,
     pub realloc_zero: Option<Context<ConstraintReallocZero>>,
+    pub metadata_mint: Option<Context<ConstraintMetadataMint>>,
+    pub metadata_update_authority: Option<Context<ConstraintMetadataUpdateAuthority>>,
 }
 
 impl<'ty> ConstraintGroupBuilder<'ty> {
@@ -588,6 +617,8 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             realloc: None,
             realloc_payer: None,
             realloc_zero: None,
+            metadata_mint: None,
+            metadata_update_authority: None,
         }
     }
 
@@ -800,6 +831,8 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             realloc,
             realloc_payer,
             realloc_zero,
+            metadata_mint,
+            metadata_update_authority,
         } = self;
 
         // Converts Option<Context<T>> -> Option<T>.
@@ -958,6 +991,16 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             }),
         };
 
+        let metadata = match (&metadata_mint, &metadata_update_authority) {
+            (None, None) => None,
+            _ => Some(ConstraintMetadataGroup {
+                mint: metadata_mint.as_ref().map(|c| c.clone().into_inner().mint),
+                update_authority: metadata_update_authority
+                    .as_ref()
+                    .map(|c| c.clone().into_inner().update_authority),
+            }),
+        };
+
         Ok(ConstraintGroup {
             init: init.as_ref().map(|i| Ok(ConstraintInitGroup {
                 if_needed: i.if_needed,
@@ -1031,6 +1074,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             seeds,
             token_account: if !is_init {token_account} else {None},
             mint: if !is_init {mint} else {None},
+            metadata,
         })
     }
 
@@ -1067,6 +1111,8 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ConstraintToken::Realloc(c) => self.add_realloc(c),
             ConstraintToken::ReallocPayer(c) => self.add_realloc_payer(c),
             ConstraintToken::ReallocZero(c) => self.add_realloc_zero(c),
+            ConstraintToken::MetadataMint(c) => self.add_metadata_mint(c),
+            ConstraintToken::MetadataUpdateAuthority(c) => self.add_metadata_update_authority(c),
             // ConstraintToken::ExtensionGroupPointerAuthority(c) => {
             //     self.add_extension_group_pointer_authority(c)
             // }
@@ -1238,6 +1284,28 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             return Err(ParseError::new(c.span(), "realloc::zero already provided"));
         }
         self.realloc_zero.replace(c);
+        Ok(())
+    }
+
+    fn add_metadata_mint(&mut self, c: Context<ConstraintMetadataMint>) -> ParseResult<()> {
+        if self.metadata_mint.is_some() {
+            return Err(ParseError::new(c.span(), "metadata::mint already provided"));
+        }
+        self.metadata_mint.replace(c);
+        Ok(())
+    }
+
+    fn add_metadata_update_authority(
+        &mut self,
+        c: Context<ConstraintMetadataUpdateAuthority>,
+    ) -> ParseResult<()> {
+        if self.metadata_update_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "metadata::update_authority already provided",
+            ));
+        }
+        self.metadata_update_authority.replace(c);
         Ok(())
     }
 

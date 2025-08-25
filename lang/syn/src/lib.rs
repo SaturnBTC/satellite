@@ -690,6 +690,7 @@ pub struct ConstraintGroup {
     pub associated_token: Option<ConstraintAssociatedToken>,
     pub token_account: Option<ConstraintTokenAccountGroup>,
     pub mint: Option<ConstraintTokenMintGroup>,
+    pub metadata: Option<ConstraintMetadataGroup>,
     pub realloc: Option<ConstraintReallocGroup>,
 }
 
@@ -732,6 +733,7 @@ pub enum Constraint {
     Address(ConstraintAddress),
     TokenAccount(ConstraintTokenAccountGroup),
     Mint(ConstraintTokenMintGroup),
+    Metadata(ConstraintMetadataGroup),
     Realloc(ConstraintReallocGroup),
 }
 
@@ -768,6 +770,8 @@ pub enum ConstraintToken {
     Realloc(Context<ConstraintRealloc>),
     ReallocPayer(Context<ConstraintReallocPayer>),
     ReallocZero(Context<ConstraintReallocZero>),
+    MetadataMint(Context<ConstraintMetadataMint>),
+    MetadataUpdateAuthority(Context<ConstraintMetadataUpdateAuthority>),
     // extensions
     // ExtensionGroupPointerAuthority(Context<ConstraintExtensionAuthority>),
     // ExtensionGroupPointerGroupAddress(Context<ConstraintExtensionGroupPointerGroupAddress>),
@@ -933,7 +937,9 @@ pub struct ConstraintSpace {
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum InitKind {
-    Program { owner: Option<Expr> },
+    Program {
+        owner: Option<Expr>,
+    },
     Interface {
         owner: Option<Expr>,
     },
@@ -1083,6 +1089,22 @@ pub struct ConstraintTokenMintGroup {
     // pub permanent_delegate: Option<Expr>,
     // pub transfer_hook_authority: Option<Expr>,
     // pub transfer_hook_program_id: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMetadataMint {
+    pub mint: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMetadataUpdateAuthority {
+    pub update_authority: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMetadataGroup {
+    pub mint: Option<Expr>,
+    pub update_authority: Option<Expr>,
 }
 
 // Syntaxt context object for preserving metadata about the inner item.

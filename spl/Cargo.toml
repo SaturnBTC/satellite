@@ -11,15 +11,17 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["associated_token", "token"]
+default = ["associated_token", "token", "metadata"]
 anchor-debug = ["satellite-lang/anchor-debug"]
 associated_token = ["apl-associated-token-account"]
 idl-build = ["satellite-lang/idl-build"]
 stake = ["borsh"]
 token = ["apl-token"]
+metadata = ["arch_token_metadata"]
 
 [dependencies]
 satellite-lang = { path = "../lang", version = "0.31.1", features = ["derive"] }
 borsh = { version = "0.10.3", optional = true }
 apl-associated-token-account = { path = "../deps/associated-token-account", features = ["no-entrypoint"], optional = true }
 apl-token = { path = "../deps/token", features = ["no-entrypoint"], optional = true }
+arch_token_metadata = { path = "../deps/arch-token-metadata", features = ["no-entrypoint"], optional = true }

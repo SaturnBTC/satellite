@@ -78,6 +78,7 @@ pub fn linearize(c_group: &ConstraintGroup) -> Vec<Constraint> {
         associated_token,
         token_account,
         mint,
+        metadata,
         realloc,
     } = c_group.clone();
 
@@ -127,6 +128,9 @@ pub fn linearize(c_group: &ConstraintGroup) -> Vec<Constraint> {
     if let Some(c) = mint {
         constraints.push(Constraint::Mint(c));
     }
+    if let Some(c) = metadata {
+        constraints.push(Constraint::Metadata(c));
+    }
     constraints
 }
 
@@ -151,6 +155,7 @@ fn generate_constraint(
         Constraint::AssociatedToken(c) => generate_constraint_associated_token(f, c, accs),
         Constraint::TokenAccount(c) => generate_constraint_token_account(f, c, accs),
         Constraint::Mint(c) => generate_constraint_mint(f, c, accs),
+        Constraint::Metadata(c) => generate_constraint_metadata(f, c, accs),
         Constraint::Realloc(c) => generate_constraint_realloc(f, c, accs),
     }
 }
@@ -1546,6 +1551,33 @@ fn generate_constraint_mint(
             // #transfer_hook_program_id_check
         }
     }
+}
+
+fn generate_constraint_metadata(
+    f: &Field,
+    c: &ConstraintMetadataGroup,
+    _accs: &AccountsStruct,
+) -> proc_macro2::TokenStream {
+    let name = &f.ident;
+    let name_str = name.to_string();
+    let mut checks: Vec<proc_macro2::TokenStream> = Vec::new();
+
+    if let Some(mint) = &c.mint {
+        checks.push(quote! {
+            if #name.mint != #mint.key() {
+                return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintTokenMint).with_account_name(#name_str).with_pubkeys((#name.mint, #mint.key())));
+            }
+        });
+    }
+    if let Some(ua) = &c.update_authority {
+        checks.push(quote! {
+            if #name.update_authority != Option::Some(#ua.key()) {
+                return Err(satellite_lang::error::Error::from(satellite_lang::error::ErrorCode::ConstraintOwner).with_account_name(#name_str));
+            }
+        });
+    }
+
+    quote! { #(#checks)* }
 }
 
 #[derive(Clone, Debug)]

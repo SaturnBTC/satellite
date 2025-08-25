@@ -10,6 +10,7 @@ members = [
     "deps/program",
     "deps/token",
     "deps/associated-token-account",
+    "deps/arch-token-metadata",
     "avm",
     "cli",
     "client",

@@ -22,6 +22,11 @@ macro_rules! impl_idl_build {
 // #[cfg(feature = "metadata")]
 // impl_idl_build!(crate::metadata::TokenRecordAccount);
 
+#[cfg(feature = "metadata")]
+impl_idl_build!(crate::metadata::ArchTokenMetadataAccount);
+#[cfg(feature = "metadata")]
+impl_idl_build!(crate::metadata::ArchTokenMetadataAttributesAccount);
+
 #[cfg(feature = "stake")]
 impl_idl_build!(crate::stake::StakeAccount);
 

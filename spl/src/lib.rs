@@ -26,8 +26,8 @@ pub mod token;
 #[cfg(feature = "stake")]
 pub mod stake;
 
-// #[cfg(feature = "metadata")]
-// pub mod metadata;
+#[cfg(feature = "metadata")]
+pub mod metadata;
 
 // #[cfg(feature = "memo")]
 // pub mod memo;
