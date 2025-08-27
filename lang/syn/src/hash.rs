@@ -40,13 +40,13 @@ impl AsRef<[u8]> for Hash {
 
 impl fmt::Debug for Hash {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", bs58::encode(self.0).into_string())
+        write!(f, "{}", hex::encode(self.0))
     }
 }
 
 impl fmt::Display for Hash {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", bs58::encode(self.0).into_string())
+        write!(f, "{}", hex::encode(self.0))
     }
 }
 
@@ -62,8 +62,7 @@ impl FromStr for Hash {
     type Err = ParseHashError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes = bs58::decode(s)
-            .into_vec()
+        let bytes = hex::decode(s)
             .map_err(|_| ParseHashError::Invalid)?;
         if bytes.len() != mem::size_of::<Hash>() {
             Err(ParseHashError::WrongSize)

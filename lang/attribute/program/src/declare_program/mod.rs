@@ -111,9 +111,7 @@ fn gen_program_docs(idl: &Idl) -> proc_macro2::TokenStream {
 }
 
 fn gen_id(idl: &Idl) -> proc_macro2::TokenStream {
-    let address_bytes = bs58::decode(&idl.address)
-        .into_vec()
-        .expect("Invalid `idl.address`");
+    let address_bytes = hex::decode(&idl.address).expect("Invalid `idl.address`");
     let doc = format!("Program ID of program `{}`.", idl.metadata.name);
 
     quote! {

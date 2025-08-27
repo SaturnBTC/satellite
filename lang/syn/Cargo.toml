@@ -21,7 +21,7 @@ interface-instructions = []
 
 [dependencies]
 anyhow = "1"
-bs58 = "0.5"
+hex = "0.4.3"
 heck = "0.3"
 proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
