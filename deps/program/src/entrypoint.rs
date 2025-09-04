@@ -178,6 +178,41 @@ macro_rules! entrypoint {
 #[macro_export]
 macro_rules! custom_heap_default {
     () => {
+        #[cfg(all(any(test, feature = "idl-build"), not(target_os = "solana")))]
+        mod heap_init {
+            const TEST_HEAP_SIZE: usize = 8 * 1024 * 1024;
+            static mut TEST_HEAP: [u8; TEST_HEAP_SIZE] = [0; TEST_HEAP_SIZE];
+            static mut HEAP_INITIALIZED: bool = false;
+            
+            pub struct TestAllocator;
+            
+            #[global_allocator]
+            static A: TestAllocator = TestAllocator;
+            
+            unsafe impl std::alloc::GlobalAlloc for TestAllocator {
+                unsafe fn alloc(&self, layout: std::alloc::Layout) -> *mut u8 {
+                    if !HEAP_INITIALIZED {
+                        let heap_start = TEST_HEAP.as_mut_ptr();
+                        let pos_ptr = heap_start as *mut usize;
+                        *pos_ptr = heap_start.add(TEST_HEAP_SIZE) as usize;
+                        HEAP_INITIALIZED = true;
+                    }
+                    
+                    let heap_start = TEST_HEAP.as_ptr() as usize;
+                    let bump_allocator = $crate::entrypoint::BumpAllocator {
+                        start: heap_start,
+                        len: TEST_HEAP_SIZE,
+                    };
+                    
+                    bump_allocator.alloc(layout)
+                }
+                
+                unsafe fn dealloc(&self, _: *mut u8, _: std::alloc::Layout) {
+                }
+            }
+        }
+        
+        #[cfg(not(all(any(test, feature = "idl-build"), not(target_os = "solana"))))]
         #[global_allocator]
         static A: $crate::entrypoint::BumpAllocator = $crate::entrypoint::BumpAllocator {
             start: $crate::entrypoint::HEAP_START_ADDRESS as usize,
