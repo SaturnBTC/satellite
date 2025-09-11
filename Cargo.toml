@@ -6,11 +6,7 @@ codegen-units = 1
 
 [workspace]
 members = [
-    "deps/borsh-derive-internal",
-    "deps/program",
-    "deps/token",
-    "deps/associated-token-account",
-    "deps/arch-token-metadata",
+    "borsh-derive-internal",
     "avm",
     "cli",
     "client",
@@ -30,7 +26,7 @@ exclude = [
 resolver = "2"
 
 [workspace.dependencies]
-borsh-derive-internal = { path = "deps/borsh-derive-internal", version = "0.10.4" }
-arch_program = { path = "deps/program", version = "0.5.3" }
+borsh-derive-internal-satellite = { path = "./borsh-derive-internal", version = "0.11.0" }
+arch_program = { version = "0.5.9" }
 
 satellite-bitcoin = { path = "./bitcoin" }

@@ -7,8 +7,7 @@ pub use apl_associated_token_account;
 pub use apl_associated_token_account::get_associated_token_address_and_bump_seed;
 
 pub fn create<'info>(ctx: CpiContext<'_, '_, '_, 'info, Create<'info>>) -> Result<()> {
-    let ix = apl_associated_token_account::instruction::create_associated_token_account(
-        &apl_associated_token_account::id(),
+    let ix = apl_associated_token_account::create_associated_token_account(
         ctx.accounts.payer.key,
         ctx.accounts.associated_token.key,
         ctx.accounts.authority.key,

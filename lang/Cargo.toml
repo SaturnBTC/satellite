@@ -52,5 +52,5 @@ base64 = "0.21"
 bincode = "1"
 borsh = { version = "1.4.0" }
 bytemuck = "1.14"
-arch_program = { path = "../deps/program", version = "0.5.3" }
+arch_program = { version = "0.5.7" }
 thiserror = "1.0.61"
