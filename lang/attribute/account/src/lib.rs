@@ -1,6 +1,6 @@
 extern crate proc_macro;
 
-use anchor_syn::{codegen::program::common::gen_discriminator, Overrides};
+use satellite_syn::{codegen::program::common::gen_discriminator, Overrides};
 use quote::{quote, ToTokens};
 use syn::{
     parenthesized,
@@ -363,7 +363,7 @@ pub fn derive_zero_copy_accessor(item: proc_macro::TokenStream) -> proc_macro::T
             field
                 .attrs
                 .iter()
-                .find(|attr| anchor_syn::parser::tts_to_string(&attr.path) == "accessor")
+                .find(|attr| satellite_syn::parser::tts_to_string(&attr.path) == "accessor")
                 .map(|attr| {
                     let mut tts = attr.tokens.clone().into_iter();
                     let g_stream = match tts.next().expect("Must have a token group") {
@@ -449,7 +449,7 @@ pub fn zero_copy(
     let attr = account_strct
         .attrs
         .iter()
-        .find(|attr| anchor_syn::parser::tts_to_string(&attr.path) == "repr");
+        .find(|attr| satellite_syn::parser::tts_to_string(&attr.path) == "repr");
 
     let repr = match attr {
         // Users might want to manually specify repr modifiers e.g. repr(C, packed)
@@ -511,7 +511,7 @@ pub fn zero_copy(
             #ret
         })
         .unwrap();
-        let idl_build_impl = anchor_syn::idl::impl_idl_build_struct(&zc_struct);
+        let idl_build_impl = satellite_syn::idl::impl_idl_build_struct(&zc_struct);
         return proc_macro::TokenStream::from(quote! {
             #ret
             #idl_build_impl
@@ -547,7 +547,7 @@ pub fn declare_id(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     #[cfg(feature = "idl-build")]
     {
-        let idl_print = anchor_syn::idl::gen_idl_print_fn_address(address);
+        let idl_print = satellite_syn::idl::gen_idl_print_fn_address(address);
         return proc_macro::TokenStream::from(quote! {
             #ret
             #idl_print

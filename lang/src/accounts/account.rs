@@ -410,7 +410,7 @@ impl<T: AccountSerialize + AccountDeserialize + Clone> Deref for Account<'_, T> 
 
 impl<T: AccountSerialize + AccountDeserialize + Clone> DerefMut for Account<'_, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        #[cfg(feature = "anchor-debug")]
+        #[cfg(feature = "satellite-debug")]
         if !self.info.is_writable {
             arch_program::msg!("The given Account is not mutable");
             panic!();

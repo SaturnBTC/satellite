@@ -12,7 +12,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 default = ["associated_token", "token", "metadata"]
-anchor-debug = ["satellite-lang/anchor-debug"]
+satellite-debug = ["satellite-lang/satellite-debug"]
 associated_token = ["apl-associated-token-account"]
 idl-build = ["satellite-lang/idl-build"]
 stake = ["borsh"]

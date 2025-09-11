@@ -1,4 +1,4 @@
-use anchor_syn::{
+use satellite_syn::{
     codegen::accounts::{__client_accounts, __cpi_client_accounts},
     parser::accounts,
     AccountsStruct,

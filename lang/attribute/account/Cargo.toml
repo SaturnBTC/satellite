@@ -1,22 +1,22 @@
 [package]
-name = "anchor-attribute-account"
+name = "satellite-attribute-account"
 version = "0.31.1"
-authors = ["Anchor Maintainers <accounts@200ms.io>"]
-repository = "https://github.com/coral-xyz/anchor"
+authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
+repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
-description = "Anchor attribute macro for defining an account"
+description = "Satellite attribute macro for defining an account"
 edition = "2021"
 
 [lib]
 proc-macro = true
 
 [features]
-anchor-debug = ["anchor-syn/anchor-debug"]
-idl-build = ["anchor-syn/idl-build"]
+satellite-debug = ["satellite-syn/satellite-debug"]
+idl-build = ["satellite-syn/idl-build"]
 lazy-account = []
 
 [dependencies]
-anchor-syn = { path = "../../syn", version = "0.31.1", features = ["hash"] }
+satellite-syn = { path = "../../syn", version = "0.31.1", features = ["hash"] }
 hex = "0.4"
 proc-macro2 = "1"
 quote = "1"

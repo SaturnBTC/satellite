@@ -1,23 +1,23 @@
 [package]
-name = "anchor-attribute-program"
+name = "satellite-attribute-program"
 version = "0.31.1"
-authors = ["Anchor Maintainers <accounts@200ms.io>"]
-repository = "https://github.com/coral-xyz/anchor"
+authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
+repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
-description = "Anchor attribute macro for defining a program"
+description = "Satellite attribute macro for defining a program"
 edition = "2021"
 
 [lib]
 proc-macro = true
 
 [features]
-anchor-debug = ["anchor-syn/anchor-debug"]
-idl-build = ["anchor-syn/idl-build"]
-interface-instructions = ["anchor-syn/interface-instructions"]
+satellite-debug = ["satellite-syn/satellite-debug"]
+idl-build = ["satellite-syn/idl-build"]
+interface-instructions = ["satellite-syn/interface-instructions"]
 
 [dependencies]
 satellite-lang-idl = { path = "../../../idl", version = "0.1.2", features = ["convert"] }
-anchor-syn = { path = "../../syn", version = "0.31.1" }
+satellite-syn = { path = "../../syn", version = "0.31.1" }
 anyhow = "1"
 hex = "0.4.3"
 heck = "0.3"

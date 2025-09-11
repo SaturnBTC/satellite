@@ -204,7 +204,7 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 idl-build = ["satellite-lang/idl-build"]
-anchor-debug = []
+satellite-debug = []
 custom-heap = []
 custom-panic = []
 {2}

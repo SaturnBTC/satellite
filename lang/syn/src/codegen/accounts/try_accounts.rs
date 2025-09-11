@@ -23,7 +23,7 @@ pub fn generate(accs: &AccountsStruct) -> proc_macro2::TokenStream {
                     let name = &s.ident;
                     let ty = &s.raw_field.ty;
                     quote! {
-                        #[cfg(feature = "anchor-debug")]
+                        #[cfg(feature = "satellite-debug")]
                         ::arch_program::log::sol_log(stringify!(#name));
                         let #name: #ty = satellite_lang::Accounts::try_accounts(__program_id, __accounts, __ix_data, &mut __bumps.#name, __reallocs)?;
                     }
@@ -69,7 +69,7 @@ pub fn generate(accs: &AccountsStruct) -> proc_macro2::TokenStream {
                         let name = f.ident.to_string();
                         let typed_name = f.typed_ident();
                         quote! {
-                            #[cfg(feature = "anchor-debug")]
+                            #[cfg(feature = "satellite-debug")]
                             ::arch_program::log::sol_log(stringify!(#typed_name));
                             let #typed_name = satellite_lang::Accounts::try_accounts(__program_id, __accounts, __ix_data, __bumps, __reallocs)
                                 .map_err(|e| e.with_account_name(#name))?;

@@ -48,14 +48,14 @@ mod vec;
 #[cfg(feature = "lazy-account")]
 mod lazy;
 
-pub use anchor_attribute_access_control::access_control;
-pub use anchor_attribute_account::{account, declare_id, pubkey, zero_copy};
-pub use anchor_attribute_constant::constant;
-pub use anchor_attribute_error::*;
-pub use anchor_attribute_program::{declare_program, instruction, program};
-pub use anchor_derive_accounts::Accounts;
-pub use anchor_derive_serde::{AnchorDeserialize, AnchorSerialize};
-pub use anchor_derive_space::InitSpace;
+pub use satellite_attribute_access_control::access_control;
+pub use satellite_attribute_account::{account, declare_id, pubkey, zero_copy};
+pub use satellite_attribute_constant::constant;
+pub use satellite_attribute_error::*;
+pub use satellite_attribute_program::{declare_program, instruction, program};
+pub use satellite_derive_accounts::Accounts;
+pub use satellite_derive_serde::{AnchorDeserialize, AnchorSerialize};
+pub use satellite_derive_space::InitSpace;
 
 pub use arch_program;
 /// Borsh is the default serialization format for instructions and accounts.
@@ -66,7 +66,7 @@ pub use borsh::ser::BorshSerialize as AnchorSerialize;
 pub use idl::IdlBuild;
 
 #[cfg(feature = "interface-instructions")]
-pub use anchor_attribute_program::interface;
+pub use satellite_attribute_program::interface;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
@@ -409,7 +409,7 @@ pub mod prelude {
         Result, Space, ToAccountInfo, ToAccountInfos, ToAccountMetas,
     };
 
-    pub use anchor_attribute_error::*;
+    pub use satellite_attribute_error::*;
     pub use arch_program::account::AccountMeta;
     pub use arch_program::account::{next_account_info, AccountInfo};
     pub use arch_program::msg;
@@ -432,7 +432,7 @@ pub mod prelude {
 /// Internal module used by macros and unstable apis.
 #[doc(hidden)]
 pub mod __private {
-    pub use anchor_attribute_account::ZeroCopyAccessor;
+    pub use satellite_attribute_account::ZeroCopyAccessor;
     pub use base64;
     pub use bytemuck;
 

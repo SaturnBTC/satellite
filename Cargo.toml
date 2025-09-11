@@ -24,9 +24,3 @@ exclude = [
     "tests/cfo/deps/openbook-dex",
 ]
 resolver = "2"
-
-[workspace.dependencies]
-borsh-derive-internal-satellite = { path = "./borsh-derive-internal", version = "0.11.0" }
-arch_program = { version = "0.5.9" }
-
-satellite-bitcoin = { path = "./bitcoin" }

@@ -630,7 +630,7 @@ use syn::parse_macro_input;
 /// </table>
 #[proc_macro_derive(Accounts, attributes(account, instruction))]
 pub fn derive_accounts(item: TokenStream) -> TokenStream {
-    parse_macro_input!(item as anchor_syn::AccountsStruct)
+    parse_macro_input!(item as satellite_syn::AccountsStruct)
         .to_token_stream()
         .into()
 }

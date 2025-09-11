@@ -44,9 +44,9 @@ pub fn generate(program: &Program) -> proc_macro2::TokenStream {
         }
 
         fn try_entry<'info>(program_id: &Pubkey, accounts: &'info [AccountInfo<'info>], data: &[u8]) -> satellite_lang::Result<()> {
-            #[cfg(feature = "anchor-debug")]
+            #[cfg(feature = "satellite-debug")]
             {
-                msg!("anchor-debug is active");
+                msg!("satellite-debug is active");
             }
             if *program_id != ID {
                 return Err(satellite_lang::error::ErrorCode::DeclaredProgramIdMismatch.into());

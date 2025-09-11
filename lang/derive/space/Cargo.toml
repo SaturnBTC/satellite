@@ -1,10 +1,10 @@
 [package]
-name = "anchor-derive-space"
+name = "satellite-derive-space"
 version = "0.31.1"
-authors = ["Anchor Maintainers <accounts@200ms.io>"]
-repository = "https://github.com/coral-xyz/anchor"
+authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
+repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
-description = "Anchor Derive macro to automatically calculate the size of a structure or an enum"
+description = "Satellite Derive macro to automatically calculate the size of a structure or an enum"
 edition = "2021"
 
 [lib]

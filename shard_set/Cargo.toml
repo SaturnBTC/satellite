@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-arch_program = { workspace = true }
+arch_program = { version = "0.5.9" }
 bitcoin = "0.32.5"
 bytemuck = "1.14"
-satellite-bitcoin = { workspace = true }
+satellite-bitcoin = { path = "../bitcoin", version = "0.1.0" }
 satellite-lang = { path = "../lang", version = "0.31.1" }
 ordinals = { version = "0.0.14", optional = true }
 

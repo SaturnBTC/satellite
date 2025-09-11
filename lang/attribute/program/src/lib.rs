@@ -36,9 +36,9 @@ pub fn program(
         }
     }
 
-    // Convert modified module back into tokens and let anchor_syn handle the heavy lifting.
+    // Convert modified module back into tokens and let satellite_syn handle the heavy lifting.
     let program_tokens = quote! { #program_mod };
-    match syn::parse2::<anchor_syn::Program>(program_tokens) {
+    match syn::parse2::<satellite_syn::Program>(program_tokens) {
         Ok(p) => p.to_token_stream().into(),
         Err(e) => e.to_compile_error().into(),
     }
