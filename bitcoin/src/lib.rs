@@ -5,3 +5,6 @@ pub use satellite_math::*;
 
 // Re-export the transactions crate using the alias defined in Cargo.toml
 pub use satellite_bitcoin_transactions::*;
+
+pub mod script;
+pub use script::ScriptPubkey;

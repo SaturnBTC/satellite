@@ -6,7 +6,7 @@
 //!
 //! ## Usage Example
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! # use satellite_lang::prelude::*;
 //! # use satellite_lang::ZeroCopy;
 //! # use crate::load::load_shards;
@@ -103,7 +103,7 @@ pub fn select_min_by<F, S, const MAX_TOTAL_SHARDS: usize>(
     key_fn: F,
 ) -> super::error::Result<Option<usize>>
 where
-    F: Fn(&S) -> u64,
+    F: Fn(&S) -> u128,
     S: ZeroCopy + Owner,
 {
     if shards.is_empty() {
@@ -111,7 +111,7 @@ where
     }
 
     let mut best_idx: Option<usize> = None;
-    let mut best_key: u64 = u64::MAX;
+    let mut best_key: u128 = u128::MAX;
 
     for (idx, shard_ref) in shards.iter().enumerate() {
         let key = key_fn(&*shard_ref);

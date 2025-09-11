@@ -5,6 +5,9 @@
 
 use crate::generic::push_pop::{PushPopCollection, PushPopError};
 
+#[cfg(feature = "borsh")]
+use borsh::{BorshDeserialize, BorshSerialize};
+
 /// Error type for [`FixedList`] operations.
 #[derive(Debug)]
 pub enum FixedListError {
@@ -42,7 +45,8 @@ pub enum FixedListError {
 ///
 /// The list stores elements in a contiguous array followed by a length field.
 /// Only the first `len` elements are considered valid; the rest contain default values.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "borsh", derive(BorshSerialize, BorshDeserialize))]
 pub struct FixedList<T, const SIZE: usize> {
     items: [T; SIZE],
     len: usize,
@@ -315,6 +319,10 @@ impl<T: Default + Copy, const SIZE: usize> PushPopCollection<T> for FixedList<T,
 
     fn len(&self) -> usize {
         self.len
+    }
+
+    fn max_size(&self) -> usize {
+        SIZE
     }
 }
 

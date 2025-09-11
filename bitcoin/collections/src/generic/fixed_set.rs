@@ -5,6 +5,7 @@
 //! set operations.
 
 use crate::generic::push_pop::{PushPopCollection, PushPopError};
+use std::fmt::Debug;
 
 /// Error type for [`FixedSet`] operations.
 #[derive(Debug, PartialEq, Eq)]
@@ -53,7 +54,7 @@ impl std::fmt::Display for FixedSetError {
 /// ```
 ///
 /// [`declare_fixed_set!`]: crate::declare_fixed_set
-pub trait FixedCapacitySet: Default + Clone {
+pub trait FixedCapacitySet: Default + Clone + Debug {
     /// The element type stored in the set.
     type Item: Copy + PartialEq + Default;
 
@@ -158,6 +159,7 @@ pub trait FixedCapacitySet: Default + Clone {
 pub struct FixedSet<T, const SIZE: usize> {
     items: [T; SIZE],
     len: usize,
+    _padding: [u8; 8],
 }
 
 impl<T: Default + Copy + PartialEq, const SIZE: usize> Default for FixedSet<T, SIZE> {
@@ -182,6 +184,7 @@ impl<T: Default + Copy + PartialEq, const SIZE: usize> FixedSet<T, SIZE> {
         Self {
             items: [T::default(); SIZE],
             len: 0,
+            _padding: [0; 8],
         }
     }
 
@@ -533,9 +536,15 @@ impl<T: Default + Copy + PartialEq, const SIZE: usize> PushPopCollection<T> for 
     fn len(&self) -> usize {
         self.len()
     }
+
+    fn max_size(&self) -> usize {
+        SIZE
+    }
 }
 
-impl<T: Default + Copy + PartialEq, const SIZE: usize> FixedCapacitySet for FixedSet<T, SIZE> {
+impl<T: Default + Copy + PartialEq + Debug, const SIZE: usize> FixedCapacitySet
+    for FixedSet<T, SIZE>
+{
     type Item = T;
 
     fn capacity(&self) -> usize {

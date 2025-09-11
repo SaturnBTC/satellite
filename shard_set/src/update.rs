@@ -77,6 +77,7 @@
 
 use std::cell::RefMut;
 
+use arch_program::msg;
 use arch_program::{input_to_sign::InputToSign, rune::RuneAmount, utxo::UtxoMeta};
 use bitcoin::{ScriptBuf, Transaction};
 use satellite_bitcoin::utxo_info::UtxoInfoTrait;
@@ -87,6 +88,9 @@ use arch_program::rune::RuneId;
 #[cfg(feature = "runes")]
 use ordinals::Runestone;
 use satellite_bitcoin::generic::fixed_set::FixedCapacitySet;
+
+#[cfg(feature = "utxo-consolidation")]
+use satellite_bitcoin::utxo_info::FixedOptionF64;
 
 use super::error::StateShardError;
 
@@ -323,8 +327,12 @@ where
         // Apply consolidation flag if feature enabled.
         #[cfg(feature = "utxo-consolidation")]
         {
-            use satellite_bitcoin::utxo_info::FixedOptionF64;
-            if shard.btc_utxos_len() > 1 {
+            let has_no_consolidation = shard
+                .btc_utxos()
+                .iter()
+                .any(|u| u.needs_consolidation().is_none());
+
+            if has_no_consolidation {
                 *utxo.needs_consolidation_mut() = FixedOptionF64::some(fee_rate.0);
             }
         }
@@ -443,8 +451,16 @@ where
         transaction_builder.inputs_to_sign.as_slice(),
     );
 
+    // utxos_to_remove
+    //     .iter()
+    //     .for_each(|utxo| msg!("utxo_to_remove: {}", utxo.to_outpoint()));
+
+    // new_program_utxos
+    //     .iter()
+    //     .for_each(|utxo: &U| msg!("new_program_utxo: {}", utxo.meta().to_outpoint()));
+
     // ---------------------------------------------------------------------
-    // 2. Split new outputs into rune vs btc (feature-gated like original).
+    // 2. Split new outputs into rune vs btc
     // ---------------------------------------------------------------------
     #[cfg(feature = "runes")]
     let (new_rune_utxos, new_btc_utxos) = {
@@ -468,6 +484,91 @@ where
         selected_shards,
         &utxos_to_remove,
         new_rune_utxos,
+        new_btc_utxos,
+        fee_rate,
+    )
+}
+
+/// Updates shard state after a Bitcoin transaction **when the caller already holds two separate
+/// mutable slices**: one for shards that should store rune-bearing UTXOs and another for shards that
+/// should only store plain BTC UTXOs.
+///
+/// This is the most ergonomic variant when the shard selection logic has already been split by the
+/// caller:
+///
+/// ```rust,ignore
+/// let mut rune_shards = shard_set.select_with([0, 2])?.shards_mut();
+/// let mut btc_shards  = shard_set.select_with([1, 3, 4])?.shards_mut();
+/// update_shards_after_transaction_split(
+///     &tx_builder,
+///     rune_shards,
+///     btc_shards,
+///     &program_script_pubkey,
+///     &fee_rate,
+/// )?;
+/// ```
+#[allow(clippy::too_many_arguments)]
+pub fn update_shards_after_transaction_split<
+    'info,
+    const MAX_USER_UTXOS: usize,
+    const MAX_SHARDS_PER_PROGRAM: usize,
+    RS,
+    U,
+    S,
+>(
+    transaction_builder: &TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
+    rune_selected_shards: &mut [RefMut<'info, S>],
+    btc_selected_shards: &mut [RefMut<'info, S>],
+    program_script_pubkey: &ScriptBuf,
+    fee_rate: &FeeRate,
+) -> super::error::Result<()>
+where
+    RS: FixedCapacitySet<Item = RuneAmount> + Default,
+    U: UtxoInfoTrait<RS>,
+    S: StateShard<U, RS> + ZeroCopy + Owner,
+{
+    // ---------------------------------------------------------------------
+    // 1. Identify program-owned UTXOs that were spent/created.
+    // ---------------------------------------------------------------------
+    let (utxos_to_remove, mut new_program_utxos) = get_modified_program_utxos_in_transaction(
+        program_script_pubkey,
+        &transaction_builder.transaction,
+        transaction_builder.inputs_to_sign.as_slice(),
+    );
+
+    // ---------------------------------------------------------------------
+    // 2. Split new outputs into rune vs btc.
+    // ---------------------------------------------------------------------
+    #[cfg(feature = "runes")]
+    let (new_rune_utxos, new_btc_utxos) = {
+        let runestone = &transaction_builder.runestone;
+        let new_rune_utxos = update_modified_program_utxos_with_rune_amount(
+            &mut new_program_utxos,
+            runestone,
+            &transaction_builder.total_rune_inputs,
+        )?;
+        (new_rune_utxos, new_program_utxos)
+    };
+    #[cfg(not(feature = "runes"))]
+    let (new_rune_utxos, new_btc_utxos) = (Vec::<U>::new(), new_program_utxos);
+
+    // ---------------------------------------------------------------------
+    // 3. Delegate to the existing helper to avoid code duplication.
+    // ---------------------------------------------------------------------
+    // First, handle rune shards: remove spent UTXOs and insert rune-bearing ones.
+    update_shards_utxos::<RS, U, S>(
+        rune_selected_shards,
+        &utxos_to_remove,
+        new_rune_utxos,
+        Vec::new(), // no plain-BTC outputs go into rune shards
+        fee_rate,
+    )?;
+
+    // Second, handle BTC-only shards: remove spent UTXOs and distribute BTC outputs.
+    update_shards_utxos::<RS, U, S>(
+        btc_selected_shards,
+        &utxos_to_remove,
+        Vec::new(), // rune UTXOs have already been handled
         new_btc_utxos,
         fee_rate,
     )
@@ -553,7 +654,7 @@ where
     }
 
     for (index, output) in transaction.output.iter().enumerate() {
-        if &output.script_pubkey == program_script_pubkey {
+        if output.script_pubkey == *program_script_pubkey {
             program_outputs.push(U::new(
                 UtxoMeta::from(txid_bytes, index as u32),
                 output.value.to_sat(),
@@ -649,30 +750,45 @@ where
     let mut rune_utxos = vec![];
 
     for edict in &runestone.edicts {
+        use arch_program::msg;
+
+        msg!("checking edict: {:?}", edict);
+
         let rune_amount = edict.amount;
         let index = edict.output;
 
-        let output = new_program_outputs
-            .get_mut(index as usize)
-            .ok_or(StateShardError::OutputEdictIsNotInTransaction)?;
-
         let rune_id = RuneId::new(edict.id.block, edict.id.tx);
+        let pos = new_program_outputs
+            .iter()
+            .position(|u| u.meta().vout() == index);
 
-        output.runes_mut().insert_or_modify::<StateShardError, _>(
-            RuneAmount {
-                id: rune_id,
-                amount: rune_amount,
-            },
-            |rune_input| {
-                rune_input.amount = rune_input
-                    .amount
-                    .checked_add(rune_amount)
-                    .ok_or(StateShardError::RuneAmountAdditionOverflow)?;
-                Ok(())
-            },
-        )?;
+        // Edicts might go to other addresses, so we need to check if the output is in the vector
+        if let Some(pos) = pos {
+            let output = new_program_outputs
+                .get_mut(pos)
+                .ok_or(StateShardError::OutputEdictIsNotInTransaction)?;
 
-        if let Some(remaining) = remaining_rune_amount.find_mut(&rune_id) {
+            output.runes_mut().insert_or_modify::<StateShardError, _>(
+                RuneAmount {
+                    id: rune_id,
+                    amount: rune_amount,
+                },
+                |rune_input| {
+                    rune_input.amount = rune_input
+                        .amount
+                        .checked_add(rune_amount)
+                        .ok_or(StateShardError::RuneAmountAdditionOverflow)?;
+                    Ok(())
+                },
+            )?;
+        }
+
+        // Even though the amount might not go to the program address, we have to decrement it
+        // from the remaining rune amount
+        if let Some(remaining) = remaining_rune_amount
+            .iter_mut()
+            .find(|rune_amount| rune_amount.id == rune_id)
+        {
             remaining.amount = remaining
                 .amount
                 .checked_sub(rune_amount)
@@ -701,8 +817,6 @@ where
                             Ok(())
                         },
                     )?;
-                } else {
-                    return Err(StateShardError::RunestonePointerIsNotInTransaction);
                 }
             }
         }
@@ -847,8 +961,6 @@ mod tests_loader {
     // ---------------------------------------------------------------------
     mod update_shards_utxos_tests {
         use super::*;
-
-        const MAX_SEL: usize = 2;
 
         fn setup_shard_loaders(
             shard0: MockShardZc,
@@ -1028,9 +1140,9 @@ mod tests_loader {
         #[cfg(feature = "utxo-consolidation")]
         #[test]
         fn sets_needs_consolidation_flag_when_applicable() {
-            // shard0 has 2 tiny UTXOs so will receive the new one
+            // shard0 has 1 tiny UTXO so will receive the new one
             let mut shard0 = MockShardZc::default();
-            add_btc_utxos_bulk(&mut shard0, &[1, 1]);
+            add_btc_utxos_bulk(&mut shard0, &[1]);
 
             let mut shard1 = MockShardZc::default();
             add_btc_utxos_bulk(&mut shard1, &[100]);
@@ -1065,9 +1177,9 @@ mod tests_loader {
 
         #[cfg(feature = "utxo-consolidation")]
         #[test]
-        fn does_not_set_consolidation_flag_when_shard_has_one_or_zero_utxos() {
+        fn does_not_set_consolidation_flag_when_shard_has_zero_utxos() {
             let mut shard0 = MockShardZc::default();
-            add_btc_utxos_bulk(&mut shard0, &[50]);
+            add_btc_utxos_bulk(&mut shard0, &[]);
 
             let shard1 = MockShardZc::default();
 
@@ -1095,9 +1207,7 @@ mod tests_loader {
 
             // new UTXO should go to shard1 (empty before)
             let shard1_ref = loaders[1].load().unwrap();
-            assert_eq!(shard1_ref.btc_utxos_len(), 1);
-            let inserted = shard1_ref.btc_utxos().first().unwrap();
-            assert!(inserted.needs_consolidation().is_none());
+            assert_eq!(shard1_ref.btc_utxos_len(), 0);
         }
 
         #[test]
@@ -1168,6 +1278,197 @@ mod tests_loader {
                 let shard_ref = loader.load().unwrap();
                 assert!(shard_ref.rune_utxo().is_none());
             }
+        }
+
+        #[cfg(feature = "utxo-consolidation")]
+        #[test]
+        fn first_new_btc_utxo_is_flagged_when_existing_utxos_have_none() {
+            // shard0 has multiple small UTXOs but a smaller total than shard1
+            let mut shard0 = MockShardZc::default();
+            add_btc_utxos_bulk(&mut shard0, &[1, 1, 1, 1, 1]); // 5 sats total
+
+            let mut shard1 = MockShardZc::default();
+            add_btc_utxos_bulk(&mut shard1, &[100]); // 100 sats total
+
+            let loaders = leak_loaders_from_vec(vec![shard0, shard1]);
+
+            // Single new BTC UTXO to insert – it's the "first" (idx == 0)
+            let new_utxo = create_utxo(50, 240, 0);
+
+            // Execute update – new UTXO should go to shard0 (least funded)
+            let mut shard_refs: Vec<_> = loaders
+                .iter()
+                .map(|loader| loader.load_mut().unwrap())
+                .collect();
+            super::super::update_shards_utxos::<
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(
+                &mut shard_refs,
+                &[],
+                vec![],
+                vec![new_utxo.clone()],
+                &fee_rate(),
+            )
+            .unwrap();
+            drop(shard_refs);
+
+            // Verify the inserted UTXO DOES have consolidation flag set (to keep a single NONE overall)
+            let shard0_ref = loaders[0].load().unwrap();
+            let inserted = shard0_ref.btc_utxos().last().unwrap();
+            assert!(inserted.needs_consolidation().is_some());
+        }
+
+        #[cfg(feature = "utxo-consolidation")]
+        #[test]
+        fn case1_one_existing_without_flag_then_new_flagged_and_single_none() {
+            // Start with a shard that has exactly one UTXO (no consolidation flag by default)
+            let mut shard = MockShardZc::default();
+            add_btc_utxos_bulk(&mut shard, &[10]);
+
+            let loaders = leak_loaders_from_vec(vec![shard]);
+
+            // Insert one new UTXO
+            let new_utxo = create_utxo(20, 241, 0);
+
+            let mut shard_refs: Vec<_> = loaders
+                .iter()
+                .map(|loader| loader.load_mut().unwrap())
+                .collect();
+            super::super::update_shards_utxos::<
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(
+                &mut shard_refs,
+                &[],
+                vec![],
+                vec![new_utxo.clone()],
+                &fee_rate(),
+            )
+            .unwrap();
+            drop(shard_refs);
+
+            let shard_ref = loaders[0].load().unwrap();
+            // Exactly one UTXO should have no consolidation flag
+            let none_count = shard_ref
+                .btc_utxos()
+                .iter()
+                .filter(|u| u.needs_consolidation().is_none())
+                .count();
+            assert_eq!(none_count, 1);
+
+            // The newly inserted one should be flagged (some)
+            let inserted = shard_ref.btc_utxos().last().unwrap();
+            assert!(inserted.needs_consolidation().is_some());
+            assert_eq!(inserted.needs_consolidation().get().unwrap(), fee_rate().0);
+        }
+
+        #[cfg(feature = "utxo-consolidation")]
+        #[test]
+        fn case2_all_existing_flagged_first_new_none_second_flagged_and_single_none() {
+            // Prepare shard with 2 existing UTXOs and mark them as needing consolidation
+            let mut shard = MockShardZc::default();
+            add_btc_utxos_bulk(&mut shard, &[5, 7]);
+
+            let loaders = leak_loaders_from_vec(vec![shard]);
+
+            // Mark all existing as Some(fee_rate)
+            {
+                use satellite_bitcoin::utxo_info::FixedOptionF64;
+                let mut s = loaders[0].load_mut().unwrap();
+                for u in s.btc_utxos_mut().iter_mut() {
+                    *u.needs_consolidation_mut() = FixedOptionF64::some(fee_rate().0);
+                }
+                drop(s);
+            }
+
+            // Insert two new UTXOs in one call
+            let new_a = create_utxo(30, 242, 0);
+            let new_b = create_utxo(25, 243, 0);
+
+            let mut shard_refs: Vec<_> = loaders
+                .iter()
+                .map(|loader| loader.load_mut().unwrap())
+                .collect();
+            super::super::update_shards_utxos::<
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(
+                &mut shard_refs,
+                &[],
+                vec![],
+                vec![new_a, new_b],
+                &fee_rate(),
+            )
+            .unwrap();
+            drop(shard_refs);
+
+            let shard_ref = loaders[0].load().unwrap();
+            let len = shard_ref.btc_utxos_len();
+            let inserted_slice = &shard_ref.btc_utxos()[len.saturating_sub(2)..];
+
+            // Among the two inserted: exactly one none, one some
+            let none_inserted = inserted_slice
+                .iter()
+                .filter(|u| u.needs_consolidation().is_none())
+                .count();
+            let some_inserted = inserted_slice
+                .iter()
+                .filter(|u| u.needs_consolidation().is_some())
+                .count();
+            assert_eq!(none_inserted, 1);
+            assert_eq!(some_inserted, 1);
+
+            // Across the whole shard there must be exactly one none
+            let total_none = shard_ref
+                .btc_utxos()
+                .iter()
+                .filter(|u| u.needs_consolidation().is_none())
+                .count();
+            assert_eq!(total_none, 1);
+        }
+
+        #[cfg(feature = "utxo-consolidation")]
+        #[test]
+        fn case3_empty_first_new_none_following_flagged_and_single_none() {
+            // Start with an empty shard
+            let shard = MockShardZc::default();
+            let loaders = leak_loaders_from_vec(vec![shard]);
+
+            // Insert three new UTXOs
+            let new_a = create_utxo(40, 244, 0);
+            let new_b = create_utxo(35, 245, 0);
+            let new_c = create_utxo(10, 246, 0);
+
+            let mut shard_refs: Vec<_> = loaders
+                .iter()
+                .map(|loader| loader.load_mut().unwrap())
+                .collect();
+            super::super::update_shards_utxos::<
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(
+                &mut shard_refs,
+                &[],
+                vec![],
+                vec![new_a, new_b, new_c],
+                &fee_rate(),
+            )
+            .unwrap();
+            drop(shard_refs);
+
+            let shard_ref = loaders[0].load().unwrap();
+            // Exactly one UTXO should have no consolidation flag overall
+            let total_none = shard_ref
+                .btc_utxos()
+                .iter()
+                .filter(|u| u.needs_consolidation().is_none())
+                .count();
+            assert_eq!(total_none, 1);
         }
     }
 

@@ -1,7 +1,7 @@
 use bitcoin::key::constants::SCHNORR_SIGNATURE_SIZE;
 
-// Constants for sizes based on the witness stack you provided
-pub const REDEEM_SCRIPT_SIZE: usize = 83;
+// Constants for sizes based on the witness stack
+pub const REDEEM_SCRIPT_SIZE: usize = 69;
 pub const CONTROL_BLOCK_SIZE: usize = 33;
 
 // Sizes of the non-witness data (base data)
@@ -17,7 +17,7 @@ const INPUT_BASE_SIZE: usize = INPUT_OUTPOINT_SIZE + INPUT_SCRIPT_SIG_SIZE + INP
 const WITNESS_ITEM_COUNT_SIZE: usize = 1; // Number of witness items (3 items)
 
 const WITNESS_SIGNATURE_ITEM_SIZE: usize = 1 + SCHNORR_SIGNATURE_SIZE; // 1 byte length prefix + 64 bytes signature = 65 bytes
-const WITNESS_REDEEM_SCRIPT_ITEM_SIZE: usize = 1 + REDEEM_SCRIPT_SIZE; // 1 + 83 = 84 bytes
+const WITNESS_REDEEM_SCRIPT_ITEM_SIZE: usize = 1 + REDEEM_SCRIPT_SIZE; // 1 + 69 = 70 bytes
 const WITNESS_CONTROL_BLOCK_ITEM_SIZE: usize = 1 + CONTROL_BLOCK_SIZE; // 1 + 33 = 34 bytes
 
 // Total size of the witness data for the input
@@ -56,9 +56,12 @@ const fn simulated_witness_weight() -> usize {
 /// Weight of a witness script in bytes including its length indicator
 pub const WITNESS_WEIGHT_BYTES: usize = simulated_witness_weight();
 
-/// When serializing a transaction with witness scripts in its inputs, it's
-/// two bytes longer
-pub const WITNESS_WEIGHT_OVERHEAD: usize = 2;
+/// Marker+flag added when a transaction contains any witness.
+///
+/// - As bytes: 2
+/// - As weight units (WU): also 2, since witness bytes are 1 WU per byte
+pub const WITNESS_OVERHEAD_BYTES: usize = 2;
+pub const WITNESS_OVERHEAD_WU: usize = WITNESS_OVERHEAD_BYTES; // witness bytes => 1 WU/byte
 
 // Compute the weight units (WU)
 // Non-witness data counts as 4 WU per byte

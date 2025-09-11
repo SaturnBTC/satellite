@@ -1,5 +1,5 @@
 use arch_program::{
-    account::{AccountInfo, MIN_ACCOUNT_LAMPORTS},
+    account::AccountInfo,
     program::{get_runes_from_output, invoke_signed},
     program_error::ProgramError,
     pubkey::Pubkey,
@@ -18,14 +18,15 @@ pub fn create_account<'a>(
     fee_payer: &AccountInfo<'a>,
     program_id: &Pubkey,
     signer_seeds: &[&[u8]],
+    space: u64,
 ) -> Result<(), ProgramError> {
     let cpi_signer_seeds: &[&[&[u8]]] = &[signer_seeds];
 
     let instruction = create_account_instruction(
         fee_payer.key,
         account.key,
-        MIN_ACCOUNT_LAMPORTS,
-        0,
+        arch_program::rent::minimum_rent(space as usize),
+        space,
         program_id,
         utxo.txid_big_endian(),
         utxo.vout(),
@@ -55,6 +56,7 @@ where
     ))?;
 
     let mut rune_set = RS::default();
+
     for rune in runes.iter() {
         let rune_amount = RuneAmount {
             amount: rune.amount,

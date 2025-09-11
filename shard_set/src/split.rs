@@ -26,9 +26,9 @@
 //! Type parameters & generics
 //! -------------------------
 //! Most public functions are generic over the following compile-time bounds:
-//! * `MAX_USER_UTXOS` – maximum user-provided inputs accepted by the
+//! * `MAX_MODIFIED_ACCOUNTS` – maximum user-provided inputs accepted by the
 //!   transaction builder.
-//! * `MAX_SHARDS_PER_PROGRAM` – upper limit on shards per program instance.
+//! * `MAX_INPUTS_TO_SIGN` – upper limit on shards per program instance.
 //! * `MAX_SELECTED` – upper limit on simultaneously *selected* shards.
 //! * `RS`, `U`, `S` – concrete types implementing the required Saturn traits.
 //!
@@ -43,6 +43,7 @@
 use std::cell::Ref;
 
 use arch_program::{
+    msg,
     rune::{RuneAmount, RuneId},
     utxo::UtxoMeta,
 };
@@ -62,6 +63,21 @@ use ordinals::Edict;
 
 use satellite_lang::prelude::Owner;
 use satellite_lang::ZeroCopy;
+
+/// Errors specific to distribution and dust handling logic in this module.
+#[derive(Debug, PartialEq)]
+pub enum DistributionError {
+    /// Total amount to distribute is non-zero but below the dust limit.
+    TotalBelowDustLimit,
+    /// Wrapper around generic math errors encountered during redistribution.
+    Math(MathError),
+}
+
+impl From<MathError> for DistributionError {
+    fn from(value: MathError) -> Self {
+        DistributionError::Math(value)
+    }
+}
 
 /// Redistributes the *remaining* satoshi value belonging to the provided shards
 /// back into brand-new outputs (one per **retained allocation** after
@@ -92,9 +108,9 @@ use satellite_lang::ZeroCopy;
 /// specific shards must perform that mapping explicitly.
 ///
 /// # Type Parameters
-/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs supported by
+/// * `MAX_MODIFIED_ACCOUNTS` – Maximum number of user-supplied UTXOs supported by
 ///   the [`TransactionBuilder`].
-/// * `MAX_SHARDS_PER_PROGRAM` – Compile-time bound on the number of shards in a
+/// * `MAX_INPUTS_TO_SIGN` – Compile-time bound on the number of shards in a
 ///   single program instance.
 /// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
 /// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
@@ -130,18 +146,18 @@ use satellite_lang::ZeroCopy;
 #[allow(clippy::too_many_arguments)]
 pub fn redistribute_remaining_btc_to_shards<
     'info,
-    const MAX_USER_UTXOS: usize,
-    const MAX_SHARDS_PER_PROGRAM: usize,
+    const MAX_MODIFIED_ACCOUNTS: usize,
+    const MAX_INPUTS_TO_SIGN: usize,
     RS,
     U,
     S,
 >(
-    tx_builder: &mut TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
+    tx_builder: &mut TransactionBuilder<MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN, RS>,
     selected_shards: &[Ref<'info, S>],
     removed_from_shards: u64,
     program_script_pubkey: &ScriptBuf,
     fee_rate: &FeeRate,
-) -> Result<Vec<u128>, MathError>
+) -> Result<Vec<u128>, DistributionError>
 where
     RS: FixedCapacitySet<Item = RuneAmount> + Default,
     U: UtxoInfoTrait<RS>,
@@ -161,75 +177,37 @@ where
     distribution.sort_by(|a, b| b.cmp(a));
 
     for amount in distribution.iter() {
-        tx_builder.transaction.output.push(TxOut {
+        let txout = TxOut {
             value: Amount::from_sat(*amount as u64),
             script_pubkey: program_script_pubkey.clone(),
-        });
+        };
+
+        tx_builder.transaction.output.push(txout);
     }
 
     Ok(distribution)
 }
 
-/// Calculates the total satoshis still owned by the selected shards after
-/// accounting for already-removed funds and program-paid transaction fees.
+/// Sums the BTC value of shard-owned UTXOs that this transaction spends and
+/// subtracts the fees paid by the program and any amounts already removed from
+/// the shards to produce the unsettled amount.
 ///
-/// This function performs a comprehensive audit of shard-managed UTXOs to
-/// determine how much value needs to be redistributed back to the shards.
-/// It considers:
-/// * **Shard-owned inputs**: All UTXOs from selected shards that appear as
-///   transaction inputs are counted toward the total.
-/// * **Consolidation inputs**: When the `utxo-consolidation` feature is enabled,
-///   additional UTXOs injected by the program via
-///   `TransactionBuilder::total_btc_consolidation_input` are included.
-/// * **Already removed funds**: Subtracts `removed_from_shards` that the caller
-///   has already withdrawn during the current instruction.
-/// * **Program fees**: Subtracts fees paid by the program (calculated when
-///   `utxo-consolidation` feature is active).
-///
-/// The algorithm builds a deduplicated set of all transaction input metas, then
-/// iterates through each selected shard exactly once to sum the values of any
-/// UTXOs that match those metas.
-///
-/// # Type Parameters
-/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
-/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
-/// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
-/// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
-/// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
-///
-/// # Parameters
-/// * `tx_builder` – Reference to the transaction builder containing the current
-///   transaction state and input UTXOs.
-/// * `selected_shards` – Slice of mutable references to the shards participating
-///   in redistribution.
-/// * `removed_from_shards` – Total satoshis already withdrawn from the selected
-///   shards during the current instruction.
-/// * `fee_rate` – Fee rate used to calculate program-paid transaction fees.
-///
-/// # Returns
-/// The number of satoshis that still need to be redistributed back to the shards
-/// to prevent value loss.
-///
-/// # Errors
-/// * [`MathError::Overflow`] – If the sum of shard UTXO values exceeds `u64::MAX`.
-/// * [`MathError::Underflow`] – If `removed_from_shards` or fees exceed the
-///   total shard value (indicating an inconsistent state).
-///
-/// # Implementation Notes
-/// * Duplicate UTXO metas across different shards are only counted once.
-/// * The function uses saturating addition for individual UTXO sums to prevent
-///   panics, then applies safe math for final calculations.
-/// * Feature-gated consolidation logic is conditionally compiled based on the
-///   `utxo-consolidation` feature flag.
+/// Notes:
+/// * Only shard-owned UTXOs that appear as inputs in the current transaction are
+///   included in the sum.
+/// * Program-paid fees are subtracted when applicable (feature-gated via
+///   `utxo-consolidation`).
+/// * Amounts already withdrawn from the selected shards during this instruction
+///   (`removed_from_shards`) are also subtracted.
 pub fn compute_unsettled_btc_in_shards<
     'info,
-    const MAX_USER_UTXOS: usize,
-    const MAX_SHARDS_PER_PROGRAM: usize,
+    const MAX_MODIFIED_ACCOUNTS: usize,
+    const MAX_INPUTS_TO_SIGN: usize,
     RS,
     U,
     S,
 >(
-    tx_builder: &TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
+    tx_builder: &TransactionBuilder<MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN, RS>,
     selected_shards: &[Ref<'info, S>],
     removed_from_shards: u64,
     fee_rate: &FeeRate,
@@ -240,28 +218,19 @@ where
     S: StateShard<U, RS> + ZeroCopy + Owner,
 {
     // ---------------------------------------------------------------------
-    // 1. Build a de-duplicated set of all metas referenced by the tx-inputs.
-    // ---------------------------------------------------------------------
-    type InputMetaSet<const CAP: usize> = FixedSet<UtxoMeta, CAP>;
-    let mut spent_metas: InputMetaSet<MAX_USER_UTXOS> = InputMetaSet::default();
-
-    for input in tx_builder.transaction.input.iter() {
-        let meta = UtxoMeta::from_outpoint(input.previous_output.txid, input.previous_output.vout);
-        // Ignore the (unlikely) Full error – capacity is guaranteed large enough.
-        let _ = spent_metas.insert(meta);
-    }
-
-    // ---------------------------------------------------------------------
     // 2. Sum the value of every shard-managed UTXO that appears in the set.
-    //    Each shard is borrowed exactly once.
     // ---------------------------------------------------------------------
     let mut total_btc_amount: u64 = 0;
 
     for shard in selected_shards.iter() {
         let mut sum: u64 = 0;
         for utxo in shard.btc_utxos().iter() {
-            if spent_metas.contains(utxo.meta()) {
-                sum = sum.saturating_add(utxo.value());
+            for input in tx_builder.transaction.input.iter() {
+                let spent_meta =
+                    UtxoMeta::from_outpoint(input.previous_output.txid, input.previous_output.vout);
+                if spent_meta == *utxo.meta() {
+                    sum = sum.saturating_add(utxo.value());
+                }
             }
         }
 
@@ -279,22 +248,8 @@ where
         }
     };
 
-    let total_btc_consolidation_input = {
-        #[cfg(feature = "utxo-consolidation")]
-        {
-            tx_builder.total_btc_consolidation_input
-        }
-        #[cfg(not(feature = "utxo-consolidation"))]
-        {
-            0
-        }
-    };
-
     let remaining_amount = safe_sub(
-        safe_sub(
-            safe_add(total_btc_amount, total_btc_consolidation_input)?,
-            removed_from_shards,
-        )?,
+        safe_sub(total_btc_amount, removed_from_shards)?,
         fee_paid_by_program,
     )?;
 
@@ -313,8 +268,8 @@ where
 /// the dust threshold.
 ///
 /// # Type Parameters
-/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
-/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `MAX_MODIFIED_ACCOUNTS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_INPUTS_TO_SIGN` – Maximum number of shards per program instance.
 /// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
 /// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
 /// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
@@ -342,16 +297,16 @@ where
 ///    output containing the full amount is created
 fn plan_btc_distribution_among_shards<
     'info,
-    const MAX_USER_UTXOS: usize,
-    const MAX_SHARDS_PER_PROGRAM: usize,
+    const MAX_MODIFIED_ACCOUNTS: usize,
+    const MAX_INPUTS_TO_SIGN: usize,
     RS,
     U,
     S,
 >(
-    tx_builder: &TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
+    tx_builder: &TransactionBuilder<MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN, RS>,
     selected_shards: &[Ref<'info, S>],
     amount: u128,
-) -> Result<Vec<u128>, MathError>
+) -> Result<Vec<u128>, DistributionError>
 where
     RS: FixedCapacitySet<Item = RuneAmount> + Default,
     U: UtxoInfoTrait<RS>,
@@ -391,8 +346,8 @@ where
 ///    individual need.
 ///
 /// # Type Parameters
-/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
-/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `MAX_MODIFIED_ACCOUNTS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_INPUTS_TO_SIGN` – Maximum number of shards per program instance.
 /// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
 /// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
 /// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
@@ -427,13 +382,13 @@ where
 /// - Result: [150, 0, 0] (insufficient funds for full balancing)
 fn balance_amount_across_shards<
     'info,
-    const MAX_USER_UTXOS: usize,
-    const MAX_SHARDS_PER_PROGRAM: usize,
+    const MAX_MODIFIED_ACCOUNTS: usize,
+    const MAX_INPUTS_TO_SIGN: usize,
     RS,
     U,
     S,
 >(
-    tx_builder: &TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
+    tx_builder: &TransactionBuilder<MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN, RS>,
     selected_shards: &[Ref<'info, S>],
     rune_amount: &RuneAmount,
 ) -> Result<Vec<u128>, MathError>
@@ -452,7 +407,7 @@ where
     // Pre-compute the set of metas already used by the tx
     // --------------------------------------------------
     type InputMetaSet<const CAP: usize> = FixedSet<UtxoMeta, CAP>;
-    let mut used_metas: InputMetaSet<MAX_USER_UTXOS> = InputMetaSet::default();
+    let mut used_metas: InputMetaSet<MAX_INPUTS_TO_SIGN> = InputMetaSet::default();
     for input in tx_builder.transaction.input.iter() {
         let meta = UtxoMeta::from_outpoint(input.previous_output.txid, input.previous_output.vout);
         let _ = used_metas.insert(meta);
@@ -491,9 +446,13 @@ where
         total_current_amount = safe_add(total_current_amount, current_res)?;
     }
 
+    msg!("total_current_amount: {}", total_current_amount);
+
     // Determine target per-shard balance.
     let total_after = safe_add(total_current_amount, rune_amount.amount)?;
     let desired_per_shard = safe_div(total_after, num_shards as u128)?;
+
+    msg!("desired_per_shard: {}", desired_per_shard);
 
     // Calculate additional amount needed per shard to reach desired balance.
     let mut total_needed = 0u128;
@@ -534,6 +493,7 @@ where
         }
     }
 
+    msg!("assigned_amounts: {:?}", assigned_amounts);
     Ok(assigned_amounts)
 }
 
@@ -582,7 +542,17 @@ where
 fn redistribute_sub_dust_values(
     amounts: &mut Vec<u128>,
     dust_limit: u128,
-) -> Result<(), MathError> {
+) -> Result<(), DistributionError> {
+    // 0. If the total amount to distribute is non-zero but below dust, return an error
+    //    to avoid silently losing value by producing no valid outputs.
+    let mut total_sum: u128 = 0;
+    for &amt in amounts.iter() {
+        total_sum = safe_add(total_sum, amt)?;
+    }
+    if total_sum > 0 && total_sum < dust_limit {
+        return Err(DistributionError::TotalBelowDustLimit);
+    }
+
     // 1. Aggregate all allocations below dust.
     let sum_of_small_amounts: u128 = amounts.iter().filter(|&&amount| amount < dust_limit).sum();
 
@@ -705,8 +675,8 @@ where
 /// per-shard Rune sets.
 ///
 /// # Type Parameters
-/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
-/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `MAX_MODIFIED_ACCOUNTS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_INPUTS_TO_SIGN` – Maximum number of shards per program instance.
 /// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
 /// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
 /// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
@@ -743,13 +713,13 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn plan_rune_distribution_among_shards<
     'info,
-    const MAX_USER_UTXOS: usize,
-    const MAX_SHARDS_PER_PROGRAM: usize,
+    const MAX_MODIFIED_ACCOUNTS: usize,
+    const MAX_INPUTS_TO_SIGN: usize,
     RS,
     U,
     S,
 >(
-    tx_builder: &mut TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
+    tx_builder: &mut TransactionBuilder<MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN, RS>,
     selected_shards: &[Ref<'info, S>],
     amounts: &RS,
 ) -> Result<Vec<RS>, StateShardError>
@@ -800,8 +770,8 @@ where
 ///   first (which receives Runes via the pointer mechanism).
 ///
 /// # Type Parameters
-/// * `MAX_USER_UTXOS` – Maximum number of user-supplied UTXOs in the transaction.
-/// * `MAX_SHARDS_PER_PROGRAM` – Maximum number of shards per program instance.
+/// * `MAX_MODIFIED_ACCOUNTS` – Maximum number of user-supplied UTXOs in the transaction.
+/// * `MAX_INPUTS_TO_SIGN` – Maximum number of shards per program instance.
 /// * `RS` – Rune set type implementing [`FixedCapacitySet<Item = RuneAmount>`].
 /// * `U` – UTXO info type implementing [`UtxoInfoTrait<RS>`].
 /// * `S` – Shard type implementing [`StateShard<U, RS>`], [`ZeroCopy`], and [`Owner`].
@@ -845,13 +815,13 @@ where
 #[allow(clippy::too_many_arguments)]
 pub fn redistribute_remaining_rune_to_shards<
     'info,
-    const MAX_USER_UTXOS: usize,
-    const MAX_SHARDS_PER_PROGRAM: usize,
+    const MAX_MODIFIED_ACCOUNTS: usize,
+    const MAX_INPUTS_TO_SIGN: usize,
     RS,
     U,
     S,
 >(
-    tx_builder: &mut TransactionBuilder<MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM, RS>,
+    tx_builder: &mut TransactionBuilder<MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN, RS>,
     selected_shards: &[Ref<'info, S>],
     removed_from_shards: RS,
     program_script_pubkey: ScriptBuf,
@@ -918,8 +888,8 @@ mod tests_loader {
 
     #[allow(unused_macros)]
     macro_rules! new_tb {
-        ($max_utxos:expr, $max_shards:expr) => {
-            TB::<$max_utxos, $max_shards, SingleRuneSet>::new()
+        ($max_modified_accounts:expr, $max_inputs_to_sign:expr) => {
+            TB::<$max_modified_accounts, $max_inputs_to_sign, SingleRuneSet>::new()
         };
     }
 
@@ -944,9 +914,9 @@ mod tests_loader {
 
         #[test]
         fn proportional_distribution_insufficient_remaining() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 3;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 3;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // Shards with 100,200,300 sats respectively
             let shards: Vec<MockShardZc> =
@@ -956,29 +926,28 @@ mod tests_loader {
 
             // Remaining amount smaller than dust → expect empty dist
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&tx_builder, &shard_refs, 150u128)
-            .unwrap();
-            assert!(dist.is_empty());
+            >(&tx_builder, &shard_refs, 150u128);
+            assert!(matches!(dist, Err(DistributionError::TotalBelowDustLimit)));
         }
 
         #[test]
         fn zero_remaining_amount() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(1_000), create_shard(2_000)];
             let loaders = leak_loaders_from_vec(shards);
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -989,17 +958,17 @@ mod tests_loader {
 
         #[test]
         fn single_shard() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 1;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 1;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(500)];
             let loaders = leak_loaders_from_vec(shards);
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[0]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1011,17 +980,17 @@ mod tests_loader {
 
         #[test]
         fn empty_shards_all_zero_balances() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 3;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 3;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1033,9 +1002,9 @@ mod tests_loader {
 
         #[test]
         fn remainder_distribution_sub_dust_merge() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 3;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 3;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
@@ -1043,8 +1012,8 @@ mod tests_loader {
 
             let amount = 1_001u128;
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1058,10 +1027,10 @@ mod tests_loader {
         fn used_utxos_excluded() {
             use bitcoin::{transaction::Version, OutPoint, ScriptBuf, Sequence, TxIn, Witness};
 
-            const MAX_USER_UTXOS: usize = 1;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
+            const MAX_MODIFIED_ACCOUNTS: usize = 1;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
 
-            let mut tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // Shards with 1_000 sats each
             let shard1 = create_shard(1_000);
@@ -1083,8 +1052,8 @@ mod tests_loader {
             });
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1096,9 +1065,9 @@ mod tests_loader {
 
         #[test]
         fn partial_shard_selection() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 4;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 4;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![
                 create_shard(1_000),
@@ -1110,8 +1079,8 @@ mod tests_loader {
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[1, 2]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1124,17 +1093,17 @@ mod tests_loader {
 
         #[test]
         fn large_numbers() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(u64::MAX), create_shard(u64::MAX)];
             let loaders = leak_loaders_from_vec(shards);
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1146,9 +1115,9 @@ mod tests_loader {
 
         #[test]
         fn split_remaining_amount_even_and_odd() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
@@ -1156,8 +1125,8 @@ mod tests_loader {
 
             // Odd amount
             let dist_odd = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1168,8 +1137,8 @@ mod tests_loader {
 
             // Even amount
             let dist_even = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1180,17 +1149,17 @@ mod tests_loader {
 
         #[test]
         fn split_remaining_amount_with_existing_balances() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(1_000), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1203,39 +1172,37 @@ mod tests_loader {
 
         #[test]
         fn single_shard_sub_dust_amount() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 1;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 1;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[0]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&tx_builder, &shard_refs, (DUST_LIMIT as u128) - 1u128)
-            .unwrap();
-
-            assert!(dist.is_empty());
+            >(&tx_builder, &shard_refs, (DUST_LIMIT as u128) - 1u128);
+            assert!(matches!(dist, Err(DistributionError::TotalBelowDustLimit)));
         }
 
         #[test]
         fn single_shard_exact_dust_limit() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 1;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 1;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[0]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1247,9 +1214,9 @@ mod tests_loader {
 
         #[test]
         fn two_shards_each_exact_dust_limit() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
@@ -1257,8 +1224,8 @@ mod tests_loader {
 
             let amount = (DUST_LIMIT as u128) * 2u128;
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1270,9 +1237,9 @@ mod tests_loader {
 
         #[test]
         fn mixed_dust_and_non_dust_allocations() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 3;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 3;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
@@ -1280,8 +1247,8 @@ mod tests_loader {
 
             let amount = 1_600u128; // provisional 533/533/534 (< dust)
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1303,10 +1270,10 @@ mod tests_loader {
 
         #[test]
         fn basic_unsettled_calculation() {
-            const MAX_USER_UTXOS: usize = 1;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
+            const MAX_MODIFIED_ACCOUNTS: usize = 2;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
 
-            let mut tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // Two shards with 1_000 and 500 sats respectively
             let shard1 = create_shard(1_000);
@@ -1327,16 +1294,16 @@ mod tests_loader {
             });
 
             let unsettled = compute_unsettled_btc_in_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&tx_builder, &shard_refs, 0, &FeeRate(1.0))
+            >(&tx_builder, &shard_refs, 1_000, &FeeRate(1.0))
             .unwrap();
 
             // Only shard 0's 1000 sats are unsettled (shard 1 untouched)
-            assert_eq!(unsettled, 1_000);
+            assert_eq!(unsettled, 500);
         }
     }
 
@@ -1382,37 +1349,50 @@ mod tests_loader {
             assert!(amounts.contains(&2250u128));
         }
 
+        #[test]
+        fn redistribute_sub_dust_total_below_dust_returns_error() {
+            let mut amounts = vec![200u128, 300u128]; // total 500 < dust
+            let res = redistribute_sub_dust_values(&mut amounts, DUST_LIMIT as u128);
+            assert!(matches!(
+                res,
+                Err(super::super::DistributionError::TotalBelowDustLimit)
+            ));
+        }
+
         // ---- zero-shard behaviour ----
         #[test]
         fn plan_btc_distribution_zero_shards() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 0;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 0;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // Empty loaders slice
             let loaders: &[AccountLoader<'static, MockShardZc>] = &[];
             let shard_refs = create_shard_refs_from_loaders(&loaders, &[]).unwrap();
 
             let result = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
             >(&tx_builder, &shard_refs, 1_000u128);
 
-            assert!(matches!(result, Err(MathError::DivisionOverflow)));
+            assert!(matches!(
+                result,
+                Err(DistributionError::Math(MathError::DivisionOverflow))
+            ));
         }
 
         // ---- max-capacity stress ----
         #[test]
         fn max_capacity_stress() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 10;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 10;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // Build 10 shards, each with 5 × 1_000-sat UTXOs
-            let shards: Vec<MockShardZc> = (0..MAX_SHARDS_PER_PROGRAM)
+            let shards: Vec<MockShardZc> = (0..MAX_INPUTS_TO_SIGN)
                 .map(|i| {
                     let mut s = create_shard(0);
                     let values = vec![1_000u64; 5];
@@ -1430,8 +1410,8 @@ mod tests_loader {
                 create_shard_refs_from_loaders(&loaders, &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]).unwrap();
 
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1444,9 +1424,9 @@ mod tests_loader {
         // ---- near-boundary dust split cases ----
         #[test]
         fn near_boundary_dust_splits_below() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 3;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 3;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
@@ -1454,8 +1434,8 @@ mod tests_loader {
 
             let amount = (DUST_LIMIT as u128) * 3 - 1u128;
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1468,9 +1448,9 @@ mod tests_loader {
 
         #[test]
         fn near_boundary_dust_splits_above() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 3;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 3;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shards = vec![create_shard(0), create_shard(0), create_shard(0)];
             let loaders = leak_loaders_from_vec(shards);
@@ -1478,8 +1458,8 @@ mod tests_loader {
 
             let amount = (DUST_LIMIT as u128) * 3 + 1u128;
             let dist = plan_btc_distribution_among_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1494,10 +1474,10 @@ mod tests_loader {
         // ---- duplicate meta across shards ----
         #[test]
         fn duplicate_meta_utxos_across_shards() {
-            const MAX_USER_UTXOS: usize = 1;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
+            const MAX_MODIFIED_ACCOUNTS: usize = 1;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
 
-            let mut tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // Build two UTXOs with IDENTICAL meta but different values
             let shared_meta = random_utxo_meta(42);
@@ -1523,26 +1503,25 @@ mod tests_loader {
             });
 
             let unsettled = compute_unsettled_btc_in_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
             >(&tx_builder, &shard_refs, 0, &FeeRate(1.0))
             .unwrap();
 
-            // Should count only once (value from first shard = 1_000)
-            assert_eq!(unsettled, 1_000);
+            assert_eq!(unsettled, 3_000);
         }
 
         // ---- high fee overflow handling ----
         #[test]
         fn high_fee_scenario_overflow() {
             use arch_program::rune::{RuneAmount, RuneId};
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 1;
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 1;
 
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             let shard = create_shard(0);
             let loaders = leak_loaders_from_vec(vec![shard]);
@@ -1554,8 +1533,8 @@ mod tests_loader {
                 amount: u128::MAX,
             };
             let result = balance_loader::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1568,10 +1547,10 @@ mod tests_loader {
         // ---- empty amount optimisation ----
         #[test]
         fn empty_amount_optimization() {
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
 
-            let mut tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // preload some outputs
             let original_outputs = tx_builder.transaction.output.len();
@@ -1581,8 +1560,8 @@ mod tests_loader {
             let mut shard_refs = super::create_shard_refs_from_loaders(&loaders, &[0, 1]).unwrap();
 
             let dist = super::super::redistribute_remaining_btc_to_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1603,9 +1582,9 @@ mod tests_loader {
         #[test]
         fn balance_amount_overflow_protection() {
             use arch_program::rune::{RuneAmount, RuneId};
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
-            let tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
+            let tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // shards with u64::MAX utxos
             let mut shard1 = create_shard(0);
@@ -1621,8 +1600,8 @@ mod tests_loader {
                 amount: u128::MAX,
             };
             let res = balance_loader::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1637,10 +1616,10 @@ mod tests_loader {
         fn runestone_pointer_update() {
             use bitcoin::{Amount, TxOut};
 
-            const MAX_USER_UTXOS: usize = 0;
-            const MAX_SHARDS_PER_PROGRAM: usize = 2;
+            const MAX_MODIFIED_ACCOUNTS: usize = 0;
+            const MAX_INPUTS_TO_SIGN: usize = 2;
 
-            let mut tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+            let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
             // Pre-existing outputs to simulate prior transaction state.
             tx_builder.transaction.output.push(TxOut {
@@ -1661,8 +1640,8 @@ mod tests_loader {
 
             // Invoke the rune redistribution helper (no runes to distribute)
             crate::split::redistribute_remaining_rune_to_shards::<
-                MAX_USER_UTXOS,
-                MAX_SHARDS_PER_PROGRAM,
+                MAX_MODIFIED_ACCOUNTS,
+                MAX_INPUTS_TO_SIGN,
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
@@ -1714,8 +1693,8 @@ mod rune_tests_loader {
     // ---------------------------------------------------------------
     #[test]
     fn compute_unsettled_rune_basic() {
-        const MAX_USER_UTXOS: usize = 0;
-        const MAX_SHARDS_PER_PROGRAM: usize = 2;
+        const MAX_MODIFIED_ACCOUNTS: usize = 0;
+        const MAX_INPUTS_TO_SIGN: usize = 2;
 
         // Two shards with 100 and 50 runes respectively
         let mut shard1 = create_shard(0);
@@ -1742,10 +1721,10 @@ mod rune_tests_loader {
     // ---------------------------------------------------------------
     #[test]
     fn plan_rune_distribution_proportional() {
-        const MAX_USER_UTXOS: usize = 0;
-        const MAX_SHARDS_PER_PROGRAM: usize = 3;
+        const MAX_MODIFIED_ACCOUNTS: usize = 0;
+        const MAX_INPUTS_TO_SIGN: usize = 3;
 
-        let mut tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+        let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
         // Existing rune balances: 100, 200, 300
         let mut shard0 = create_shard(0);
@@ -1769,8 +1748,8 @@ mod rune_tests_loader {
             .unwrap();
 
         let dist = crate::split::plan_rune_distribution_among_shards::<
-            MAX_USER_UTXOS,
-            MAX_SHARDS_PER_PROGRAM,
+            MAX_MODIFIED_ACCOUNTS,
+            MAX_INPUTS_TO_SIGN,
             SingleRuneSet,
             satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
             MockShardZc,
@@ -1790,10 +1769,10 @@ mod rune_tests_loader {
     // ---------------------------------------------------------------
     #[test]
     fn redistribute_remaining_rune_distribution() {
-        const MAX_USER_UTXOS: usize = 0;
-        const MAX_SHARDS_PER_PROGRAM: usize = 3;
+        const MAX_MODIFIED_ACCOUNTS: usize = 0;
+        const MAX_INPUTS_TO_SIGN: usize = 3;
 
-        let mut tx_builder = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+        let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
 
         // Shards start with 100, 200, 300 runes
         let mut shard0 = create_shard(0);
@@ -1817,8 +1796,8 @@ mod rune_tests_loader {
             .unwrap();
 
         let dist = crate::split::redistribute_remaining_rune_to_shards::<
-            MAX_USER_UTXOS,
-            MAX_SHARDS_PER_PROGRAM,
+            MAX_MODIFIED_ACCOUNTS,
+            MAX_INPUTS_TO_SIGN,
             SingleRuneSet,
             satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
             MockShardZc,

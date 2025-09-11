@@ -10,9 +10,13 @@ readme = "README.md"
 keywords = ["bitcoin", "collections"]
 categories = ["cryptography::cryptocurrencies", "data-structures"]
 
+[features]
+borsh = ["dep:borsh"]
+
 [dependencies]
 bytemuck = { version = "1.14", features = ["derive", "min_const_generics"] }
 serde = { version = "1.0.198", features = ["derive"] }
+borsh = { version = "1.4.0", features = ["derive"], optional = true }
 
 [dev-dependencies]
 proptest = "1.5.0"

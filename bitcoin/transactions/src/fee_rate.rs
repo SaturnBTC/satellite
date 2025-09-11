@@ -1,4 +1,4 @@
-use std::{array::TryFromSliceError, num::ParseFloatError, str::FromStr};
+use std::{array::TryFromSliceError, fmt::Display, num::ParseFloatError, str::FromStr};
 
 use bitcoin::Amount;
 
@@ -58,11 +58,17 @@ impl FeeRate {
     pub fn fee(&self, vsize: usize) -> Amount {
         #[allow(clippy::cast_possible_truncation)]
         #[allow(clippy::cast_sign_loss)]
-        Amount::from_sat((self.0 * vsize as f64).round() as u64)
+        Amount::from_sat((self.0 * vsize as f64).ceil() as u64)
     }
 
     pub fn n(&self) -> f64 {
         self.0
+    }
+}
+
+impl Display for FeeRate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
@@ -92,7 +98,7 @@ mod tests {
         );
         assert_eq!(
             "1.1".parse::<FeeRate>().unwrap().fee(100),
-            Amount::from_sat(110)
+            Amount::from_sat(111)
         );
         assert_eq!(
             "1.0".parse::<FeeRate>().unwrap().fee(123456789),

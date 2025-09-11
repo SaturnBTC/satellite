@@ -103,6 +103,18 @@ pub trait PushPopCollection<T> {
     /// assert_eq!(list.len(), 1);
     /// ```
     fn len(&self) -> usize;
+
+    /// Returns the maximum number of elements the collection can hold.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use satellite_bitcoin::generic::{fixed_list::FixedList, push_pop::PushPopCollection};
+    ///
+    /// let list = FixedList::<i32, 5>::new();
+    /// assert_eq!(list.max_size(), 5);
+    /// ```
+    fn max_size(&self) -> usize;
 }
 
 /// Implementation for standard library [`Vec`].
@@ -126,6 +138,10 @@ impl<T> PushPopCollection<T> for Vec<T> {
 
     fn len(&self) -> usize {
         self.len()
+    }
+
+    fn max_size(&self) -> usize {
+        usize::MAX
     }
 }
 

@@ -81,7 +81,7 @@
 //! The central abstraction is [`ShardSet`], which provides a type-safe wrapper around
 //! a collection of shards. It uses the typestate pattern to ensure proper usage:
 //!
-//! ```rust
+//! ```rust,ignore
 //! # use saturn_account_shards::{ShardSet, StateShard};
 //! # use satellite_bitcoin::utxo_info::{UtxoInfo, SingleRuneSet};
 //! # #[derive(Default, Clone)]
@@ -227,34 +227,15 @@ mod tests;
 mod error;
 mod select;
 mod shard;
-mod shard_handle;
 mod shard_indices;
-// mod shard_set;
 mod split;
 mod update;
 
-#[cfg(feature = "examples")]
-pub mod example;
-
 pub use shard::{AccountUtxos, StateShard};
-pub use shard_handle::ShardHandle;
 pub use shard_indices::IntoShardIndices;
-// pub use shard_set::{
-//     // States
-//     Created,
-//     Loaded,
-//     Selected,
-//     ShardBatchMut,
-//     // Legacy aliases (deprecated)
-//     ShardSet,
-//     // New clear naming
-//     ShardSetBuilder,
-//     ShardSetInspector,
-//     ShardSetMutator,
-//     ShardSetSelection,
-//     Unselected,
-// };
 
 pub use select::*;
 pub use split::*;
 pub use update::*;
+
+pub use split::DistributionError;

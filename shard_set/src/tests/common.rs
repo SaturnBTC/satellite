@@ -5,13 +5,14 @@
 
 use super::super::shard::StateShard;
 
+use arch_program::program_pack::{Pack, Sealed};
 use arch_program::utxo;
 use arch_program::{account::AccountInfo, pubkey::Pubkey, utxo::UtxoMeta};
 use bytemuck::{Pod, Zeroable};
 use satellite_bitcoin::utxo_info::UtxoInfoTrait;
 use satellite_bitcoin::utxo_info::{SingleRuneSet, UtxoInfo};
-use satellite_lang::prelude::AccountLoader;
 use satellite_lang::prelude::Owner;
+use satellite_lang::prelude::{AccountLoader, ProgramError};
 use satellite_lang::Discriminator;
 use satellite_lang::ZeroCopy;
 
@@ -37,6 +38,22 @@ pub struct MockShardZc {
 }
 
 impl ZeroCopy for MockShardZc {}
+
+impl Sealed for MockShardZc {}
+
+impl Pack for MockShardZc {
+    const LEN: usize = std::mem::size_of::<MockShardZc>();
+
+    fn pack_into_slice(&self, dst: &mut [u8]) {
+        dst.copy_from_slice(unsafe {
+            std::slice::from_raw_parts(self as *const MockShardZc as *const u8, Self::LEN)
+        });
+    }
+
+    fn unpack_from_slice(src: &[u8]) -> std::result::Result<Self, ProgramError> {
+        Ok(unsafe { *(src.as_ptr() as *const MockShardZc) })
+    }
+}
 
 impl Discriminator for MockShardZc {
     // 16-byte discriminator so the subsequent struct bytes start naturally aligned.

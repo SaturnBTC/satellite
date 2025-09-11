@@ -1,9 +1,13 @@
 use std::mem::MaybeUninit;
 
-use crate::generic::fixed_list::FixedListError;
+use crate::generic::{
+    fixed_list::FixedListError,
+    push_pop::{PushPopCollection, PushPopError},
+};
 
 /// A fixed-capacity list that uses MaybeUninit to avoid Default and Clone requirements.
 /// This allows storing types like Ref and RefMut that don't implement these traits.
+#[derive(Debug)]
 pub struct FixedRefList<T, const MAX_SIZE: usize> {
     items: [MaybeUninit<T>; MAX_SIZE],
     len: usize,
@@ -204,5 +208,27 @@ impl<'a, T> Iterator for FixedRefListIterMut<'a, T> {
         } else {
             None
         }
+    }
+}
+
+impl<T, const MAX_SIZE: usize> PushPopCollection<T> for FixedRefList<T, MAX_SIZE> {
+    fn push(&mut self, item: T) -> Result<(), PushPopError> {
+        self.push(item).map_err(|_| PushPopError::Full)
+    }
+
+    fn pop(&mut self) -> Option<T> {
+        self.remove(self.len - 1)
+    }
+
+    fn as_slice(&self) -> &[T] {
+        self.as_slice()
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn max_size(&self) -> usize {
+        MAX_SIZE
     }
 }

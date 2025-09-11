@@ -1,8 +1,8 @@
 use std::cmp::min;
 
 use crate::mempool::MempoolInfo;
-use arch_program::input_to_sign::InputToSign;
-use bitcoin::{Amount, ScriptBuf, Transaction, TxOut};
+use arch_program::{input_to_sign::InputToSign, msg};
+use bitcoin::{Amount, ScriptBuf, Transaction, TxOut, Weight};
 use satellite_collections::generic::push_pop::{PushPopCollection, PushPopError};
 use satellite_math::{safe_add, safe_sub};
 
@@ -10,37 +10,103 @@ use crate::{
     constants::DUST_LIMIT,
     error::BitcoinTxError,
     fee_rate::FeeRate,
-    input_calc::{WITNESS_WEIGHT_BYTES, WITNESS_WEIGHT_OVERHEAD},
+    input_calc::{WITNESS_OVERHEAD_BYTES, WITNESS_OVERHEAD_WU, WITNESS_WEIGHT_BYTES},
     NewPotentialInputAmount, NewPotentialInputsAndOutputs, NewPotentialOutputAmount,
 };
 
-pub(crate) fn estimate_final_tx_total_size(
-    transaction: &Transaction,
-    inputs_to_sign: &[InputToSign],
-) -> usize {
-    let size = transaction.total_size();
-
-    size + inputs_to_sign.len() * WITNESS_WEIGHT_BYTES + WITNESS_WEIGHT_OVERHEAD
+#[inline]
+fn inputs_to_sign_and_has_witness(transaction: &Transaction) -> (usize, bool) {
+    let mut inputs_to_sign = 0usize;
+    let mut has_existing_witness = false;
+    for txin in transaction.input.iter() {
+        if txin.witness.is_empty() {
+            inputs_to_sign += 1;
+        } else {
+            has_existing_witness = true;
+        }
+    }
+    (inputs_to_sign, has_existing_witness)
 }
 
-pub(crate) fn estimate_final_tx_vsize(
-    transaction: &Transaction,
-    inputs_to_sign: &[InputToSign],
-) -> usize {
-    let vsize = transaction.vsize();
+pub(crate) fn estimate_final_tx_total_size(transaction: &Transaction) -> usize {
+    let size = transaction.total_size();
+    let (inputs_to_sign, has_existing_witness) = inputs_to_sign_and_has_witness(transaction);
 
-    vsize + (inputs_to_sign.len() * WITNESS_WEIGHT_BYTES + WITNESS_WEIGHT_OVERHEAD) / 4
+    if inputs_to_sign == 0 {
+        return size;
+    }
+
+    // Add witness weight for inputs we still need to sign, plus the global
+    // 2-byte marker+flag overhead only if the transaction does not already
+    // contain any witness data.
+    let overhead = if has_existing_witness || inputs_to_sign == 0 {
+        0
+    } else {
+        WITNESS_OVERHEAD_BYTES
+    };
+
+    // If the transaction already has witness, each empty input already contributes
+    // 1 byte (the `0x00` stack item count) to the serialized size. In that case,
+    // we should add only the delta to reach the full witness size for those inputs.
+    let per_input_added_bytes = if has_existing_witness {
+        WITNESS_WEIGHT_BYTES.saturating_sub(1)
+    } else {
+        WITNESS_WEIGHT_BYTES
+    };
+
+    size + inputs_to_sign * per_input_added_bytes + overhead
+}
+
+pub(crate) fn estimate_final_tx_vsize(transaction: &Transaction) -> Result<usize, BitcoinTxError> {
+    let weight = transaction.weight();
+    let (inputs_to_sign, has_existing_witness) = inputs_to_sign_and_has_witness(transaction);
+
+    if inputs_to_sign == 0 {
+        return Ok(weight.to_vbytes_ceil() as usize);
+    }
+
+    // Add witness weight for inputs we still need to sign, plus the global
+    // 2-byte marker+flag overhead only if the transaction does not already
+    // contain any witness data.
+    let overhead = if has_existing_witness || inputs_to_sign == 0 {
+        0
+    } else {
+        WITNESS_OVERHEAD_WU
+    };
+
+    // Witness bytes contribute 1 WU per byte. The 2-byte marker+flag overhead
+    // is part of the witness serialization and should be counted exactly once
+    // when the transaction first gains witness. If the tx already has witness,
+    // do not add it again here.
+    // Also, in a segwit transaction, inputs with empty witness already account for
+    // 1WU (the `0x00` stack item count) each, so add only the delta to reach the
+    // full witness size for those inputs.
+    let per_input_added_wu = if has_existing_witness {
+        WITNESS_WEIGHT_BYTES.saturating_sub(1)
+    } else {
+        WITNESS_WEIGHT_BYTES
+    };
+
+    let extra_weight = Weight::from_wu_usize(inputs_to_sign * per_input_added_wu + overhead);
+
+    let total_weight = weight
+        .checked_add(extra_weight)
+        .ok_or(BitcoinTxError::CalcOverflow)?;
+
+    Ok(total_weight.to_vbytes_ceil() as usize)
 }
 
 pub(crate) fn calculate_fees_for_transaction(
     _remaining_btc: u64,
     transaction: &mut Transaction,
-    inputs_to_sign: &[InputToSign],
     total_size_of_pending_utxos: usize,
     fee_rate: &FeeRate,
 ) -> Result<(u64, u64), BitcoinTxError> {
-    let base_tx_size = estimate_final_tx_vsize(transaction, inputs_to_sign);
-    let total_size = safe_add(base_tx_size, total_size_of_pending_utxos as usize)?;
+    let base_tx_size = estimate_final_tx_vsize(transaction)?;
+    let total_size = safe_add(base_tx_size, total_size_of_pending_utxos)?;
+
+    msg!("base_tx_size: {:?}", base_tx_size);
+    msg!("total_size: {:?}", total_size);
 
     let base_fee = fee_rate.fee(base_tx_size);
     let total_fee = fee_rate.fee(total_size);
@@ -50,7 +116,6 @@ pub(crate) fn calculate_fees_for_transaction(
 
 pub(crate) fn adjust_transaction_to_pay_fees(
     transaction: &mut Transaction,
-    inputs_to_sign: &[InputToSign],
     tx_statuses: &MempoolInfo,
     total_btc_amount: u64,
     address_to_send_remaining_btc: Option<ScriptBuf>,
@@ -65,6 +130,17 @@ pub(crate) fn adjust_transaction_to_pay_fees(
     let (total_size_of_pending_utxos, total_fee_paid_of_pending_utxos) =
         (tx_statuses.total_size as usize, tx_statuses.total_fee);
 
+    msg!("total_btc_amount: {:?}", total_btc_amount);
+    msg!("total_btc_used: {:?}", total_btc_used);
+    msg!(
+        "total_fee_paid_of_pending_utxos: {:?}",
+        total_fee_paid_of_pending_utxos
+    );
+    msg!(
+        "total_size_of_pending_utxos: {:?}",
+        total_size_of_pending_utxos
+    );
+
     // Calculate remaining BTC after outputs
     let remaining_btc = safe_sub(total_btc_amount, total_btc_used)
         .map_err(|_| BitcoinTxError::NotEnoughAmountToCoverFees)?;
@@ -73,10 +149,15 @@ pub(crate) fn adjust_transaction_to_pay_fees(
     let (total_fee_with_ancestors, total_fee_without_ancestors) = calculate_fees_for_transaction(
         remaining_btc,
         transaction,
-        inputs_to_sign,
         total_size_of_pending_utxos,
         fee_rate,
     )?;
+
+    msg!("total_fee_with_ancestors: {:?}", total_fee_with_ancestors);
+    msg!(
+        "total_fee_without_ancestors: {:?}",
+        total_fee_without_ancestors
+    );
 
     // Get available change with and without ancestors
     let available_for_change_without_ancestors =
@@ -100,16 +181,17 @@ pub(crate) fn adjust_transaction_to_pay_fees(
     if let Some(change_script) = address_to_send_remaining_btc {
         if available_for_change >= DUST_LIMIT {
             // Add change output
-            transaction.output.push(TxOut {
+            let txout = TxOut {
                 value: Amount::from_sat(available_for_change),
                 script_pubkey: change_script,
-            });
+            };
+
+            transaction.output.push(txout);
 
             // Recalculate fees with change output
             let (_, new_total_fee_without_ancestors) = calculate_fees_for_transaction(
                 remaining_btc,
                 transaction,
-                inputs_to_sign,
                 total_size_of_pending_utxos,
                 fee_rate,
             )?;
@@ -136,7 +218,7 @@ pub(crate) fn adjust_transaction_to_pay_fees(
 
 pub fn estimate_tx_size_with_additional_inputs_outputs<C: PushPopCollection<InputToSign>>(
     transaction: &mut Transaction,
-    inputs_to_sign: &mut C,
+    inputs_to_sign: &C,
     new_potential_inputs_and_outputs: &NewPotentialInputsAndOutputs,
 ) -> Result<usize, BitcoinTxError> {
     add_reserved_inputs_and_outputs(
@@ -146,13 +228,9 @@ pub fn estimate_tx_size_with_additional_inputs_outputs<C: PushPopCollection<Inpu
     )
     .map_err(|_| BitcoinTxError::InputToSignListFull)?;
 
-    let total_size = estimate_final_tx_total_size(transaction, inputs_to_sign.as_slice());
+    let total_size = estimate_final_tx_total_size(transaction);
 
-    rollback_potential_inputs_and_outputs(
-        transaction,
-        inputs_to_sign,
-        new_potential_inputs_and_outputs,
-    );
+    rollback_potential_inputs_and_outputs(transaction, new_potential_inputs_and_outputs);
 
     Ok(total_size)
 }
@@ -169,20 +247,16 @@ pub fn estimate_tx_vsize_with_additional_inputs_outputs<C: PushPopCollection<Inp
     )
     .map_err(|_| BitcoinTxError::InputToSignListFull)?;
 
-    let total_vsize = estimate_final_tx_vsize(transaction, inputs_to_sign.as_slice());
+    let total_vsize = estimate_final_tx_vsize(transaction)?;
 
-    rollback_potential_inputs_and_outputs(
-        transaction,
-        inputs_to_sign,
-        new_potential_inputs_and_outputs,
-    );
+    rollback_potential_inputs_and_outputs(transaction, new_potential_inputs_and_outputs);
 
     Ok(total_vsize)
 }
 
 fn add_reserved_inputs_and_outputs<C: PushPopCollection<InputToSign>>(
     transaction: &mut Transaction,
-    inputs_to_sign: &mut C,
+    inputs_to_sign: &C,
     new_potential_inputs_and_outputs: &NewPotentialInputsAndOutputs,
 ) -> Result<(), PushPopError> {
     if let Some(NewPotentialInputAmount {
@@ -194,13 +268,14 @@ fn add_reserved_inputs_and_outputs<C: PushPopCollection<InputToSign>>(
         // Pre-allocate capacity to avoid repeated reallocations
         transaction.input.reserve(count);
 
-        let initial_input_len = transaction.input.len();
-        for i in 0..count {
-            if let Some(signer) = signer {
-                inputs_to_sign.push(InputToSign {
-                    index: (initial_input_len + i) as u32,
-                    signer,
-                })?;
+        let mut inputs_to_sign_len = inputs_to_sign.len();
+        for _ in 0..count {
+            if signer {
+                if inputs_to_sign_len + 1 > inputs_to_sign.max_size() {
+                    return Err(PushPopError::Full);
+                }
+
+                inputs_to_sign_len += 1;
             }
 
             transaction.input.push(item.clone());
@@ -217,26 +292,18 @@ fn add_reserved_inputs_and_outputs<C: PushPopCollection<InputToSign>>(
     Ok(())
 }
 
-fn rollback_potential_inputs_and_outputs<C: PushPopCollection<InputToSign>>(
+fn rollback_potential_inputs_and_outputs(
     transaction: &mut Transaction,
-    inputs_to_sign: &mut C,
     new_potential_inputs_and_outputs: &NewPotentialInputsAndOutputs,
 ) {
     if let Some(NewPotentialInputAmount {
         count,
         item: _,
-        signer,
+        signer: _,
     }) = new_potential_inputs_and_outputs.inputs
     {
         let new_input_len = transaction.input.len() - count;
         transaction.input.truncate(new_input_len);
-
-        // Also rollback inputs_to_sign if signer was provided
-        if signer.is_some() {
-            for _ in 0..count {
-                inputs_to_sign.pop();
-            }
-        }
     }
 
     for NewPotentialOutputAmount { count, item: _ } in
@@ -257,8 +324,9 @@ mod tests {
     use super::*;
     use arch_program::pubkey::Pubkey;
     use bitcoin::{
-        absolute::LockTime, key::constants::SCHNORR_SIGNATURE_SIZE, transaction::Version, Address,
-        Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Witness,
+        absolute::LockTime, consensus::Decodable, key::constants::SCHNORR_SIGNATURE_SIZE,
+        transaction::Version, Address, Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn,
+        TxOut, Witness,
     };
     use satellite_collections::generic::push_pop::PushPopError;
     use std::str::FromStr;
@@ -292,13 +360,6 @@ mod tests {
         TxOut {
             value: Amount::from_sat(value),
             script_pubkey: ScriptBuf::new(),
-        }
-    }
-
-    fn create_mock_input_to_sign(index: u32) -> InputToSign {
-        InputToSign {
-            index,
-            signer: Pubkey::default(),
         }
     }
 
@@ -376,13 +437,16 @@ mod tests {
         fn len(&self) -> usize {
             self.items.len()
         }
+
+        fn max_size(&self) -> usize {
+            usize::MAX
+        }
     }
 
     #[test]
     fn test_add_reserved_inputs_and_outputs() {
         let mut transaction = create_mock_transaction();
         let mut inputs_to_sign = MockPushPopCollection::default();
-        let signer = Pubkey::default();
 
         let potential_input = create_mock_tx_in(create_mock_outpoint([1; 32], 0));
         let potential_output = create_mock_tx_out(500);
@@ -391,7 +455,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 2,
                 item: potential_input,
-                signer: Some(signer),
+                signer: true,
             }),
             outputs: vec![NewPotentialOutputAmount {
                 count: 3,
@@ -408,11 +472,8 @@ mod tests {
 
         assert_eq!(transaction.input.len(), 2);
         assert_eq!(transaction.output.len(), 3);
-        assert_eq!(inputs_to_sign.items.len(), 2);
-
-        // Check that input indices are correct when starting from empty transaction
-        assert_eq!(inputs_to_sign.items[0].index, 0);
-        assert_eq!(inputs_to_sign.items[1].index, 1);
+        // All newly added inputs should have empty witnesses and thus be considered to sign
+        assert!(transaction.input.iter().all(|i| i.witness.is_empty()));
     }
 
     #[test]
@@ -426,7 +487,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 2,
                 item: potential_input,
-                signer: None,
+                signer: false,
             }),
             outputs: vec![],
         };
@@ -466,7 +527,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 2, // Remove last 2 inputs
                 item: create_mock_tx_in(create_mock_outpoint([0; 32], 0)),
-                signer: None,
+                signer: false,
             }),
             outputs: vec![NewPotentialOutputAmount {
                 count: 3, // Remove last 3 outputs
@@ -474,12 +535,7 @@ mod tests {
             }],
         };
 
-        let mut mock_inputs_to_sign = MockPushPopCollection::default();
-        rollback_potential_inputs_and_outputs(
-            &mut transaction,
-            &mut mock_inputs_to_sign,
-            &new_potential_inputs_and_outputs,
-        );
+        rollback_potential_inputs_and_outputs(&mut transaction, &new_potential_inputs_and_outputs);
 
         assert_eq!(transaction.input.len(), 1);
         assert_eq!(transaction.output.len(), 1);
@@ -500,12 +556,7 @@ mod tests {
             }],
         };
 
-        let mut mock_inputs_to_sign = MockPushPopCollection::default();
-        rollback_potential_inputs_and_outputs(
-            &mut transaction,
-            &mut mock_inputs_to_sign,
-            &new_potential_inputs_and_outputs,
-        );
+        rollback_potential_inputs_and_outputs(&mut transaction, &new_potential_inputs_and_outputs);
 
         // Only outputs should be affected
         assert_eq!(transaction.input.len(), 0);
@@ -527,17 +578,12 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 1, // Remove 1 input
                 item: create_mock_tx_in(create_mock_outpoint([0; 32], 0)),
-                signer: None,
+                signer: false,
             }),
             outputs: vec![], // No potential outputs
         };
 
-        let mut mock_inputs_to_sign = MockPushPopCollection::default();
-        rollback_potential_inputs_and_outputs(
-            &mut transaction,
-            &mut mock_inputs_to_sign,
-            &new_potential_inputs_and_outputs,
-        );
+        rollback_potential_inputs_and_outputs(&mut transaction, &new_potential_inputs_and_outputs);
 
         // Only inputs should be affected
         assert_eq!(transaction.input.len(), 1);
@@ -569,7 +615,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 3,
                 item: potential_input,
-                signer: Some(signer),
+                signer: true,
             }),
             outputs: vec![],
         };
@@ -583,12 +629,8 @@ mod tests {
 
         // Should have 2 existing + 3 new = 5 total inputs
         assert_eq!(transaction.input.len(), 5);
-        assert_eq!(inputs_to_sign.items.len(), 5);
-
-        // Check that new input indices are correct (should start from index 2)
-        assert_eq!(inputs_to_sign.items[2].index, 2);
-        assert_eq!(inputs_to_sign.items[3].index, 3);
-        assert_eq!(inputs_to_sign.items[4].index, 4);
+        // All inputs should still have empty witnesses and thus be considered to sign
+        assert!(transaction.input.iter().all(|i| i.witness.is_empty()));
     }
 
     #[test]
@@ -619,7 +661,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 2, // Remove last 2 inputs
                 item: create_mock_tx_in(create_mock_outpoint([0; 32], 0)),
-                signer: Some(signer), // With signer - should also rollback inputs_to_sign
+                signer: true, // With signer - should also rollback inputs_to_sign
             }),
             outputs: vec![NewPotentialOutputAmount {
                 count: 3, // Remove last 3 outputs
@@ -627,21 +669,11 @@ mod tests {
             }],
         };
 
-        rollback_potential_inputs_and_outputs(
-            &mut transaction,
-            &mut inputs_to_sign,
-            &new_potential_inputs_and_outputs,
-        );
+        rollback_potential_inputs_and_outputs(&mut transaction, &new_potential_inputs_and_outputs);
 
         // Should have 3 inputs and 1 output left
         assert_eq!(transaction.input.len(), 3);
         assert_eq!(transaction.output.len(), 1);
-        assert_eq!(inputs_to_sign.items.len(), 3); // Should also rollback signers
-
-        // Verify remaining signers have correct indices
-        for i in 0..3 {
-            assert_eq!(inputs_to_sign.items[i].index, i as u32);
-        }
     }
 
     #[test]
@@ -656,7 +688,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 0, // Zero count
                 item: potential_input,
-                signer: Some(Pubkey::default()),
+                signer: true,
             }),
             outputs: vec![NewPotentialOutputAmount {
                 count: 0, // Zero count
@@ -679,28 +711,23 @@ mod tests {
 
     #[test]
     fn test_estimate_final_tx_total_and_vsize() {
-        use crate::input_calc::{WITNESS_WEIGHT_BYTES, WITNESS_WEIGHT_OVERHEAD};
+        use crate::input_calc::{WITNESS_OVERHEAD_BYTES, WITNESS_WEIGHT_BYTES};
 
         let mut transaction = create_mock_transaction();
         transaction
             .input
             .push(create_mock_tx_in(create_mock_outpoint([1; 32], 0)));
 
-        // One signer corresponds to the single input we just added.
-        let signer = Pubkey::default();
-        let inputs_to_sign_vec = vec![InputToSign { index: 0, signer }];
-
         // --- Total size ---
         let expected_total_size =
-            transaction.total_size() + WITNESS_WEIGHT_BYTES + WITNESS_WEIGHT_OVERHEAD;
-        let calculated_total_size =
-            super::estimate_final_tx_total_size(&transaction, &inputs_to_sign_vec);
+            transaction.total_size() + WITNESS_WEIGHT_BYTES + WITNESS_OVERHEAD_BYTES;
+        let calculated_total_size = super::estimate_final_tx_total_size(&transaction);
         assert_eq!(calculated_total_size, expected_total_size);
 
         // --- Virtual size ---
         let expected_vsize =
-            transaction.vsize() + (WITNESS_WEIGHT_BYTES + WITNESS_WEIGHT_OVERHEAD) / 4;
-        let calculated_vsize = super::estimate_final_tx_vsize(&transaction, &inputs_to_sign_vec);
+            transaction.vsize() + (WITNESS_WEIGHT_BYTES + WITNESS_OVERHEAD_BYTES) / 4;
+        let calculated_vsize = super::estimate_final_tx_vsize(&transaction).unwrap();
         assert_eq!(calculated_vsize, expected_vsize);
     }
 
@@ -710,14 +737,12 @@ mod tests {
         // Add a dummy output so the transaction isn't empty
         transaction.output.push(create_mock_tx_out(10_000));
 
-        let inputs_to_sign: Vec<InputToSign> = Vec::new();
         let fee_rate = FeeRate::try_from(2.0).unwrap(); // 2 sats/vB
 
         // Assume the user still has 100k sats available to cover fees/change
         let (total_fee, base_fee) = super::calculate_fees_for_transaction(
             100_000,
             &mut transaction,
-            &inputs_to_sign,
             0, // No ancestor transactions
             &fee_rate,
         )
@@ -725,10 +750,7 @@ mod tests {
 
         // Manual calculation for comparison
         let expected_base_fee = fee_rate
-            .fee(super::estimate_final_tx_vsize(
-                &transaction,
-                &inputs_to_sign,
-            ))
+            .fee(super::estimate_final_tx_vsize(&transaction).unwrap())
             .to_sat();
         assert_eq!(base_fee, expected_base_fee);
         assert_eq!(total_fee, expected_base_fee); // No pending UTXOs so totals match
@@ -742,7 +764,6 @@ mod tests {
         let mut transaction = create_mock_transaction();
         transaction.output.push(create_mock_tx_out(50_000));
 
-        let inputs_to_sign: Vec<InputToSign> = Vec::new();
         let tx_statuses = MempoolInfo {
             total_fee: 0,
             total_size: 0,
@@ -755,7 +776,6 @@ mod tests {
         let change_script = ScriptBuf::new();
         super::adjust_transaction_to_pay_fees(
             &mut transaction,
-            &inputs_to_sign,
             &tx_statuses,
             total_btc_amount,
             Some(change_script.clone()),
@@ -774,7 +794,6 @@ mod tests {
     fn test_estimate_size_with_additional_inputs_outputs() {
         let mut transaction = create_mock_transaction();
         let mut inputs_to_sign = MockPushPopCollection::default();
-        let signer = Pubkey::default();
 
         let potential_input = create_mock_tx_in(create_mock_outpoint([1; 32], 0));
         let potential_output = create_mock_tx_out(1_000);
@@ -783,7 +802,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 2,
                 item: potential_input,
-                signer: Some(signer),
+                signer: true,
             }),
             outputs: vec![NewPotentialOutputAmount {
                 count: 1,
@@ -792,9 +811,8 @@ mod tests {
         };
 
         // Capture baseline sizes (should be minimal since tx is empty)
-        let base_total_size =
-            super::estimate_final_tx_total_size(&transaction, inputs_to_sign.as_slice());
-        let base_vsize = super::estimate_final_tx_vsize(&transaction, inputs_to_sign.as_slice());
+        let base_total_size = super::estimate_final_tx_total_size(&transaction);
+        let base_vsize = super::estimate_final_tx_vsize(&transaction).unwrap();
 
         // Calculate estimated sizes with the additional reserved IOs
         let est_total_size = super::estimate_tx_size_with_additional_inputs_outputs(
@@ -829,7 +847,6 @@ mod tests {
             script_pubkey: ScriptBuf::new(),
         });
 
-        let inputs_to_sign = vec![create_mock_input_to_sign(0)];
         let total_btc_amount = 2000;
         let address_to_send_remaining_btc =
             Some(create_mock_address(AddressType::User).script_pubkey());
@@ -838,7 +855,6 @@ mod tests {
 
         let result = adjust_transaction_to_pay_fees(
             &mut transaction,
-            &inputs_to_sign,
             &tx_statuses,
             total_btc_amount,
             address_to_send_remaining_btc,
@@ -858,7 +874,6 @@ mod tests {
             script_pubkey: ScriptBuf::new(),
         });
 
-        let inputs_to_sign = vec![create_mock_input_to_sign(0)];
         let total_btc_amount = 2000;
         let address_to_send_remaining_btc =
             Some(create_mock_address(AddressType::User).script_pubkey());
@@ -867,7 +882,6 @@ mod tests {
 
         let result = adjust_transaction_to_pay_fees(
             &mut transaction,
-            &inputs_to_sign,
             &tx_statuses,
             total_btc_amount,
             address_to_send_remaining_btc,
@@ -885,7 +899,6 @@ mod tests {
             script_pubkey: ScriptBuf::new(),
         });
 
-        let inputs_to_sign = vec![create_mock_input_to_sign(0)];
         let total_btc_amount = 2000;
         let address_to_send_remaining_btc: Option<ScriptBuf> = None;
         let fee_rate = FeeRate::try_from(1.0).unwrap();
@@ -893,7 +906,6 @@ mod tests {
 
         let result = adjust_transaction_to_pay_fees(
             &mut transaction,
-            &inputs_to_sign,
             &tx_statuses,
             total_btc_amount,
             address_to_send_remaining_btc,
@@ -901,6 +913,7 @@ mod tests {
         );
 
         assert!(result.is_ok());
+        // No address provided; no change output should be added
         assert_eq!(transaction.output.len(), 1);
     }
 
@@ -912,7 +925,6 @@ mod tests {
             script_pubkey: ScriptBuf::new(),
         });
 
-        let inputs_to_sign = vec![create_mock_input_to_sign(0)];
         let total_btc_amount = 2500;
         let address_to_send_remaining_btc =
             Some(create_mock_address(AddressType::User).script_pubkey());
@@ -921,7 +933,6 @@ mod tests {
 
         let result = adjust_transaction_to_pay_fees(
             &mut transaction,
-            &inputs_to_sign,
             &tx_statuses,
             total_btc_amount,
             address_to_send_remaining_btc,
@@ -929,6 +940,10 @@ mod tests {
         );
 
         assert!(result.is_ok());
+        // Below dust: no change output should be added
+        assert_eq!(transaction.output.len(), 1);
+        assert!(result.is_ok());
+        // Below dust: no change output should be added
         assert_eq!(transaction.output.len(), 1);
     }
 
@@ -940,7 +955,6 @@ mod tests {
             script_pubkey: ScriptBuf::new(),
         });
 
-        let inputs_to_sign = vec![create_mock_input_to_sign(0)];
         let total_btc_amount = 12000;
         let address_to_send_remaining_btc =
             Some(create_mock_address(AddressType::User).script_pubkey());
@@ -949,7 +963,6 @@ mod tests {
 
         let result = adjust_transaction_to_pay_fees(
             &mut transaction,
-            &inputs_to_sign,
             &tx_statuses,
             total_btc_amount,
             address_to_send_remaining_btc,
@@ -957,7 +970,48 @@ mod tests {
         );
 
         assert!(result.is_ok());
-        assert_eq!(transaction.output.len(), 1);
+        // With high fee rate and a change address, change output should be added
+        assert_eq!(transaction.output.len(), 2);
+    }
+
+    #[test]
+    fn test_compare_transaction_size_with_real_tx() {
+        let tx_hex = "02000000000105758116853713a5a70c82887b926adda03fa3095f2485216a8ffd3359d91ab31a0000000000ffffffff50a694057e1c7272159e204638a7644fc53e0e5321aa3a3ce56b20a0ddfe0eb10200000000ffffffff4675c26f254ce76e27fb60d617043120653f502ff96b4f21db8a9251e2dfa05f0100000000ffffffff50a694057e1c7272159e204638a7644fc53e0e5321aa3a3ce56b20a0ddfe0eb10300000000ffffffff50a694057e1c7272159e204638a7644fc53e0e5321aa3a3ce56b20a0ddfe0eb10600000000ffffffff072202000000000000225120bb05c7618b8257e59869b6fcf1b5484d8721bf6d8e43e7c67afbfd15075f385022020000000000002251206d21bc4b6559a7395efe949e2fd3c71dff00eadfdbab811830522588eaced398dd030000000000002251202cc10bf07ec3fd89acbaffa5f4e00556d9641ca432380b5aa4378ab77662ec3922020000000000002251207747be095848f616170cde9025459529081bee916042118bb288768c855478a80000000000000000056a5d02160372ac3900000000002251207747be095848f616170cde9025459529081bee916042118bb288768c855478a84c020000000000002251202cc10bf07ec3fd89acbaffa5f4e00556d9641ca432380b5aa4378ab77662ec390340d71decbd1b576758e297af9acad32c228e2fabedf5740ee49f8abb2fe42c6bd18884f96f19e1147a92d7f42a4f456cd37582a68e7cc1b043a67e92c8fcc4ba384520d8140907748c7f7c586fd1584be80bf039427162f8a5d2c4439fffae470b7c82ac6320b50628702cfb4d3ae4a0b0c1e3db05adaedadb95917014be86fabcdf9f0e23776821c0d8140907748c7f7c586fd1584be80bf039427162f8a5d2c4439fffae470b7c8203405880944ff79614949d5c97bc725926c80d2e52b23b11f800bfd6493bb91bedc7cb77251dca334f59dabeab7059f63435887fa6ec9fce583762b4f509b68a7b984520d8140907748c7f7c586fd1584be80bf039427162f8a5d2c4439fffae470b7c82ac63208b83375647a7cbfc61bf914b5a03b7f4ad05e9a08617793db9be3826d8ac01a66821c0d8140907748c7f7c586fd1584be80bf039427162f8a5d2c4439fffae470b7c820141f476e0dba417df8bd57074976f319724c6a4d0fb92f626307fddbbcde116dfff4e741c96ea50786692405694dec49be46bd41313f40d124539f62fecd7076425830340d2d8b4a32ada603c4c6c2f9971455167efb42dc979880d14479ba7b473bc9e2f219813e478723a29463e5162a2a8f45a6555b18240960e36ea262b3b91da72824520d8140907748c7f7c586fd1584be80bf039427162f8a5d2c4439fffae470b7c82ac6320f459378df0b7fee33978573c17811f581e78b2048cef120752d80673ffbfe2cd6821c0d8140907748c7f7c586fd1584be80bf039427162f8a5d2c4439fffae470b7c820340f441354317de2d77a8788e59ffdd00f418d418fb9fc7b65f0fe2b10f988b9f6847c8e23dc7efbf3dbeaa172f77fe10cd6f910e7e135d1429caf6a49f2e5672834520d8140907748c7f7c586fd1584be80bf039427162f8a5d2c4439fffae470b7c82ac6320f459378df0b7fee33978573c17811f581e78b2048cef120752d80673ffbfe2cd6821c0d8140907748c7f7c586fd1584be80bf039427162f8a5d2c4439fffae470b7c8200000000";
+        let tx_raw = hex::decode(tx_hex).unwrap();
+        let mut tx = Transaction::consensus_decode(&mut tx_raw.as_slice()).unwrap();
+
+        // remove the last output
+        tx.output.pop();
+
+        // return the size of the witness of the first input
+        println!("witness size: {:#?}", tx.input[0].witness.size());
+
+        let original_vsize = tx.vsize();
+        println!("tx: {:#?}", tx.vsize());
+        println!("tx: {:#?}", tx.weight());
+
+        // Remove the witness of all inputs except the third one.
+        let mut total_weight_bytes_removed = 0;
+        for i in 0..tx.input.len() {
+            if i != 2 {
+                total_weight_bytes_removed += tx.input[i].witness.size();
+                tx.input[i].witness = Witness::new();
+            }
+        }
+
+        println!(
+            "total_weight_bytes_removed: {:#?}",
+            total_weight_bytes_removed
+        );
+
+        let estimated_total_vsize = estimate_final_tx_vsize(&tx).unwrap();
+        println!("estimated_total_vsize: {:#?}", estimated_total_vsize);
+
+        assert_eq!(
+            estimated_total_vsize, original_vsize,
+            "estimated_total_vsize: {:#?} != original_vsize: {:#?}",
+            estimated_total_vsize, original_vsize
+        );
     }
 
     use proptest::prelude::*;
@@ -993,8 +1047,8 @@ mod tests {
                 })
                 .collect::<Vec<_>>();
 
-            let _estimated_total_size = estimate_final_tx_total_size(&tx, &inputs_to_sign);
-            let estimated_total_vsize = estimate_final_tx_vsize(&tx, &inputs_to_sign);
+            let _estimated_total_size = estimate_final_tx_total_size(&tx);
+            let estimated_total_vsize = estimate_final_tx_vsize(&tx).unwrap();
 
             // Now apply actual fake witness to validate correctness
             add_fake_witness_to_transaction(&mut tx, &inputs_to_sign);
@@ -1046,8 +1100,8 @@ mod tests {
                 })
                 .collect::<Vec<_>>();
 
-            let estimated_total_size = estimate_final_tx_total_size(&tx, &inputs_to_sign);
-            let estimated_total_vsize = estimate_final_tx_vsize(&tx, &inputs_to_sign) as isize;
+            let estimated_total_size = estimate_final_tx_total_size(&tx);
+            let estimated_total_vsize = estimate_final_tx_vsize(&tx).unwrap() as isize;
 
             // Now apply actual fake witness to validate correctness
             add_fake_witness_to_transaction(&mut tx, &inputs_to_sign);

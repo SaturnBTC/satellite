@@ -76,6 +76,59 @@ pub struct UtxoInfo<RuneSet: FixedCapacitySet<Item = RuneAmount> = SingleRuneSet
     _phantom: std::marker::PhantomData<RuneSet>,
 }
 
+impl<RuneSet: FixedCapacitySet<Item = RuneAmount>> UtxoInfo<RuneSet> {
+    /// Public constructor that initializes [`UtxoInfo`] with `meta` and `value`,
+    /// filling the remaining fields from `Default`.
+    pub fn new(meta: UtxoMeta, value: u64) -> Self {
+        Self {
+            meta,
+            value,
+            ..Default::default()
+        }
+    }
+
+    #[cfg(feature = "runes")]
+    pub fn new_with_runes(meta: UtxoMeta, value: u64, runes: RuneSet) -> Self {
+        Self {
+            meta,
+            value,
+            runes,
+            ..Default::default()
+        }
+    }
+
+    #[cfg(feature = "utxo-consolidation")]
+    pub fn new_with_consolidation(
+        meta: UtxoMeta,
+        value: u64,
+        needs_consolidation: FixedOptionF64,
+    ) -> Self {
+        Self {
+            meta,
+            value,
+            needs_consolidation,
+            ..Default::default()
+        }
+    }
+
+    #[cfg(feature = "utxo-consolidation")]
+    #[cfg(feature = "runes")]
+    pub fn new_with_runes_and_consolidation(
+        meta: UtxoMeta,
+        value: u64,
+        runes: RuneSet,
+        needs_consolidation: FixedOptionF64,
+    ) -> Self {
+        Self {
+            meta,
+            value,
+            runes,
+            needs_consolidation,
+            ..Default::default()
+        }
+    }
+}
+
 // Implement the UtxoInfoTrait for UtxoInfo
 impl<RuneSet: FixedCapacitySet<Item = RuneAmount>> UtxoInfoTrait<RuneSet> for UtxoInfo<RuneSet> {
     fn new(meta: UtxoMeta, value: u64) -> Self {

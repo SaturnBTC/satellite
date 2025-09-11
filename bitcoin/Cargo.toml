@@ -14,6 +14,9 @@ categories = ["cryptography::cryptocurrencies"]
 satellite-math = { version = "0.1", path = "./math" }
 satellite-collections = { version = "0.1", path = "./collections" }
 satellite-bitcoin-transactions = { version = "0.1", path = "./transactions" } 
+borsh = { version = "1", default-features = false }
+serde = { version = "1", features = ["derive"], optional = true }
+bitcoin = { version = "0.32.5" }
 
 [features]
 # Forward common features to the underlying `satellite-bitcoin-transactions` crate so
@@ -23,9 +26,12 @@ satellite-bitcoin-transactions = { version = "0.1", path = "./transactions" }
 default = [
     "satellite-bitcoin-transactions/utxo-consolidation",
     "satellite-bitcoin-transactions/runes",
+    "satellite-collections/borsh",
+    "serde",
 ]
 
 runes = ["satellite-bitcoin-transactions/runes"]
 utxo-consolidation = ["satellite-bitcoin-transactions/utxo-consolidation"]
-serde = ["satellite-bitcoin-transactions/serde"]
+serde = ["satellite-bitcoin-transactions/serde", "dep:serde"]
 utoipa = ["satellite-bitcoin-transactions/utoipa"] 
+borsh = ["satellite-collections/borsh"]

@@ -128,17 +128,25 @@ pub fn safe_add_input_to_transaction<C: PushPopCollection<InputToSign>>(
 
     transaction.input.push(input.clone());
 
-    let total_size = estimate_tx_size_with_additional_inputs_outputs(
+    let total_size_result = estimate_tx_size_with_additional_inputs_outputs(
         transaction,
         inputs_to_sign,
         new_potential_inputs_and_outputs,
-    )
-    .map_err(|_| BitcoinTxError::InputToSignListFull)?;
+    );
 
-    if total_size > MAX_BTC_TX_SIZE {
-        inputs_to_sign.pop();
-        transaction.input.pop();
-        return Err(BitcoinTxError::TransactionTooLarge);
+    match total_size_result {
+        Ok(total_size) => {
+            if total_size > MAX_BTC_TX_SIZE {
+                inputs_to_sign.pop();
+                transaction.input.pop();
+                return Err(BitcoinTxError::TransactionTooLarge);
+            }
+        }
+        Err(e) => {
+            inputs_to_sign.pop();
+            transaction.input.pop();
+            return Err(e);
+        }
     }
 
     Ok(())
@@ -153,16 +161,23 @@ pub fn safe_add_output_to_transaction(
 ) -> Result<(), BitcoinTxError> {
     transaction.output.push(output.clone());
 
-    let total_size = estimate_tx_size_with_additional_inputs_outputs(
+    let total_size_result = estimate_tx_size_with_additional_inputs_outputs(
         transaction,
         inputs_to_sign,
         new_potential_inputs_and_outputs,
-    )
-    .map_err(|_| BitcoinTxError::InputToSignListFull)?;
+    );
 
-    if total_size > MAX_BTC_TX_SIZE {
-        transaction.output.pop();
-        return Err(BitcoinTxError::TransactionTooLarge);
+    match total_size_result {
+        Ok(total_size) => {
+            if total_size > MAX_BTC_TX_SIZE {
+                transaction.output.pop();
+                return Err(BitcoinTxError::TransactionTooLarge);
+            }
+        }
+        Err(e) => {
+            transaction.output.pop();
+            return Err(e);
+        }
     }
 
     Ok(())
@@ -255,6 +270,42 @@ mod tests {
         fn len(&self) -> usize {
             self.items.len()
         }
+
+        fn max_size(&self) -> usize {
+            usize::MAX
+        }
+    }
+
+    #[derive(Debug, Default)]
+    struct LimitedMockPushPopCollection {
+        items: Vec<InputToSign>,
+        capacity: usize,
+    }
+
+    impl PushPopCollection<InputToSign> for LimitedMockPushPopCollection {
+        fn push(&mut self, item: InputToSign) -> Result<(), PushPopError> {
+            if self.items.len() >= self.capacity {
+                return Err(PushPopError::Full);
+            }
+            self.items.push(item);
+            Ok(())
+        }
+
+        fn pop(&mut self) -> Option<InputToSign> {
+            self.items.pop()
+        }
+
+        fn as_slice(&self) -> &[InputToSign] {
+            &self.items
+        }
+
+        fn len(&self) -> usize {
+            self.items.len()
+        }
+
+        fn max_size(&self) -> usize {
+            self.capacity
+        }
     }
 
     #[test]
@@ -296,7 +347,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 2,
                 item: potential_input,
-                signer: Some(signer),
+                signer: true,
             }),
             outputs: vec![],
         };
@@ -364,6 +415,45 @@ mod tests {
         // Should only have the original output after rollback
         assert_eq!(transaction.output.len(), 1);
         assert_eq!(transaction.output[0].value.to_sat(), 1000);
+    }
+
+    #[test]
+    fn test_safe_add_input_to_transaction_rolls_back_on_error() {
+        let mut transaction = create_mock_transaction();
+        let signer = Pubkey::default();
+        let input = create_mock_tx_in(create_mock_outpoint([1; 32], 0));
+
+        // Force an error inside estimate_tx_size_with_additional_inputs_outputs by
+        // causing reserved InputToSign pushes to exceed capacity.
+        let mut inputs_to_sign = LimitedMockPushPopCollection {
+            items: Vec::new(),
+            capacity: 1, // Only room for the initial push done by safe_add_input_to_transaction
+        };
+
+        let potential_input = create_mock_tx_in(create_mock_outpoint([2; 32], 0));
+        let new_potential_inputs_and_outputs = NewPotentialInputsAndOutputs {
+            inputs: Some(NewPotentialInputAmount {
+                count: 2, // Will attempt to push 2 more InputToSign items (exceeds capacity)
+                item: potential_input,
+                signer: true,
+            }),
+            outputs: vec![],
+        };
+
+        let result = safe_add_input_to_transaction(
+            &mut transaction,
+            &mut inputs_to_sign,
+            &signer,
+            &input,
+            &new_potential_inputs_and_outputs,
+        );
+
+        // We expect an error propagated from the inner estimator
+        assert_eq!(result, Err(BitcoinTxError::InputToSignListFull));
+
+        // And we must roll back both the pushed signer and the tx input
+        assert_eq!(transaction.input.len(), 0);
+        assert_eq!(inputs_to_sign.items.len(), 0);
     }
 
     #[test]
@@ -493,13 +583,12 @@ mod tests {
     fn test_new_potential_inputs_and_outputs_struct() {
         let input_item = create_mock_tx_in(create_mock_outpoint([1; 32], 0));
         let output_item = create_mock_tx_out(1000);
-        let signer = Pubkey::default();
 
         let new_potential = NewPotentialInputsAndOutputs {
             inputs: Some(NewPotentialInputAmount {
                 count: 2,
                 item: input_item.clone(),
-                signer: Some(signer),
+                signer: true,
             }),
             outputs: vec![
                 NewPotentialOutputAmount {
@@ -519,7 +608,7 @@ mod tests {
         if let Some(ref inputs) = new_potential.inputs {
             assert_eq!(inputs.count, 2);
             assert_eq!(inputs.item.previous_output, input_item.previous_output);
-            assert_eq!(inputs.signer, Some(signer));
+            assert_eq!(inputs.signer, true);
         }
 
         assert_eq!(new_potential.outputs[0].count, 3);
@@ -548,7 +637,7 @@ mod tests {
             inputs: Some(NewPotentialInputAmount {
                 count: 1000, // Many potential inputs to exceed size limit
                 item: potential_input,
-                signer: Some(signer),
+                signer: true,
             }),
             outputs: vec![],
         };
