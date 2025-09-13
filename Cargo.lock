@@ -321,9 +321,9 @@ dependencies = [
 
 [[package]]
 name = "arch_program"
-version = "0.5.9"
+version = "0.5.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffa27f641688c672e1fabf68a7fede76508f4f6733c9674cc4d95597dab71471"
+checksum = "adfcc86a7110505c41af794500f9645df81b45a06e276e2231c5c17441ae1bab"
 dependencies = [
  "bincode",
  "bitcode",

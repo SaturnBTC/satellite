@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-arch_program = { version = "0.5.9" }
+arch_program = { version = "0.5.10" }
 bitcoin = "0.32.5"
 bytemuck = "1.14"
 satellite-bitcoin = { path = "../bitcoin", version = "0.1.0" }
