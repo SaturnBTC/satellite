@@ -312,6 +312,10 @@ where
     U: UtxoInfoTrait<RS>,
     S: StateShard<U, RS> + ZeroCopy + Owner,
 {
+    if amount == 0 {
+        return Ok(Vec::new());
+    }
+
     let mut result = balance_amount_across_shards(
         tx_builder,
         selected_shards,

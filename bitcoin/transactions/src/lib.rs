@@ -45,7 +45,10 @@
 //! All data structures use fixed-size collections to ensure zero-heap allocation,
 //! making them suitable for constrained environments like the Solana BPF VM.
 
-use std::{cmp::Ordering, fmt::Debug, str::FromStr};
+use bitcoin::hashes::Hash as _;
+use std::fmt::Debug;
+#[cfg(test)]
+use std::str::FromStr;
 
 use arch_program::rune::RuneAmount;
 use arch_program::{
@@ -65,9 +68,9 @@ use satellite_collections::generic::fixed_list_unchecked::FixedRefList;
 use satellite_collections::generic::{fixed_list::FixedList, fixed_set::FixedCapacitySet};
 
 use crate::btc_utxo_holder::BtcUtxoHolder;
+use crate::bytes::txid_to_bytes_big_endian;
 use crate::{
     arch::create_account,
-    bytes::txid_to_bytes_big_endian,
     calc_fee::{
         adjust_transaction_to_pay_fees, estimate_final_tx_vsize,
         estimate_tx_size_with_additional_inputs_outputs,
@@ -160,14 +163,13 @@ impl<'info> AsRef<AccountInfo<'info>> for ModifiedAccount<'info> {
 ///
 /// - `count`: Number of inputs of this type to add
 /// - `item`: Template input to use for size calculation
-/// - `signer`: Optional public key that would sign these inputs
+/// - `signer`: Whether these inputs will be signed by a program account
 ///
 /// ## Examples
 ///
 /// ```rust
 /// # use satellite_bitcoin_transactions::NewPotentialInputAmount;
 /// # use bitcoin::{TxIn, OutPoint, ScriptBuf, Sequence, Witness};
-/// # use arch_program::pubkey::Pubkey;
 /// // Estimate adding 3 similar inputs
 /// let potential_inputs = NewPotentialInputAmount {
 ///     count: 3,
@@ -177,7 +179,7 @@ impl<'info> AsRef<AccountInfo<'info>> for ModifiedAccount<'info> {
 ///         sequence: Sequence::MAX,
 ///         witness: Witness::new(),
 ///     },
-///     signer: Some(Pubkey::system_program()),
+///     signer: true,
 /// };
 /// ```
 pub struct NewPotentialInputAmount {
@@ -227,7 +229,6 @@ pub struct NewPotentialOutputAmount {
 /// ```rust
 /// # use satellite_bitcoin_transactions::{NewPotentialInputsAndOutputs, NewPotentialInputAmount, NewPotentialOutputAmount};
 /// # use bitcoin::{TxIn, TxOut, OutPoint, ScriptBuf, Sequence, Witness, Amount};
-/// # use arch_program::pubkey::Pubkey;
 /// // Planning a transaction with multiple potential changes
 /// let potential_changes = NewPotentialInputsAndOutputs {
 ///     inputs: Some(NewPotentialInputAmount {
@@ -238,7 +239,7 @@ pub struct NewPotentialOutputAmount {
 ///             sequence: Sequence::MAX,
 ///             witness: Witness::new(),
 ///         },
-///         signer: Some(Pubkey::system_program()),
+///         signer: true,
 ///     }),
 ///     outputs: vec![
 ///         NewPotentialOutputAmount {
@@ -320,14 +321,13 @@ pub struct NewPotentialInputsAndOutputs {
 /// State transitions are a core concept in Arch. Use these methods to manage program account updates:
 ///
 /// ```rust,no_run
-/// # use satellite_bitcoin_transactions::TransactionBuilder;
+/// # use satellite_bitcoin_transactions::{TransactionBuilder, SignPolicy};
 /// # use arch_program::account::AccountInfo;
 /// # use arch_program::pubkey::Pubkey;
 /// # let mut builder: TransactionBuilder<8, 4, satellite_bitcoin_transactions::utxo_info::SingleRuneSet> = TransactionBuilder::new();
 /// # let account: AccountInfo<'static> = unsafe { std::mem::zeroed() };
-/// # let program_id = Pubkey::system_program();
 /// // Add a state transition for an existing account
-/// builder.add_state_transition(&account)?;
+/// builder.add_state_transition(&account, SignPolicy::Program)?;
 ///
 /// // The builder automatically:
 /// // 1. Adds the account to modified_accounts list
@@ -846,7 +846,8 @@ impl<
         )?;
 
         self.add_tx_status(utxo, tx_status);
-        add_state_transition(&mut self.transaction, account);
+        add_state_transition(&mut self.transaction, account)
+            .map_err(|_| BitcoinTxError::FailedStateTransition)?;
 
         self.modified_accounts
             .push(ModifiedAccount::new(account.clone()))
@@ -894,12 +895,12 @@ impl<
     /// ## Examples
     ///
     /// ```rust,no_run
-    /// # use satellite_bitcoin_transactions::TransactionBuilder;
+    /// # use satellite_bitcoin_transactions::{TransactionBuilder, SignPolicy};
     /// # use arch_program::account::AccountInfo;
     /// # let mut builder: TransactionBuilder<8, 4, satellite_bitcoin_transactions::utxo_info::SingleRuneSet> = TransactionBuilder::new();
     /// # let account: AccountInfo<'static> = unsafe { std::mem::zeroed() };
     /// // Add a state transition for an existing liquidity pool account
-    /// builder.add_state_transition(&account)?;
+    /// builder.add_state_transition(&account, SignPolicy::Program)?;
     ///
     /// // The builder now knows:
     /// // - This account will be modified
@@ -938,8 +939,7 @@ impl<
             .map_err(|_| BitcoinTxError::ModifiedAccountListFull)?;
 
         let utxo_value = add_state_transition(&mut self.transaction, account)
-            .map_err(|_| BitcoinTxError::StateTransitionError)?;
-        
+            .map_err(|_| BitcoinTxError::FailedStateTransition)?;
         self.total_btc_input += utxo_value;
 
         Ok(new_input_index)
@@ -958,8 +958,9 @@ impl<
         account: &AccountInfo<'info>,
         policy: SignPolicy,
     ) -> Result<(), BitcoinTxError> {
+        let txid = account.utxo.to_txid();
         let utxo_outpoint = OutPoint {
-            txid: Txid::from_str(&hex::encode(account.utxo.txid())).unwrap(),
+            txid,
             vout: account.utxo.vout(),
         };
 
@@ -1224,6 +1225,8 @@ impl<
         // Sort indices by prioritizing non-consolidation UTXOs and then by value (biggest first)
         #[cfg(feature = "utxo-consolidation")]
         utxo_indices.sort_by(|&a, &b| {
+            use std::cmp::Ordering;
+
             let utxo_a = &utxos[a];
             let utxo_b = &utxos[b];
 

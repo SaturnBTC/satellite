@@ -59,9 +59,9 @@ pub enum BitcoinTxError {
 
     #[error("Modified account list is full")]
     ModifiedAccountListFull,
-
-    #[error("State transition error")]
-    StateTransitionError,
+    
+    #[error("Failed state transition")]
+    FailedStateTransition,
 }
 
 // === Conversions ============================================================
