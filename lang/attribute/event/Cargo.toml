@@ -1,0 +1,23 @@
+[package]
+name = "satellite-attribute-event"
+version = "0.31.1"
+authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
+repository = "https://github.com/saturnbtc/satellite"
+license = "Apache-2.0"
+description = "Satellite attribute macro for defining an event"
+rust-version = "1.60"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[features]
+satellite-debug = ["satellite-syn/satellite-debug"]
+event-cpi = ["satellite-syn/event-cpi"]
+idl-build = ["satellite-syn/idl-build"]
+
+[dependencies]
+satellite-syn = { path = "../../syn", version = "0.31.1", features = ["hash"] }
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "1", features = ["full"] }

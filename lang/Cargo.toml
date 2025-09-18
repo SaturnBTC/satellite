@@ -14,28 +14,33 @@ rustdoc-args = ["--cfg", "docsrs"]
 [features]
 allow-missing-optionals = ["satellite-derive-accounts/allow-missing-optionals"]
 satellite-debug = [
-    "satellite-attribute-access-control/satellite-debug",
-    "satellite-attribute-account/satellite-debug",
-    "satellite-attribute-constant/satellite-debug",
-    "satellite-attribute-error/satellite-debug",
-    "satellite-attribute-program/satellite-debug",
-    "satellite-derive-accounts/satellite-debug"
+	"satellite-attribute-access-control/satellite-debug",
+	"satellite-attribute-account/satellite-debug",
+	"satellite-attribute-constant/satellite-debug",
+	"satellite-attribute-error/satellite-debug",
+	"satellite-attribute-program/satellite-debug",
+	"satellite-derive-accounts/satellite-debug",
 ]
 derive = []
+event-cpi = ["satellite-attribute-event/event-cpi"]
 idl-build = [
-    "satellite-attribute-account/idl-build",
-    "satellite-attribute-constant/idl-build",
-    "satellite-attribute-error/idl-build",
-    "satellite-attribute-program/idl-build",
-    "satellite-derive-accounts/idl-build",
-    "satellite-derive-serde/idl-build",
-    "satellite-lang-idl/build",
+	"satellite-attribute-account/idl-build",
+	"satellite-attribute-constant/idl-build",
+	"satellite-attribute-error/idl-build",
+	"satellite-attribute-program/idl-build",
+	"satellite-derive-accounts/idl-build",
+	"satellite-derive-serde/idl-build",
+	"satellite-lang-idl/build",
 ]
 init-if-needed = ["satellite-derive-accounts/init-if-needed"]
 interface-instructions = ["satellite-attribute-program/interface-instructions"]
-lazy-account = ["satellite-attribute-account/lazy-account", "satellite-derive-serde/lazy-account"]
+lazy-account = [
+	"satellite-attribute-account/lazy-account",
+	"satellite-derive-serde/lazy-account",
+]
 
 [dependencies]
+satellite-attribute-event = { path = "./attribute/event", version = "0.31.1" }
 satellite-attribute-access-control = { path = "./attribute/access-control", version = "0.31.1" }
 satellite-attribute-account = { path = "./attribute/account", version = "0.31.1" }
 satellite-attribute-constant = { path = "./attribute/constant", version = "0.31.1" }
