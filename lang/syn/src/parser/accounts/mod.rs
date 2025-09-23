@@ -19,20 +19,20 @@ pub fn parse(accounts_struct: &syn::ItemStruct) -> ParseResult<AccountsStruct> {
         .map(|ix_attr| ix_attr.parse_args_with(Punctuated::<Expr, Comma>::parse_terminated))
         .transpose()?;
 
-    // #[cfg(feature = "event-cpi")]
-    // let accounts_struct = {
-    //     let is_event_cpi = accounts_struct
-    //         .attrs
-    //         .iter()
-    //         .filter_map(|attr| attr.path.get_ident())
-    //         .any(|ident| *ident == "event_cpi");
-    //     if is_event_cpi {
-    //         event_cpi::add_event_cpi_accounts(accounts_struct)?
-    //     } else {
-    //         accounts_struct.clone()
-    //     }
-    // };
-    // #[cfg(not(feature = "event-cpi"))]
+    #[cfg(feature = "event-cpi")]
+    let accounts_struct = {
+        let is_event_cpi = accounts_struct
+            .attrs
+            .iter()
+            .filter_map(|attr| attr.path.get_ident())
+            .any(|ident| *ident == "event_cpi");
+        if is_event_cpi {
+            event_cpi::add_event_cpi_accounts(accounts_struct)?
+        } else {
+            accounts_struct.clone()
+        }
+    };
+    #[cfg(not(feature = "event-cpi"))]
     let accounts_struct = accounts_struct.clone();
 
     let fields = match &accounts_struct.fields {

@@ -52,6 +52,7 @@ pub use satellite_attribute_access_control::access_control;
 pub use satellite_attribute_account::{account, declare_id, pubkey, zero_copy};
 pub use satellite_attribute_constant::constant;
 pub use satellite_attribute_error::*;
+pub use satellite_attribute_event::{emit, event};
 pub use satellite_attribute_program::{declare_program, instruction, program};
 pub use satellite_derive_accounts::Accounts;
 pub use satellite_derive_serde::{AnchorDeserialize, AnchorSerialize};
@@ -61,6 +62,9 @@ pub use arch_program;
 /// Borsh is the default serialization format for instructions and accounts.
 pub use borsh::de::BorshDeserialize as AnchorDeserialize;
 pub use borsh::ser::BorshSerialize as AnchorSerialize;
+
+#[cfg(feature = "event-cpi")]
+pub use satellite_attribute_event::{emit_cpi, event_cpi};
 
 #[cfg(feature = "idl-build")]
 pub use idl::IdlBuild;
@@ -401,15 +405,14 @@ pub mod prelude {
         accounts::interface_account::InterfaceAccount, accounts::program::Program,
         accounts::signer::Signer, accounts::system_account::SystemAccount,
         accounts::unchecked_account::UncheckedAccount, arch_program::bpf_loader::LoaderState,
-        constant, context::Context, context::CpiContext, declare_id, declare_program, err, error,
-        event, instruction, program, pubkey, require, require_eq, require_gt, require_gte,
+        constant, context::Context, context::CpiContext, declare_id, declare_program, emit, err,
+        error, event, instruction, program, pubkey, require, require_eq, require_gt, require_gte,
         require_keys_eq, require_keys_neq, require_neq, source, system_program::System, zero_copy,
         AccountDeserialize, AccountSerialize, Accounts, AccountsClose, AccountsExit,
         AnchorDeserialize, AnchorSerialize, Discriminator, Id, InitSpace, Key, Lamports, Owner,
         Result, Space, ToAccountInfo, ToAccountInfos, ToAccountMetas,
     };
 
-    pub use satellite_attribute_error::*;
     pub use arch_program::account::AccountMeta;
     pub use arch_program::account::{next_account_info, AccountInfo};
     pub use arch_program::msg;
@@ -417,7 +420,11 @@ pub mod prelude {
     pub use arch_program::pubkey::Pubkey;
     pub use borsh;
     pub use error::*;
+    pub use satellite_attribute_error::*;
     pub use thiserror;
+
+    #[cfg(feature = "event-cpi")]
+    pub use super::{emit_cpi, event_cpi};
 
     #[cfg(feature = "idl-build")]
     pub use super::idl::IdlBuild;
@@ -432,9 +439,9 @@ pub mod prelude {
 /// Internal module used by macros and unstable apis.
 #[doc(hidden)]
 pub mod __private {
-    pub use satellite_attribute_account::ZeroCopyAccessor;
     pub use base64;
     pub use bytemuck;
+    pub use satellite_attribute_account::ZeroCopyAccessor;
 
     pub use crate::{bpf_writer::BpfWriter, common::is_closed};
 
@@ -467,7 +474,7 @@ pub mod __private {
     #[cfg(feature = "lazy-account")]
     pub use crate::lazy::Lazy;
     #[cfg(feature = "lazy-account")]
-    pub use anchor_derive_serde::Lazy;
+    pub use satellite_derive_serde::Lazy;
 }
 
 /// Ensures a condition is true, otherwise returns with the given error.
