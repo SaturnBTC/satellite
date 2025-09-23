@@ -1,6 +1,6 @@
 [package]
 name = "satellite-lang"
-version = "0.31.1"
+version = "0.31.2"
 authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
 repository = "https://github.com/saturnbtc/satellite"
 edition = "2021"
@@ -40,7 +40,7 @@ lazy-account = [
 ]
 
 [dependencies]
-satellite-attribute-event = { path = "./attribute/event", version = "0.31.1" }
+satellite-attribute-event = { path = "./attribute/event", version = "0.31.2" }
 satellite-attribute-access-control = { path = "./attribute/access-control", version = "0.31.1" }
 satellite-attribute-account = { path = "./attribute/account", version = "0.31.1" }
 satellite-attribute-constant = { path = "./attribute/constant", version = "0.31.1" }
@@ -57,5 +57,5 @@ base64 = "0.21"
 bincode = "1"
 borsh = { version = "1.4.0" }
 bytemuck = "1.14"
-arch_program = { version = "0.5.10" }
+arch_program = { version = "0.5.12" }
 thiserror = "1.0.61"

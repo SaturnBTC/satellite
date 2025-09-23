@@ -4,7 +4,7 @@ use satellite_lang::prelude::{
 };
 use satellite_lang::system_program::SYSTEM_PROGRAM_ID;
 
-pub use arch_token_metadata as arch_md;
+pub use apl_token_metadata as arch_md;
 
 /// Program ID for Arch Token Metadata
 pub use arch_md::id as ID;

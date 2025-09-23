@@ -276,9 +276,9 @@ checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "apl-associated-token-account"
-version = "0.5.9"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99da8f4c823fe79bec0e23bcf2f184121c76c115ba18f93a521a39ca92e580c7"
+checksum = "7dfc8ccf002b5daa3b66e9d8e0666282bcb8f3cba8489ad65449009edd40e59b"
 dependencies = [
  "apl-token",
  "arch_program",
@@ -295,9 +295,9 @@ dependencies = [
 
 [[package]]
 name = "apl-token"
-version = "0.5.9"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "736c8aab25830e0f71b91b91d5eb9c30523d4c130a3de32a1489661ac2c03bad"
+checksum = "871b2d7dd0277f79bae22618e034c6ed2d364f0438ba6ceb5cf70192a9de2d52"
 dependencies = [
  "arch_program",
  "arrayref",
@@ -312,24 +312,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "arch-token-metadata"
-version = "0.1.1"
+name = "apl-token-metadata"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9321fd4b027041617c3adf033db53464bfee772323c7a2964e84166ea8d454c"
+checksum = "a92f8e1cd3a0db5494b69bc3710d74992cd0ed8f4fde4cd903264ba44225f293"
 dependencies = [
  "apl-token",
  "arch_program",
  "borsh 1.5.7",
  "num-derive",
  "num-traits",
- "thiserror 2.0.12",
+ "thiserror 1.0.66",
 ]
 
 [[package]]
 name = "arch_program"
-version = "0.5.10"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "adfcc86a7110505c41af794500f9645df81b45a06e276e2231c5c17441ae1bab"
+checksum = "8a9243ac5a2f41986c47f75be4b5adace60710880acc96203e1c757066e9b15a"
 dependencies = [
  "bincode",
  "bitcode",
@@ -4116,11 +4116,11 @@ dependencies = [
 
 [[package]]
 name = "satellite-apl"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "apl-associated-token-account",
  "apl-token",
- "arch-token-metadata",
+ "apl-token-metadata",
  "borsh 0.10.4",
  "satellite-lang",
 ]
@@ -4166,7 +4166,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-attribute-event"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4203,7 +4203,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-bitcoin-transactions"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arch_program",
  "bitcoin 0.32.5",
@@ -4262,7 +4262,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-lang"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "arch_program",
  "base64 0.21.7",
@@ -4314,7 +4314,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-shard"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arch_program",
  "bitcoin 0.32.5",
@@ -4326,7 +4326,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-syn"
-version = "0.31.1"
+version = "0.31.2"
 dependencies = [
  "anyhow",
  "cargo_toml",
