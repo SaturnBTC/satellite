@@ -4,9 +4,7 @@ version = "0.1.1"
 edition = "2021"
 description = "Bitcoin transaction utilities and UTXO management for Satellite."
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-org/satellite"
-documentation = "https://docs.rs/satellite-bitcoin-transactions"
-readme = "README.md"
+repository = "https://github.com/saturnbtc/satellite"
 keywords = ["bitcoin", "transactions", "utxo"]
 categories = ["cryptography::cryptocurrencies"]
 

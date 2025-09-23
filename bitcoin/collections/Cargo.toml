@@ -4,9 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Collection data structures and helpers for the Satellite Bitcoin project."
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/your-org/satellite"
-documentation = "https://docs.rs/satellite-collections"
-readme = "README.md"
+repository = "https://github.com/saturnbtc/satellite"
 keywords = ["bitcoin", "collections"]
 categories = ["cryptography::cryptocurrencies", "data-structures"]
 
