@@ -18,6 +18,7 @@ members = [
     "spl",
     "bitcoin",
     "shard_set",
+    "serde",
 ]
 exclude = [
     "tests/swap/deps/openbook-dex",
