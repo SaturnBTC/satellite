@@ -12,8 +12,8 @@ pub fn create<'info>(ctx: CpiContext<'_, '_, '_, 'info, Create<'info>>) -> Resul
         ctx.accounts.associated_token.key,
         ctx.accounts.authority.key,
         ctx.accounts.mint.key,
-        ctx.accounts.system_program.key,
         ctx.accounts.token_program.key,
+        ctx.accounts.system_program.key,
     );
     satellite_lang::arch_program::program::invoke_signed(
         &ix,
