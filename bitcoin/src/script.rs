@@ -20,6 +20,10 @@ impl ScriptPubkey {
     pub fn into_vec(self) -> Vec<u8> {
         self.0
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 impl TryFrom<Vec<u8>> for ScriptPubkey {
@@ -56,6 +60,16 @@ impl BorshDeserialize for ScriptPubkey {
 impl From<ScriptPubkey> for bitcoin::ScriptBuf {
     fn from(value: ScriptPubkey) -> Self {
         bitcoin::ScriptBuf::from_bytes(value.0)
+    }
+}
+
+impl TryFrom<bitcoin::ScriptBuf> for ScriptPubkey {
+    type Error = ScriptPubkeyError;
+    fn try_from(value: bitcoin::ScriptBuf) -> Result<Self, Self::Error> {
+        if value.is_empty() || value.to_bytes().len() > MAX_BTC_SCRIPT_BYTES {
+            return Err(ScriptPubkeyError::InvalidLength);
+        }
+        Ok(ScriptPubkey(value.to_bytes()))
     }
 }
 
