@@ -77,7 +77,6 @@
 
 use std::cell::RefMut;
 
-use arch_program::msg;
 use arch_program::{input_to_sign::InputToSign, rune::RuneAmount, utxo::UtxoMeta};
 use bitcoin::{ScriptBuf, Transaction};
 use satellite_bitcoin::utxo_info::UtxoInfoTrait;
@@ -98,6 +97,28 @@ use super::StateShard;
 
 use satellite_lang::prelude::Owner;
 use satellite_lang::ZeroCopy;
+
+/// Validates that each shard in `selected_shards` currently has a rune UTXO.
+///
+/// Returns `Ok(())` when all shards have a rune UTXO; otherwise returns
+/// `Err(StateShardError::NotEnoughRuneUtxos)`.
+pub fn ensure_rune_utxo_present_in_all<'info, RS, U, S>(
+    selected_shards: &[RefMut<'info, S>],
+) -> super::error::Result<()>
+where
+    RS: FixedCapacitySet<Item = RuneAmount> + Default,
+    U: UtxoInfoTrait<RS>,
+    S: StateShard<U, RS> + ZeroCopy + Owner,
+{
+    let all_have_rune = selected_shards
+        .iter()
+        .all(|shard| shard.rune_utxo().is_some());
+    if all_have_rune {
+        Ok(())
+    } else {
+        Err(StateShardError::NotEnoughRuneUtxos)
+    }
+}
 
 /// Removes all specified UTXOs from the provided selected shards.
 ///
@@ -750,10 +771,6 @@ where
     let mut rune_utxos = vec![];
 
     for edict in &runestone.edicts {
-        use arch_program::msg;
-
-        msg!("checking edict: {:?}", edict);
-
         let rune_amount = edict.amount;
         let index = edict.output;
 
@@ -798,26 +815,23 @@ where
 
     if let Some(pointer_index) = runestone.pointer {
         for rune_amount in remaining_rune_amount.iter() {
-            if rune_amount.amount > 0 {
-                if let Some(output) = new_program_outputs
-                    .iter_mut()
-                    .find(|u| u.meta().vout() == pointer_index)
-                {
-                    output.runes_mut().insert_or_modify::<StateShardError, _>(
-                        RuneAmount {
-                            id: rune_amount.id,
-                            amount: rune_amount.amount,
-                        },
-                        |rune_input| {
-                            rune_input.amount =
-                                rune_input
-                                    .amount
-                                    .checked_add(rune_amount.amount)
-                                    .ok_or(StateShardError::RuneAmountAdditionOverflow)?;
-                            Ok(())
-                        },
-                    )?;
-                }
+            if let Some(output) = new_program_outputs
+                .iter_mut()
+                .find(|u| u.meta().vout() == pointer_index)
+            {
+                output.runes_mut().insert_or_modify::<StateShardError, _>(
+                    RuneAmount {
+                        id: rune_amount.id,
+                        amount: rune_amount.amount,
+                    },
+                    |rune_input| {
+                        rune_input.amount = rune_input
+                            .amount
+                            .checked_add(rune_amount.amount)
+                            .ok_or(StateShardError::RuneAmountAdditionOverflow)?;
+                        Ok(())
+                    },
+                )?;
             }
         }
     } else {
@@ -2029,6 +2043,466 @@ mod tests_loader {
             .unwrap_err();
 
             assert_eq!(err, StateShardError::ShardsAreFullOfBtcUtxos);
+        }
+
+        #[cfg(feature = "runes")]
+        #[test]
+        fn assigns_rune_utxo_when_pointer_exists_but_remaining_is_zero() {
+            const MAX_USER_UTXOS: usize = 4;
+            const MAX_SHARDS_PER_PROGRAM: usize = 4;
+
+            let mut builder: satellite_bitcoin::TransactionBuilder<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+            > = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+
+            let program_script = ScriptBuf::new();
+
+            // Inputs: one dummy
+            let txid_1 = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[1u8; 32]).unwrap());
+            let input_outpoint = OutPoint { txid: txid_1, vout: 0 };
+
+            // Outputs:
+            //  - vout 0: program output (pointer target)
+            //  - vout 1: non-program output (edict target)
+            let non_program_script = ScriptBuf::from_bytes(vec![0x51]); // OP_1
+
+            builder.transaction = Transaction {
+                version: Version::TWO,
+                lock_time: LockTime::ZERO,
+                input: vec![TxIn {
+                    previous_output: input_outpoint,
+                    script_sig: ScriptBuf::new(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                }],
+                output: vec![
+                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
+                    TxOut { value: Amount::from_sat(546), script_pubkey: non_program_script },
+                ],
+            };
+
+            builder
+                .inputs_to_sign
+                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .unwrap();
+
+            // All input runes (amount 6) are sent via an edict to a NON-program output (vout 1),
+            // so remaining amount for the pointer is zero.
+            builder
+                .total_rune_inputs
+                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(1, 0), amount: 6 })
+                .unwrap();
+
+            builder.runestone = Runestone {
+                pointer: Some(0),
+                edicts: vec![ordinals::Edict { id: ordinals::RuneId { block: 1, tx: 0 }, amount: 6, output: 1 }],
+                ..Default::default()
+            };
+
+            // One shard selected → it should receive a rune UTXO (with zero amount)
+            let shard0 = MockShardZc::default();
+            let loaders = leak_loaders_from_vec(vec![shard0]);
+
+            let mut shard_refs: Vec<_> = loaders.iter().map(|l| l.load_mut().unwrap()).collect();
+            super::super::update_shards_after_transaction::<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            .unwrap();
+            drop(shard_refs);
+
+            let shard0_ref = loaders[0].load().unwrap();
+            assert!(shard0_ref.rune_utxo().is_some());
+        }
+
+        #[cfg(feature = "runes")]
+        #[test]
+        fn assigns_rune_utxos_when_edicts_have_zero_amounts() {
+            const MAX_USER_UTXOS: usize = 4;
+            const MAX_SHARDS_PER_PROGRAM: usize = 4;
+
+            let mut builder: satellite_bitcoin::TransactionBuilder<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+            > = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+
+            let program_script = ScriptBuf::new();
+
+            // Inputs: one dummy
+            let txid_2 = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[2u8; 32]).unwrap());
+            let input_outpoint = OutPoint { txid: txid_2, vout: 0 };
+
+            // Outputs: two program outputs (vout 0 and vout 1)
+            builder.transaction = Transaction {
+                version: Version::TWO,
+                lock_time: LockTime::ZERO,
+                input: vec![TxIn {
+                    previous_output: input_outpoint,
+                    script_sig: ScriptBuf::new(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                }],
+                output: vec![
+                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
+                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
+                ],
+            };
+
+            builder
+                .inputs_to_sign
+                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .unwrap();
+
+            // No total rune inputs necessary; edicts with zero amounts still create rune entries
+            // on the target outputs.
+            builder.runestone = Runestone {
+                pointer: Some(0),
+                edicts: vec![
+                    ordinals::Edict { id: ordinals::RuneId { block: 1, tx: 0 }, amount: 0, output: 0 },
+                    ordinals::Edict { id: ordinals::RuneId { block: 1, tx: 0 }, amount: 0, output: 1 },
+                ],
+                ..Default::default()
+            };
+
+            // Two shards selected → both should receive rune UTXOs (with zero amounts)
+            let shard0 = MockShardZc::default();
+            let shard1 = MockShardZc::default();
+            let loaders = leak_loaders_from_vec(vec![shard0, shard1]);
+
+            let mut shard_refs: Vec<_> = loaders.iter().map(|l| l.load_mut().unwrap()).collect();
+            super::super::update_shards_after_transaction::<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            .unwrap();
+            drop(shard_refs);
+
+            for loader in loaders.iter() {
+                let shard_ref = loader.load().unwrap();
+                assert!(shard_ref.rune_utxo().is_some());
+            }
+        }
+
+        #[cfg(feature = "runes")]
+        #[test]
+        fn single_rune_id_all_consumed_pointer_zero() {
+            const MAX_USER_UTXOS: usize = 4;
+            const MAX_SHARDS_PER_PROGRAM: usize = 4;
+
+            let mut builder: satellite_bitcoin::TransactionBuilder<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+            > = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+
+            let program_script = ScriptBuf::new();
+            let txid = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[4u8; 32]).unwrap());
+            let input_outpoint = OutPoint { txid, vout: 0 };
+            let non_program_script = ScriptBuf::from_bytes(vec![0x51]);
+
+            builder.transaction = Transaction {
+                version: Version::TWO,
+                lock_time: LockTime::ZERO,
+                input: vec![TxIn {
+                    previous_output: input_outpoint,
+                    script_sig: ScriptBuf::new(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                }],
+                output: vec![
+                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
+                    TxOut { value: Amount::from_sat(546), script_pubkey: non_program_script },
+                ],
+            };
+
+            builder
+                .inputs_to_sign
+                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .unwrap();
+
+            builder
+                .total_rune_inputs
+                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(1, 0), amount: 5 })
+                .unwrap();
+
+            builder.runestone = Runestone {
+                pointer: Some(0),
+                edicts: vec![ordinals::Edict { id: ordinals::RuneId { block: 1, tx: 0 }, amount: 5, output: 1 }],
+                ..Default::default()
+            };
+
+            let shard0 = MockShardZc::default();
+            let loaders = leak_loaders_from_vec(vec![shard0]);
+            let mut shard_refs: Vec<_> = loaders.iter().map(|l| l.load_mut().unwrap()).collect();
+            super::super::update_shards_after_transaction::<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            .unwrap();
+            drop(shard_refs);
+
+            let shard0_ref = loaders[0].load().unwrap();
+            assert!(shard0_ref.rune_utxo().is_some());
+        }
+
+        #[cfg(feature = "runes")]
+        #[test]
+        fn preserves_existing_rune_utxo_and_inserts_missing_only() {
+            const MAX_USER_UTXOS: usize = 4;
+            const MAX_SHARDS_PER_PROGRAM: usize = 4;
+
+            let mut builder: satellite_bitcoin::TransactionBuilder<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+            > = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+
+            let program_script = ScriptBuf::new();
+            let txid = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[5u8; 32]).unwrap());
+            let input_outpoint = OutPoint { txid, vout: 0 };
+
+            builder.transaction = Transaction {
+                version: Version::TWO,
+                lock_time: LockTime::ZERO,
+                input: vec![TxIn {
+                    previous_output: input_outpoint,
+                    script_sig: ScriptBuf::new(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                }],
+                output: vec![TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() }],
+            };
+
+            builder
+                .inputs_to_sign
+                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .unwrap();
+
+            builder
+                .total_rune_inputs
+                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(3, 0), amount: 0 })
+                .unwrap();
+            builder.runestone = Runestone { pointer: Some(0), edicts: vec![], ..Default::default() };
+
+            let mut shard0 = MockShardZc::default();
+            let existing_rune = create_utxo(546, 50, 0);
+            shard0.set_rune_utxo(existing_rune.clone());
+            let shard1 = MockShardZc::default();
+            let loaders = leak_loaders_from_vec(vec![shard0, shard1]);
+            let mut shard_refs: Vec<_> = loaders.iter().map(|l| l.load_mut().unwrap()).collect();
+            super::super::update_shards_after_transaction::<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            .unwrap();
+            drop(shard_refs);
+
+            let shard0_ref = loaders[0].load().unwrap();
+            assert!(shard0_ref.rune_utxo().is_some());
+            drop(shard0_ref);
+            let shard1_ref = loaders[1].load().unwrap();
+            assert!(shard1_ref.rune_utxo().is_some());
+        }
+
+        #[cfg(feature = "runes")]
+        #[test]
+        fn duplicate_zero_amount_edicts_merge_and_classify() {
+            const MAX_USER_UTXOS: usize = 4;
+            const MAX_SHARDS_PER_PROGRAM: usize = 4;
+
+            let mut builder: satellite_bitcoin::TransactionBuilder<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+            > = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+
+            let program_script = ScriptBuf::new();
+            let txid = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[6u8; 32]).unwrap());
+            let input_outpoint = OutPoint { txid, vout: 0 };
+
+            builder.transaction = Transaction {
+                version: Version::TWO,
+                lock_time: LockTime::ZERO,
+                input: vec![TxIn {
+                    previous_output: input_outpoint,
+                    script_sig: ScriptBuf::new(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                }],
+                output: vec![TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() }],
+            };
+
+            builder
+                .inputs_to_sign
+                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .unwrap();
+
+            builder
+                .total_rune_inputs
+                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(4, 0), amount: 0 })
+                .unwrap();
+
+            builder.runestone = Runestone {
+                pointer: Some(0),
+                edicts: vec![
+                    ordinals::Edict { id: ordinals::RuneId { block: 4, tx: 0 }, amount: 0, output: 0 },
+                    ordinals::Edict { id: ordinals::RuneId { block: 4, tx: 0 }, amount: 0, output: 0 },
+                ],
+                ..Default::default()
+            };
+
+            let shard0 = MockShardZc::default();
+            let loaders = leak_loaders_from_vec(vec![shard0]);
+            let mut shard_refs: Vec<_> = loaders.iter().map(|l| l.load_mut().unwrap()).collect();
+            super::super::update_shards_after_transaction::<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            .unwrap();
+            drop(shard_refs);
+
+            let shard0_ref = loaders[0].load().unwrap();
+            assert!(shard0_ref.rune_utxo().is_some());
+        }
+
+        #[cfg(feature = "runes")]
+        #[test]
+        fn error_when_more_rune_utxos_than_available_shards() {
+            const MAX_USER_UTXOS: usize = 4;
+            const MAX_SHARDS_PER_PROGRAM: usize = 4;
+
+            let mut builder: satellite_bitcoin::TransactionBuilder<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+            > = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+
+            let program_script = ScriptBuf::new();
+            let txid = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[7u8; 32]).unwrap());
+            let input_outpoint = OutPoint { txid, vout: 0 };
+
+            builder.transaction = Transaction {
+                version: Version::TWO,
+                lock_time: LockTime::ZERO,
+                input: vec![TxIn {
+                    previous_output: input_outpoint,
+                    script_sig: ScriptBuf::new(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                }],
+                output: vec![
+                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
+                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
+                ],
+            };
+
+            builder
+                .inputs_to_sign
+                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .unwrap();
+
+            builder
+                .total_rune_inputs
+                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(9, 9), amount: 0 })
+                .unwrap();
+            builder.runestone = Runestone {
+                pointer: Some(0),
+                edicts: vec![
+                    ordinals::Edict { id: ordinals::RuneId { block: 9, tx: 9 }, amount: 0, output: 0 },
+                    ordinals::Edict { id: ordinals::RuneId { block: 9, tx: 9 }, amount: 0, output: 1 },
+                ],
+                ..Default::default()
+            };
+
+            let shard0 = MockShardZc::default();
+            let loaders = leak_loaders_from_vec(vec![shard0]);
+            let mut shard_refs: Vec<_> = loaders.iter().map(|l| l.load_mut().unwrap()).collect();
+            let err = super::super::update_shards_after_transaction::<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            .unwrap_err();
+            drop(shard_refs);
+
+            assert_eq!(err, StateShardError::ExcessRuneUtxos);
+        }
+
+        #[cfg(feature = "runes")]
+        #[test]
+        fn pointer_present_no_edicts_total_inputs_zero() {
+            const MAX_USER_UTXOS: usize = 4;
+            const MAX_SHARDS_PER_PROGRAM: usize = 4;
+
+            let mut builder: satellite_bitcoin::TransactionBuilder<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+            > = new_tb!(MAX_USER_UTXOS, MAX_SHARDS_PER_PROGRAM);
+
+            let program_script = ScriptBuf::new();
+
+            let txid = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[3u8; 32]).unwrap());
+            let input_outpoint = OutPoint { txid, vout: 0 };
+
+            builder.transaction = Transaction {
+                version: Version::TWO,
+                lock_time: LockTime::ZERO,
+                input: vec![TxIn {
+                    previous_output: input_outpoint,
+                    script_sig: ScriptBuf::new(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                }],
+                output: vec![TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() }],
+            };
+
+            builder
+                .inputs_to_sign
+                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .unwrap();
+
+            builder
+                .total_rune_inputs
+                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(10, 1), amount: 0 })
+                .unwrap();
+            builder.runestone = Runestone { pointer: Some(0), edicts: vec![], ..Default::default() };
+
+            let shard0 = MockShardZc::default();
+            let loaders = leak_loaders_from_vec(vec![shard0]);
+            let mut shard_refs: Vec<_> = loaders.iter().map(|l| l.load_mut().unwrap()).collect();
+            super::super::update_shards_after_transaction::<
+                MAX_USER_UTXOS,
+                MAX_SHARDS_PER_PROGRAM,
+                SingleRuneSet,
+                satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+                MockShardZc,
+            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            .unwrap();
+            drop(shard_refs);
+
+            let shard0_ref = loaders[0].load().unwrap();
+            assert!(shard0_ref.rune_utxo().is_some());
         }
     }
 }

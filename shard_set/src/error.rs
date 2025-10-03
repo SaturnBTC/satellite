@@ -58,6 +58,9 @@ pub enum StateShardError {
 
     #[msg("Too many rune UTXOs for the selected shards")]
     ExcessRuneUtxos,
+
+    #[msg("Not enough rune UTXOs for the selected shards")]
+    NotEnoughRuneUtxos,
 }
 
 impl From<FixedSetError> for StateShardError {

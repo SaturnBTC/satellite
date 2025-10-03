@@ -27,7 +27,7 @@
 //! 2. **Create a `ShardSet`, select shards, call helpers**:
 //!
 //! ```rust,no_run
-//! use saturn_account_shards::{ShardSet, StateShard};
+//! use satellite_shard::{ShardSet, StateShard};
 //! # use satellite_bitcoin::utxo_info::{UtxoInfo, SingleRuneSet};
 //! # #[derive(Default, Clone)]
 //! # struct DummyShard;
@@ -152,7 +152,7 @@
 //! ### Selecting Shards
 //!
 //! ```rust
-//! # use saturn_account_shards::{ShardSet, StateShard};
+//! # use satellite_shard::{ShardSet, StateShard};
 //! # use satellite_bitcoin::utxo_info::{UtxoInfo, SingleRuneSet};
 //! # #[derive(Default, Clone)]
 //! # struct DummyShard;
@@ -185,7 +185,7 @@
 //! ### Redistributing Liquidity
 //!
 //! ```rust,no_run
-//! # use saturn_account_shards::{ShardSet, StateShard};
+//! # use satellite_shard::{ShardSet, StateShard};
 //! # use satellite_bitcoin::{TransactionBuilder, fee_rate::FeeRate};
 //! # use satellite_bitcoin::utxo_info::{UtxoInfo, SingleRuneSet};
 //! # use std::str::FromStr;
