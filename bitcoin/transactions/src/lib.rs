@@ -44,8 +44,6 @@
 //!
 //! All data structures use fixed-size collections to ensure zero-heap allocation,
 //! making them suitable for constrained environments like the Solana BPF VM.
-
-use bitcoin::hashes::Hash as _;
 use std::fmt::Debug;
 #[cfg(test)]
 use std::str::FromStr;
@@ -57,7 +55,7 @@ use arch_program::{
 };
 use bitcoin::{
     absolute::LockTime, transaction::Version, OutPoint, ScriptBuf, Sequence, Transaction, TxIn,
-    TxOut, Txid, Witness,
+    TxOut, Witness,
 };
 pub use mempool::{AccountMempoolInfo, MempoolData, MempoolDataView, MempoolInfo, TxStatus};
 

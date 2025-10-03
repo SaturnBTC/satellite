@@ -1,13 +1,12 @@
 #[cfg(feature = "utxo-consolidation")]
-use arch_program::{input_to_sign::InputToSign, pubkey::Pubkey, rune::RuneAmount, MAX_BTC_TX_SIZE};
+use arch_program::{input_to_sign::InputToSign, pubkey::Pubkey, MAX_BTC_TX_SIZE};
 
 #[cfg(feature = "utxo-consolidation")]
 use bitcoin::{Transaction, TxIn, TxOut};
 
 #[cfg(feature = "utxo-consolidation")]
 use crate::{btc_utxo_holder::BtcUtxoHolder, mempool::MempoolInfo};
-#[cfg(feature = "utxo-consolidation")]
-use satellite_collections::generic::fixed_set::FixedCapacitySet;
+
 use satellite_collections::generic::push_pop::PushPopCollection;
 
 #[cfg(feature = "utxo-consolidation")]
