@@ -37,7 +37,6 @@ use satellite_collections::generic::fixed_list::{FixedList, FixedListError};
 /// # assert!(used_shards.is_empty());
 /// ```
 pub fn get_used_shards_in_transaction<'a, const SIZE: usize>(
-    transaction: &Transaction,
     accounts: &'a [AccountInfo<'a>],
 ) -> Result<FixedList<usize, SIZE>, FixedListError> {
     let mut used_shards = FixedList::<usize, SIZE>::new();
@@ -48,12 +47,10 @@ pub fn get_used_shards_in_transaction<'a, const SIZE: usize>(
         }
     }
 
-    reorder_accounts_in_transaction(transaction, &mut used_shards, accounts)?;
-
     Ok(used_shards)
 }
 
-fn reorder_accounts_in_transaction<'a, const SIZE: usize>(
+pub fn reorder_accounts_in_transaction<'a, const SIZE: usize>(
     transaction: &Transaction,
     account_indexes: &mut FixedList<usize, SIZE>,
     accounts: &[AccountInfo<'a>],
@@ -62,7 +59,6 @@ fn reorder_accounts_in_transaction<'a, const SIZE: usize>(
 
     // Iterate over transaction outputs and find matching accounts
     for output in &transaction.output {
-        // Linear search instead of HashMap - more memory efficient for small collections
         for account_index in account_indexes.iter() {
             if *account_index >= accounts.len() {
                 continue;
