@@ -1,6 +1,6 @@
 [package]
 name = "satellite-bitcoin-transactions"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Bitcoin transaction utilities and UTXO management for Satellite."
 license = "MIT OR Apache-2.0"
@@ -9,7 +9,7 @@ keywords = ["bitcoin", "transactions", "utxo"]
 categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-arch_program = { version = "0.5.12" }
+arch_program = { version = "0.5.13" }
 bitcoin = { version = "0.32.5", features = ["serde"] }
 hex = "0.4.3"
 satellite-collections = { version = "0.1", path = "../collections" }

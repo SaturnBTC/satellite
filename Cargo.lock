@@ -276,9 +276,9 @@ checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
 name = "apl-associated-token-account"
-version = "0.5.12"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dfc8ccf002b5daa3b66e9d8e0666282bcb8f3cba8489ad65449009edd40e59b"
+checksum = "06254f65e16196eaf98e1c64e9ab624369a07d03c7aa9f78ed8cb2a840f56c9d"
 dependencies = [
  "apl-token",
  "arch_program",
@@ -295,9 +295,9 @@ dependencies = [
 
 [[package]]
 name = "apl-token"
-version = "0.5.12"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "871b2d7dd0277f79bae22618e034c6ed2d364f0438ba6ceb5cf70192a9de2d52"
+checksum = "df29fca88b5da09c1bb3eabbd6d2cdf9a7ccb02ba058585900e9a85321354cc8"
 dependencies = [
  "arch_program",
  "arrayref",
@@ -313,9 +313,9 @@ dependencies = [
 
 [[package]]
 name = "apl-token-metadata"
-version = "0.5.12"
+version = "0.5.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a92f8e1cd3a0db5494b69bc3710d74992cd0ed8f4fde4cd903264ba44225f293"
+checksum = "21dc6f75b54a8d4f0a5867e302424edc22b9e8314554732968ad964d21a37de2"
 dependencies = [
  "apl-token",
  "arch_program",
@@ -4225,7 +4225,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-apl"
-version = "0.31.3"
+version = "0.31.4"
 dependencies = [
  "apl-associated-token-account",
  "apl-token",
@@ -4300,7 +4300,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-bitcoin"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bitcoin 0.32.5",
  "borsh 1.5.7",
@@ -4312,7 +4312,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-bitcoin-transactions"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "arch_program",
  "bitcoin 0.32.5",
@@ -4371,7 +4371,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-lang"
-version = "0.31.2"
+version = "0.31.3"
 dependencies = [
  "arch_program",
  "base64 0.21.7",
@@ -4435,7 +4435,7 @@ dependencies = [
 
 [[package]]
 name = "satellite-shard"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "arch_program",
  "bitcoin 0.32.5",

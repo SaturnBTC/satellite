@@ -1,6 +1,6 @@
 [package]
 name = "satellite-apl"
-version = "0.31.3"
+version = "0.31.4"
 authors = ["Anchor Maintainers <accounts@200ms.io>"]
 edition = "2021"
 license = "Apache-2.0"
@@ -20,8 +20,8 @@ token = ["apl-token"]
 metadata = ["apl-token-metadata"]
 
 [dependencies]
-satellite-lang = { path = "../lang", version = "0.31.1", features = ["derive"] }
+satellite-lang = { path = "../lang", version = "0.31.3", features = ["derive"] }
 borsh = { version = "0.10.3", optional = true }
-apl-associated-token-account = { version = "0.5.12", features = ["no-entrypoint"], optional = true }
-apl-token = { version = "0.5.12", features = ["no-entrypoint"], optional = true }
-apl-token-metadata = { version = "0.5.12", features = ["no-entrypoint"], optional = true }
+apl-associated-token-account = { version = "0.5.13", features = ["no-entrypoint"], optional = true }
+apl-token = { version = "0.5.13", features = ["no-entrypoint"], optional = true }
+apl-token-metadata = { version = "0.5.13", features = ["no-entrypoint"], optional = true }
