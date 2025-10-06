@@ -62,8 +62,7 @@ impl FromStr for Hash {
     type Err = ParseHashError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes = hex::decode(s)
-            .map_err(|_| ParseHashError::Invalid)?;
+        let bytes = hex::decode(s).map_err(|_| ParseHashError::Invalid)?;
         if bytes.len() != mem::size_of::<Hash>() {
             Err(ParseHashError::WrongSize)
         } else {

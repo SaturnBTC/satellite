@@ -44,4 +44,3 @@ mod tests {
         assert_eq!(decoded, wrapper);
     }
 }
-

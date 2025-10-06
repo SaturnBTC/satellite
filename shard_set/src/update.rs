@@ -2061,7 +2061,10 @@ mod tests_loader {
 
             // Inputs: one dummy
             let txid_1 = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[1u8; 32]).unwrap());
-            let input_outpoint = OutPoint { txid: txid_1, vout: 0 };
+            let input_outpoint = OutPoint {
+                txid: txid_1,
+                vout: 0,
+            };
 
             // Outputs:
             //  - vout 0: program output (pointer target)
@@ -2078,26 +2081,42 @@ mod tests_loader {
                     witness: Witness::default(),
                 }],
                 output: vec![
-                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
-                    TxOut { value: Amount::from_sat(546), script_pubkey: non_program_script },
+                    TxOut {
+                        value: Amount::from_sat(546),
+                        script_pubkey: program_script.clone(),
+                    },
+                    TxOut {
+                        value: Amount::from_sat(546),
+                        script_pubkey: non_program_script,
+                    },
                 ],
             };
 
             builder
                 .inputs_to_sign
-                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .push(InputToSign {
+                    index: 0,
+                    signer: arch_program::pubkey::Pubkey::default(),
+                })
                 .unwrap();
 
             // All input runes (amount 6) are sent via an edict to a NON-program output (vout 1),
             // so remaining amount for the pointer is zero.
             builder
                 .total_rune_inputs
-                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(1, 0), amount: 6 })
+                .insert(arch_program::rune::RuneAmount {
+                    id: arch_program::rune::RuneId::new(1, 0),
+                    amount: 6,
+                })
                 .unwrap();
 
             builder.runestone = Runestone {
                 pointer: Some(0),
-                edicts: vec![ordinals::Edict { id: ordinals::RuneId { block: 1, tx: 0 }, amount: 6, output: 1 }],
+                edicts: vec![ordinals::Edict {
+                    id: ordinals::RuneId { block: 1, tx: 0 },
+                    amount: 6,
+                    output: 1,
+                }],
                 ..Default::default()
             };
 
@@ -2112,7 +2131,12 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            >(
+                &mut builder,
+                &mut shard_refs,
+                &program_script,
+                &FeeRate(1.0),
+            )
             .unwrap();
             drop(shard_refs);
 
@@ -2136,7 +2160,10 @@ mod tests_loader {
 
             // Inputs: one dummy
             let txid_2 = bitcoin::Txid::from_raw_hash(Sha256dHash::from_slice(&[2u8; 32]).unwrap());
-            let input_outpoint = OutPoint { txid: txid_2, vout: 0 };
+            let input_outpoint = OutPoint {
+                txid: txid_2,
+                vout: 0,
+            };
 
             // Outputs: two program outputs (vout 0 and vout 1)
             builder.transaction = Transaction {
@@ -2149,14 +2176,23 @@ mod tests_loader {
                     witness: Witness::default(),
                 }],
                 output: vec![
-                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
-                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
+                    TxOut {
+                        value: Amount::from_sat(546),
+                        script_pubkey: program_script.clone(),
+                    },
+                    TxOut {
+                        value: Amount::from_sat(546),
+                        script_pubkey: program_script.clone(),
+                    },
                 ],
             };
 
             builder
                 .inputs_to_sign
-                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .push(InputToSign {
+                    index: 0,
+                    signer: arch_program::pubkey::Pubkey::default(),
+                })
                 .unwrap();
 
             // No total rune inputs necessary; edicts with zero amounts still create rune entries
@@ -2164,8 +2200,16 @@ mod tests_loader {
             builder.runestone = Runestone {
                 pointer: Some(0),
                 edicts: vec![
-                    ordinals::Edict { id: ordinals::RuneId { block: 1, tx: 0 }, amount: 0, output: 0 },
-                    ordinals::Edict { id: ordinals::RuneId { block: 1, tx: 0 }, amount: 0, output: 1 },
+                    ordinals::Edict {
+                        id: ordinals::RuneId { block: 1, tx: 0 },
+                        amount: 0,
+                        output: 0,
+                    },
+                    ordinals::Edict {
+                        id: ordinals::RuneId { block: 1, tx: 0 },
+                        amount: 0,
+                        output: 1,
+                    },
                 ],
                 ..Default::default()
             };
@@ -2182,7 +2226,12 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            >(
+                &mut builder,
+                &mut shard_refs,
+                &program_script,
+                &FeeRate(1.0),
+            )
             .unwrap();
             drop(shard_refs);
 
@@ -2219,24 +2268,40 @@ mod tests_loader {
                     witness: Witness::default(),
                 }],
                 output: vec![
-                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
-                    TxOut { value: Amount::from_sat(546), script_pubkey: non_program_script },
+                    TxOut {
+                        value: Amount::from_sat(546),
+                        script_pubkey: program_script.clone(),
+                    },
+                    TxOut {
+                        value: Amount::from_sat(546),
+                        script_pubkey: non_program_script,
+                    },
                 ],
             };
 
             builder
                 .inputs_to_sign
-                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .push(InputToSign {
+                    index: 0,
+                    signer: arch_program::pubkey::Pubkey::default(),
+                })
                 .unwrap();
 
             builder
                 .total_rune_inputs
-                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(1, 0), amount: 5 })
+                .insert(arch_program::rune::RuneAmount {
+                    id: arch_program::rune::RuneId::new(1, 0),
+                    amount: 5,
+                })
                 .unwrap();
 
             builder.runestone = Runestone {
                 pointer: Some(0),
-                edicts: vec![ordinals::Edict { id: ordinals::RuneId { block: 1, tx: 0 }, amount: 5, output: 1 }],
+                edicts: vec![ordinals::Edict {
+                    id: ordinals::RuneId { block: 1, tx: 0 },
+                    amount: 5,
+                    output: 1,
+                }],
                 ..Default::default()
             };
 
@@ -2249,7 +2314,12 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            >(
+                &mut builder,
+                &mut shard_refs,
+                &program_script,
+                &FeeRate(1.0),
+            )
             .unwrap();
             drop(shard_refs);
 
@@ -2282,19 +2352,32 @@ mod tests_loader {
                     sequence: Sequence::MAX,
                     witness: Witness::default(),
                 }],
-                output: vec![TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() }],
+                output: vec![TxOut {
+                    value: Amount::from_sat(546),
+                    script_pubkey: program_script.clone(),
+                }],
             };
 
             builder
                 .inputs_to_sign
-                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .push(InputToSign {
+                    index: 0,
+                    signer: arch_program::pubkey::Pubkey::default(),
+                })
                 .unwrap();
 
             builder
                 .total_rune_inputs
-                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(3, 0), amount: 0 })
+                .insert(arch_program::rune::RuneAmount {
+                    id: arch_program::rune::RuneId::new(3, 0),
+                    amount: 0,
+                })
                 .unwrap();
-            builder.runestone = Runestone { pointer: Some(0), edicts: vec![], ..Default::default() };
+            builder.runestone = Runestone {
+                pointer: Some(0),
+                edicts: vec![],
+                ..Default::default()
+            };
 
             let mut shard0 = MockShardZc::default();
             let existing_rune = create_utxo(546, 50, 0);
@@ -2308,7 +2391,12 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            >(
+                &mut builder,
+                &mut shard_refs,
+                &program_script,
+                &FeeRate(1.0),
+            )
             .unwrap();
             drop(shard_refs);
 
@@ -2344,24 +2432,41 @@ mod tests_loader {
                     sequence: Sequence::MAX,
                     witness: Witness::default(),
                 }],
-                output: vec![TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() }],
+                output: vec![TxOut {
+                    value: Amount::from_sat(546),
+                    script_pubkey: program_script.clone(),
+                }],
             };
 
             builder
                 .inputs_to_sign
-                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .push(InputToSign {
+                    index: 0,
+                    signer: arch_program::pubkey::Pubkey::default(),
+                })
                 .unwrap();
 
             builder
                 .total_rune_inputs
-                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(4, 0), amount: 0 })
+                .insert(arch_program::rune::RuneAmount {
+                    id: arch_program::rune::RuneId::new(4, 0),
+                    amount: 0,
+                })
                 .unwrap();
 
             builder.runestone = Runestone {
                 pointer: Some(0),
                 edicts: vec![
-                    ordinals::Edict { id: ordinals::RuneId { block: 4, tx: 0 }, amount: 0, output: 0 },
-                    ordinals::Edict { id: ordinals::RuneId { block: 4, tx: 0 }, amount: 0, output: 0 },
+                    ordinals::Edict {
+                        id: ordinals::RuneId { block: 4, tx: 0 },
+                        amount: 0,
+                        output: 0,
+                    },
+                    ordinals::Edict {
+                        id: ordinals::RuneId { block: 4, tx: 0 },
+                        amount: 0,
+                        output: 0,
+                    },
                 ],
                 ..Default::default()
             };
@@ -2375,7 +2480,12 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            >(
+                &mut builder,
+                &mut shard_refs,
+                &program_script,
+                &FeeRate(1.0),
+            )
             .unwrap();
             drop(shard_refs);
 
@@ -2409,25 +2519,45 @@ mod tests_loader {
                     witness: Witness::default(),
                 }],
                 output: vec![
-                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
-                    TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() },
+                    TxOut {
+                        value: Amount::from_sat(546),
+                        script_pubkey: program_script.clone(),
+                    },
+                    TxOut {
+                        value: Amount::from_sat(546),
+                        script_pubkey: program_script.clone(),
+                    },
                 ],
             };
 
             builder
                 .inputs_to_sign
-                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .push(InputToSign {
+                    index: 0,
+                    signer: arch_program::pubkey::Pubkey::default(),
+                })
                 .unwrap();
 
             builder
                 .total_rune_inputs
-                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(9, 9), amount: 0 })
+                .insert(arch_program::rune::RuneAmount {
+                    id: arch_program::rune::RuneId::new(9, 9),
+                    amount: 0,
+                })
                 .unwrap();
             builder.runestone = Runestone {
                 pointer: Some(0),
                 edicts: vec![
-                    ordinals::Edict { id: ordinals::RuneId { block: 9, tx: 9 }, amount: 0, output: 0 },
-                    ordinals::Edict { id: ordinals::RuneId { block: 9, tx: 9 }, amount: 0, output: 1 },
+                    ordinals::Edict {
+                        id: ordinals::RuneId { block: 9, tx: 9 },
+                        amount: 0,
+                        output: 0,
+                    },
+                    ordinals::Edict {
+                        id: ordinals::RuneId { block: 9, tx: 9 },
+                        amount: 0,
+                        output: 1,
+                    },
                 ],
                 ..Default::default()
             };
@@ -2441,7 +2571,12 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            >(
+                &mut builder,
+                &mut shard_refs,
+                &program_script,
+                &FeeRate(1.0),
+            )
             .unwrap_err();
             drop(shard_refs);
 
@@ -2474,19 +2609,32 @@ mod tests_loader {
                     sequence: Sequence::MAX,
                     witness: Witness::default(),
                 }],
-                output: vec![TxOut { value: Amount::from_sat(546), script_pubkey: program_script.clone() }],
+                output: vec![TxOut {
+                    value: Amount::from_sat(546),
+                    script_pubkey: program_script.clone(),
+                }],
             };
 
             builder
                 .inputs_to_sign
-                .push(InputToSign { index: 0, signer: arch_program::pubkey::Pubkey::default() })
+                .push(InputToSign {
+                    index: 0,
+                    signer: arch_program::pubkey::Pubkey::default(),
+                })
                 .unwrap();
 
             builder
                 .total_rune_inputs
-                .insert(arch_program::rune::RuneAmount { id: arch_program::rune::RuneId::new(10, 1), amount: 0 })
+                .insert(arch_program::rune::RuneAmount {
+                    id: arch_program::rune::RuneId::new(10, 1),
+                    amount: 0,
+                })
                 .unwrap();
-            builder.runestone = Runestone { pointer: Some(0), edicts: vec![], ..Default::default() };
+            builder.runestone = Runestone {
+                pointer: Some(0),
+                edicts: vec![],
+                ..Default::default()
+            };
 
             let shard0 = MockShardZc::default();
             let loaders = leak_loaders_from_vec(vec![shard0]);
@@ -2497,7 +2645,12 @@ mod tests_loader {
                 SingleRuneSet,
                 satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
                 MockShardZc,
-            >(&mut builder, &mut shard_refs, &program_script, &FeeRate(1.0))
+            >(
+                &mut builder,
+                &mut shard_refs,
+                &program_script,
+                &FeeRate(1.0),
+            )
             .unwrap();
             drop(shard_refs);
 

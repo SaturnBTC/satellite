@@ -1,7 +1,7 @@
 extern crate proc_macro;
 
-use satellite_syn::{codegen::program::common::gen_discriminator, Overrides};
 use quote::{quote, ToTokens};
+use satellite_syn::{codegen::program::common::gen_discriminator, Overrides};
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
