@@ -740,9 +740,6 @@ where
             .map_err(|_| StateShardError::MathErrorInBalanceAmountAcrossShards)?;
 
         for (i, amount) in allocs.iter().enumerate() {
-            if *amount == 0 {
-                continue;
-            }
             result[i].insert_or_modify::<StateShardError, _>(
                 RuneAmount {
                     id: rune_amount.id,
@@ -1766,6 +1763,100 @@ mod rune_tests_loader {
             .map(|s| s.find(&RuneId::new(1, 1)).unwrap().amount)
             .collect();
         assert_eq!(allocs, vec![300, 200, 100]);
+    }
+
+    #[test]
+    fn plan_rune_distribution_zero_amount_inserts_zero_entries() {
+        const MAX_MODIFIED_ACCOUNTS: usize = 0;
+        const MAX_INPUTS_TO_SIGN: usize = 3;
+
+        let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
+
+        // Existing rune balances: 100, 200, 300
+        let mut shard0 = create_shard(0);
+        let mut shard1 = create_shard(0);
+        let mut shard2 = create_shard(0);
+        shard0.set_rune_utxo(create_rune_utxo(100, 0));
+        shard1.set_rune_utxo(create_rune_utxo(200, 1));
+        shard2.set_rune_utxo(create_rune_utxo(300, 2));
+
+        let loaders = leak_loaders_from_vec(vec![shard0, shard1, shard2]);
+        let shard_refs =
+            super::tests_loader::create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
+
+        // Distribute 0 runes; ensure each shard still gets an entry with amount 0
+        let mut target = SingleRuneSet::default();
+        target
+            .insert(RuneAmount {
+                id: RuneId::new(1, 1),
+                amount: 0,
+            })
+            .unwrap();
+
+        let dist = crate::split::plan_rune_distribution_among_shards::<
+            MAX_MODIFIED_ACCOUNTS,
+            MAX_INPUTS_TO_SIGN,
+            SingleRuneSet,
+            satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+            MockShardZc,
+        >(&mut tx_builder, &shard_refs, &target)
+        .unwrap();
+
+        assert_eq!(dist.len(), 3);
+        for s in dist.iter() {
+            let r = s.find(&RuneId::new(1, 1)).expect("rune entry present");
+            assert_eq!(r.amount, 0);
+            assert_eq!(s.len(), 1);
+        }
+    }
+
+    #[test]
+    fn plan_rune_distribution_partial_creates_zero_entry_for_some_shards() {
+        const MAX_MODIFIED_ACCOUNTS: usize = 0;
+        const MAX_INPUTS_TO_SIGN: usize = 3;
+
+        let mut tx_builder = new_tb!(MAX_MODIFIED_ACCOUNTS, MAX_INPUTS_TO_SIGN);
+
+        // Existing rune balances: 100, 200, 300
+        let mut shard0 = create_shard(0);
+        let mut shard1 = create_shard(0);
+        let mut shard2 = create_shard(0);
+        shard0.set_rune_utxo(create_rune_utxo(100, 0));
+        shard1.set_rune_utxo(create_rune_utxo(200, 1));
+        shard2.set_rune_utxo(create_rune_utxo(300, 2));
+
+        let loaders = leak_loaders_from_vec(vec![shard0, shard1, shard2]);
+        let shard_refs =
+            super::tests_loader::create_shard_refs_from_loaders(&loaders, &[0, 1, 2]).unwrap();
+
+        // Distribute a small amount; at least one shard should receive 0
+        let mut target = SingleRuneSet::default();
+        target
+            .insert(RuneAmount {
+                id: RuneId::new(1, 1),
+                amount: 10,
+            })
+            .unwrap();
+
+        let dist = crate::split::plan_rune_distribution_among_shards::<
+            MAX_MODIFIED_ACCOUNTS,
+            MAX_INPUTS_TO_SIGN,
+            SingleRuneSet,
+            satellite_bitcoin::utxo_info::UtxoInfo<SingleRuneSet>,
+            MockShardZc,
+        >(&mut tx_builder, &shard_refs, &target)
+        .unwrap();
+
+        assert_eq!(dist.len(), 3);
+        let allocs: Vec<u128> = dist
+            .iter()
+            .map(|s| s.find(&RuneId::new(1, 1)).unwrap().amount)
+            .collect();
+        assert!(allocs.contains(&0));
+        for (i, amt) in allocs.iter().enumerate() {
+            let r = dist[i].find(&RuneId::new(1, 1)).unwrap();
+            assert_eq!(r.amount, *amt);
+        }
     }
 
     // ---------------------------------------------------------------
