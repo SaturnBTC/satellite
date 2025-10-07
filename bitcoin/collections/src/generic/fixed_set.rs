@@ -616,6 +616,57 @@ unsafe impl<T: bytemuck::Pod, const SIZE: usize> bytemuck::Pod for FixedSet<T, S
 // `Zeroable` (all-bits-zero is a valid representation for `T`).
 unsafe impl<T: bytemuck::Zeroable, const SIZE: usize> bytemuck::Zeroable for FixedSet<T, SIZE> {}
 
+// Conversions to/from FixedList
+impl<T: Default + Copy + PartialEq, const SIZE: usize>
+    From<crate::generic::fixed_list::FixedList<T, SIZE>> for FixedSet<T, SIZE>
+{
+    fn from(list: crate::generic::fixed_list::FixedList<T, SIZE>) -> Self {
+        let mut set = Self::new();
+        for item in list.as_slice().iter().copied() {
+            let _ = set.insert(item);
+        }
+        set
+    }
+}
+
+// Try to build a FixedSet from a slice. Deduplicates; errors on overflow of unique elements.
+impl<T: Default + Copy + PartialEq, const SIZE: usize> core::convert::TryFrom<&[T]>
+    for FixedSet<T, SIZE>
+{
+    type Error = FixedSetError;
+
+    fn try_from(slice: &[T]) -> Result<Self, Self::Error> {
+        let mut set = Self::new();
+        for &item in slice.iter() {
+            match set.insert(item) {
+                Ok(()) | Err(FixedSetError::Duplicate) => {}
+                Err(FixedSetError::Full) => return Err(FixedSetError::Full),
+            }
+        }
+        Ok(set)
+    }
+}
+
+#[cfg(test)]
+mod from_slice_tests {
+    use super::*;
+
+    #[test]
+    fn set_try_from_slice_dedups_and_caps() {
+        let data = [1u32, 2, 2, 3, 4];
+        let set = <FixedSet<u32, 3>>::try_from(&data[..]).unwrap();
+        assert_eq!(set.len(), 3);
+        assert!(set.contains(&1) && set.contains(&2) && set.contains(&3));
+    }
+
+    #[test]
+    fn set_try_from_slice_errors_on_overflow() {
+        let data = [1u32, 2, 3, 4];
+        let res = <FixedSet<u32, 3>>::try_from(&data[..]);
+        assert!(matches!(res, Err(FixedSetError::Full)));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

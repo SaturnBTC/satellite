@@ -326,6 +326,39 @@ impl<T: Default + Copy, const SIZE: usize> PushPopCollection<T> for FixedList<T,
     }
 }
 
+// Conversions to/from FixedSet
+impl<T: Default + Clone + Copy + PartialEq, const SIZE: usize>
+    From<crate::generic::fixed_set::FixedSet<T, SIZE>> for FixedList<T, SIZE>
+{
+    fn from(set: crate::generic::fixed_set::FixedSet<T, SIZE>) -> Self {
+        let mut list = Self::new();
+        let slice = set.as_slice();
+        list.copy_from_slice(slice);
+        list
+    }
+}
+
+// From a slice (copies up to capacity)
+impl<T: Default + Clone, const SIZE: usize> From<&[T]> for FixedList<T, SIZE> {
+    fn from(slice: &[T]) -> Self {
+        // Use from_iter to enforce capacity capping safely.
+        Self::from_iter(slice.iter().cloned())
+    }
+}
+
+#[cfg(test)]
+mod from_slice_tests {
+    use super::*;
+
+    #[test]
+    fn list_from_slice_caps_to_capacity() {
+        let data = [1u32, 2, 3, 4, 5];
+        let list: FixedList<u32, 3> = FixedList::from(&data[..]);
+        assert_eq!(list.len(), 3);
+        assert_eq!(list.as_slice(), &[1, 2, 3]);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
