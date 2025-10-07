@@ -1008,14 +1008,16 @@ impl<
         &mut self,
         utxo: &UtxoInfo<RuneSet>,
         status: &TxStatus,
-        signer: &Pubkey,
+        signer: Option<&Pubkey>,
     ) -> Result<(), BitcoinTxError> {
-        self.inputs_to_sign
-            .push(InputToSign {
-                index: self.transaction.input.len() as u32,
-                signer: *signer,
-            })
-            .map_err(|_| BitcoinTxError::InputToSignListFull)?;
+        if let Some(signer) = signer {
+            self.inputs_to_sign
+                .push(InputToSign {
+                    index: self.transaction.input.len() as u32,
+                    signer: *signer,
+                })
+                .map_err(|_| BitcoinTxError::InputToSignListFull)?;
+        }
 
         let outpoint = utxo.meta.to_outpoint();
 
@@ -1261,7 +1263,11 @@ impl<
             }
 
             // All program outputs are confirmed by default.
-            self.add_tx_input(utxo.as_ref(), &TxStatus::Confirmed, program_info_pubkey)?;
+            self.add_tx_input(
+                utxo.as_ref(),
+                &TxStatus::Confirmed,
+                Some(program_info_pubkey),
+            )?;
         }
 
         if btc_amount < amount {
@@ -1440,7 +1446,7 @@ impl<
             };
 
             // Add the input – treat as confirmed.
-            self.add_tx_input(&utxo_clone, &TxStatus::Confirmed, program_info_pubkey)?;
+            self.add_tx_input(&utxo_clone, &TxStatus::Confirmed, Some(program_info_pubkey))?;
 
             btc_amount += utxo_clone.value;
 
@@ -1574,7 +1580,7 @@ impl<
                 };
 
                 // Add the input – treat as confirmed.
-                self.add_tx_input(&utxo_clone, &TxStatus::Confirmed, program_info_pubkey)?;
+                self.add_tx_input(&utxo_clone, &TxStatus::Confirmed, Some(program_info_pubkey))?;
 
                 btc_amount += utxo_clone.value;
 
