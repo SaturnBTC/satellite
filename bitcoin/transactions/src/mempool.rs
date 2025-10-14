@@ -16,10 +16,22 @@ pub enum TxStatus {
     Confirmed,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct AccountMempoolInfo {
     pub ancestors_count: u16,
     pub descendants_count: u16,
+    // Smaller value means higher similarity priority. 0 is the closest match.
+    pub priority_index: u16,
+}
+
+impl Default for AccountMempoolInfo {
+    fn default() -> Self {
+        Self {
+            ancestors_count: 0,
+            descendants_count: 0,
+            priority_index: u16::MAX,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -52,6 +64,33 @@ impl<const MAX_UTXOS: usize, const MAX_ACCOUNTS: usize> MempoolData<MAX_UTXOS, M
 
     pub fn get_mempool_info_for_accounts(&self, n_accounts: usize) -> &[AccountMempoolInfo] {
         &self.accounts_utxo_mempool_info.split_at(n_accounts).0
+    }
+
+    /// Compute a stable ordering of account indices [0, n_accounts) by similarity.
+    /// Lower `priority_index` comes first. Ties preserve input order.
+    pub fn account_order_by_similarity(&self, n_accounts: usize) -> [usize; MAX_ACCOUNTS] {
+        // Initialize indices 0..n_accounts
+        let mut indices: [usize; MAX_ACCOUNTS] = std::array::from_fn(|i| i);
+
+        // Simple stable insertion sort on the first n_accounts elements
+        let slice = &mut indices[..n_accounts];
+        for i in 1..slice.len() {
+            let key = slice[i];
+            let key_prio = self.accounts_utxo_mempool_info[key].priority_index;
+            let mut j = i;
+            while j > 0 {
+                let prev = slice[j - 1];
+                let prev_prio = self.accounts_utxo_mempool_info[prev].priority_index;
+                if prev_prio <= key_prio {
+                    break;
+                }
+                slice[j] = prev;
+                j -= 1;
+            }
+            slice[j] = key;
+        }
+
+        indices
     }
 }
 
@@ -118,7 +157,7 @@ pub(crate) fn generate_mempool_info<RuneSet: FixedCapacitySet<Item = RuneAmount>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::utxo_info::{SingleRuneSet, UtxoInfoTrait};
+    use crate::utxo_info::SingleRuneSet;
     use arch_program::utxo::UtxoMeta;
 
     /// Convenience helper to construct a mock `UtxoInfo` with the desired txid/vout.
