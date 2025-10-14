@@ -279,6 +279,29 @@ impl<T: Default + Clone, const SIZE: usize> FixedList<T, SIZE> {
         &mut self.items[..self.len]
     }
 
+    /// Returns `true` if the list contains an element equal to `item`.
+    ///
+    /// This method is generic over `Q` as long as `T: PartialEq<Q>`, allowing
+    /// lookups by a different but comparable type.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use satellite_bitcoin::generic::fixed_list::FixedList;
+    ///
+    /// let mut list: FixedList<u32, 5> = FixedList::new();
+    /// list.push(1).unwrap();
+    /// list.push(2).unwrap();
+    /// assert!(list.contains(&1));
+    /// assert!(!list.contains(&3));
+    /// ```
+    pub fn contains<Q>(&self, item: &Q) -> bool
+    where
+        T: PartialEq<Q>,
+    {
+        self.iter().any(|i| i == item)
+    }
+
     /// Copies elements from a slice into the list, replacing existing contents.
     ///
     /// The list length is updated to match the slice length (up to capacity).

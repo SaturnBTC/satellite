@@ -92,6 +92,7 @@ mod consolidation;
 pub mod constants;
 pub mod error;
 pub mod fee_rate;
+mod find_btc;
 pub mod input_calc;
 mod mempool;
 #[cfg(feature = "serde")]
@@ -341,18 +342,18 @@ pub struct NewPotentialInputsAndOutputs {
 ///
 /// ```rust
 /// # use satellite_bitcoin_transactions::TransactionBuilder;
-/// # use satellite_bitcoin_transactions::utxo_info::UtxoInfo;
+/// # use satellite_bitcoin_transactions::utxo_info::{UtxoInfo, SingleRuneSet};
 /// # use satellite_bitcoin_transactions::TxStatus;
 /// # use arch_program::pubkey::Pubkey;
 /// # let mut builder: TransactionBuilder<8, 4, satellite_bitcoin_transactions::utxo_info::SingleRuneSet> = TransactionBuilder::new();
-/// # let utxo: UtxoInfo<_> = unsafe { std::mem::zeroed() };
+/// # let utxo: UtxoInfo<SingleRuneSet> = unsafe { std::mem::zeroed() };
 /// # let status = TxStatus::Confirmed;
 /// # let signer = Pubkey::system_program();
 /// // Add a regular input that requires signing
-/// builder.add_tx_input(&utxo, &status, &signer)?;
+/// builder.add_tx_input(&utxo, &status, Some(&signer))?;
 ///
 /// // For precise control over input order:
-/// builder.insert_tx_input(0, &utxo, &status, &signer)?;
+/// builder.insert_tx_input(0, &utxo, &status, Some(&signer))?;
 /// # Ok::<(), satellite_bitcoin_transactions::error::BitcoinTxError>(())
 /// ```
 ///
@@ -758,6 +759,7 @@ impl<
 
             #[cfg(feature = "utxo-consolidation")]
             total_btc_consolidation_input: 0,
+            #[cfg(feature = "utxo-consolidation")]
             extra_tx_size_for_consolidation: 0,
             _phantom: std::marker::PhantomData::<RuneSet>,
         }
@@ -810,14 +812,15 @@ impl<
 
             #[cfg(feature = "utxo-consolidation")]
             total_btc_consolidation_input: 0,
+            #[cfg(feature = "utxo-consolidation")]
             extra_tx_size_for_consolidation: 0,
             _phantom: std::marker::PhantomData::<RuneSet>,
         })
     }
 
-    pub fn create_state_account(
+    pub fn create_state_account<RS>(
         &mut self,
-        utxo: &UtxoInfo<RuneSet>,
+        utxo: &UtxoInfo<RS>,
         system_program: &AccountInfo<'info>,
         fee_payer: &AccountInfo<'info>,
         account: &AccountInfo<'info>,
@@ -825,7 +828,10 @@ impl<
         tx_status: &TxStatus,
         seeds: &[&[u8]],
         space: u64,
-    ) -> Result<(), ProgramError> {
+    ) -> Result<(), ProgramError>
+    where
+        RS: FixedCapacitySet<Item = RuneAmount>,
+    {
         self.inputs_to_sign
             .push(InputToSign {
                 index: self.transaction.input.len() as u32,
@@ -1004,12 +1010,15 @@ impl<
     /// * Records mempool ancestry via [`TransactionBuilder::add_tx_status`].
     /// * Adds an [`InputToSign`].
     /// * Updates `total_btc_input` (and `total_rune_input` when compiled with the `runes` feature).
-    pub fn add_tx_input(
+    pub fn add_tx_input<RS>(
         &mut self,
-        utxo: &UtxoInfo<RuneSet>,
+        utxo: &UtxoInfo<RS>,
         status: &TxStatus,
         signer: Option<&Pubkey>,
-    ) -> Result<(), BitcoinTxError> {
+    ) -> Result<(), BitcoinTxError>
+    where
+        RS: FixedCapacitySet<Item = RuneAmount>,
+    {
         if let Some(signer) = signer {
             self.inputs_to_sign
                 .push(InputToSign {
@@ -1044,12 +1053,15 @@ impl<
 
     /// Appends a **user-supplied** [`TxIn`] (already built elsewhere) while still tracking the
     /// UTXO ancestry for fee-rate purposes.
-    pub fn add_user_tx_input(
+    pub fn add_user_tx_input<RS>(
         &mut self,
-        utxo: &UtxoInfo<RuneSet>,
+        utxo: &UtxoInfo<RS>,
         status: &TxStatus,
         tx_in: TxIn,
-    ) -> Result<(), BitcoinTxError> {
+    ) -> Result<(), BitcoinTxError>
+    where
+        RS: FixedCapacitySet<Item = RuneAmount>,
+    {
         self.add_tx_status(utxo, status);
 
         self.transaction.input.push(tx_in);
@@ -1087,14 +1099,17 @@ impl<
     /// * `tx_index` – zero-based index where the input should be inserted.
     /// * `utxo` – metadata of the UTXO being spent.
     /// * `status` – mempool status of `utxo`; contributes to ancestor fee/size tracking.
-    /// * `signer` – public key that will sign the input.
-    pub fn insert_tx_input(
+    /// * `signer` – optional public key that will sign the input.
+    pub fn insert_tx_input<RS>(
         &mut self,
         tx_index: usize,
-        utxo: &UtxoInfo<RuneSet>,
+        utxo: &UtxoInfo<RS>,
         status: &TxStatus,
-        signer: &Pubkey,
-    ) -> Result<(), BitcoinTxError> {
+        signer: Option<&Pubkey>,
+    ) -> Result<(), BitcoinTxError>
+    where
+        RS: FixedCapacitySet<Item = RuneAmount>,
+    {
         let outpoint = utxo.meta.to_outpoint();
 
         self.add_tx_status(utxo, status);
@@ -1117,12 +1132,14 @@ impl<
             }
         }
 
-        self.inputs_to_sign
-            .push(InputToSign {
-                index: tx_index_u32,
-                signer: *signer,
-            })
-            .map_err(|_| BitcoinTxError::InputToSignListFull)?;
+        if let Some(signer) = signer {
+            self.inputs_to_sign
+                .push(InputToSign {
+                    index: tx_index_u32,
+                    signer: *signer,
+                })
+                .map_err(|_| BitcoinTxError::InputToSignListFull)?;
+        }
 
         self.total_btc_input += utxo.value;
 
@@ -1155,13 +1172,16 @@ impl<
     /// * `utxo` – the UTXO consumed by `tx_in`.
     /// * `status` – mempool status of `utxo`.
     /// * `tx_in` – ready-made transaction input (will be cloned).
-    pub fn insert_user_tx_input(
+    pub fn insert_user_tx_input<RS>(
         &mut self,
         tx_index: usize,
-        utxo: &UtxoInfo<RuneSet>,
+        utxo: &UtxoInfo<RS>,
         status: &TxStatus,
         tx_in: &TxIn,
-    ) -> Result<(), BitcoinTxError> {
+    ) -> Result<(), BitcoinTxError>
+    where
+        RS: FixedCapacitySet<Item = RuneAmount>,
+    {
         self.add_tx_status(utxo, status);
 
         self.transaction.input.insert(tx_index, tx_in.clone());
@@ -1196,93 +1216,7 @@ impl<
     /// Returns the **indices** of the chosen items inside the original slice plus the total value
     /// selected.
     ///
-    /// # Errors
-    /// * [`BitcoinTxError::NotEnoughBtcInPool`] – not enough value in `utxos` to satisfy `amount`.
-    pub fn find_btc_in_utxos<T>(
-        &mut self,
-        utxos: &[T],
-        program_info_pubkey: &Pubkey,
-        amount: u64,
-    ) -> Result<(Vec<usize>, u64), BitcoinTxError>
-    where
-        T: AsRef<UtxoInfo<RuneSet>>,
-    {
-        // Early exit if no amount is requested
-        if amount == 0 {
-            return Ok((Vec::new(), 0));
-        }
-
-        let mut btc_amount = 0;
-
-        #[cfg(feature = "utxo-consolidation")]
-        let mut consolidation_inputs_count: u32 = 0;
-        #[cfg(feature = "utxo-consolidation")]
-        let mut total_consolidation_input_amount: u64 = 0;
-
-        // Create indices instead of cloning the entire vector
-        let mut utxo_indices: Vec<usize> = (0..utxos.len()).collect();
-
-        // Sort indices by prioritizing non-consolidation UTXOs and then by value (biggest first)
-        #[cfg(feature = "utxo-consolidation")]
-        utxo_indices.sort_by(|&a, &b| {
-            use std::cmp::Ordering;
-
-            let utxo_a = &utxos[a];
-            let utxo_b = &utxos[b];
-
-            match (
-                utxo_a.as_ref().needs_consolidation.is_some(),
-                utxo_b.as_ref().needs_consolidation.is_some(),
-            ) {
-                (false, true) => Ordering::Less,
-                (true, false) => Ordering::Greater,
-                (false, false) | (true, true) => utxo_b.as_ref().value.cmp(&utxo_a.as_ref().value),
-            }
-        });
-
-        // If consolidation is not enabled, we just sort by value (biggest first)
-        #[cfg(not(feature = "utxo-consolidation"))]
-        utxo_indices.sort_by(|&a, &b| utxos[b].as_ref().value.cmp(&utxos[a].as_ref().value));
-
-        let mut selected_count = 0;
-        for i in 0..utxo_indices.len() {
-            if btc_amount >= amount {
-                break;
-            }
-
-            let utxo_idx = utxo_indices[i];
-            let utxo = &utxos[utxo_idx];
-            utxo_indices[selected_count] = utxo_idx;
-            selected_count += 1;
-            btc_amount += utxo.as_ref().value;
-
-            #[cfg(feature = "utxo-consolidation")]
-            if utxo.as_ref().needs_consolidation.is_some() {
-                consolidation_inputs_count += 1;
-                total_consolidation_input_amount += utxo.as_ref().value;
-            }
-
-            // All program outputs are confirmed by default.
-            self.add_tx_input(
-                utxo.as_ref(),
-                &TxStatus::Confirmed,
-                Some(program_info_pubkey),
-            )?;
-        }
-
-        if btc_amount < amount {
-            return Err(BitcoinTxError::NotEnoughBtcInPool);
-        }
-
-        #[cfg(feature = "utxo-consolidation")]
-        self.set_consolidation_tracking(
-            total_consolidation_input_amount,
-            crate::input_calc::ARCH_INPUT_SIZE * consolidation_inputs_count as usize,
-        );
-
-        utxo_indices.truncate(selected_count);
-        Ok((utxo_indices, btc_amount))
-    }
+    /// find_btc_in_utxos has been moved to the `find_btc` module for clarity.
 
     #[cfg(feature = "utxo-consolidation")]
     fn set_consolidation_tracking(&mut self, consolidation_amount: u64, extra_tx_size: usize) {
@@ -1292,6 +1226,8 @@ impl<
 
     #[cfg(not(feature = "utxo-consolidation"))]
     fn set_consolidation_tracking(&mut self, _consolidation_amount: u64, _extra_tx_size: usize) {}
+
+    // btc selection helpers moved into `find_btc` module
 
     /// Greedily selects UTXOs until at least `amount` satoshis are gathered.
     ///
@@ -1305,307 +1241,7 @@ impl<
     ///
     /// # Errors
     /// * [`BitcoinTxError::NotEnoughBtcInPool`] – not enough value in `utxos` to satisfy `amount`.
-    pub fn find_btc_in_utxos_from_holder<BtcHolder>(
-        &mut self,
-        holder: &[BtcHolder],
-        program_info_pubkey: &Pubkey,
-        amount: u64,
-    ) -> Result<u64, BitcoinTxError>
-    where
-        BtcHolder: BtcUtxoHolder,
-    {
-        // Early exit if no amount is requested
-        if amount == 0 {
-            return Ok(0);
-        }
-
-        // Running total of satoshis gathered so far.
-        let mut btc_amount: u64 = 0;
-
-        #[cfg(feature = "utxo-consolidation")]
-        let mut consolidation_inputs_count: u32 = 0;
-        #[cfg(feature = "utxo-consolidation")]
-        let mut total_consolidation_input_amount: u64 = 0;
-
-        // Track (holder_idx, utxo_idx) pairs already consumed.
-        let mut selected_pairs: FixedList<(usize, usize), MAX_INPUTS_TO_SIGN> = FixedList::new();
-
-        // Greedily pick the best next UTXO until we satisfy `amount` or run out of options.
-        loop {
-            if btc_amount >= amount {
-                break;
-            }
-
-            // Find the best candidate among unselected UTXOs.
-            let mut best: Option<(usize, usize)> = None;
-
-            #[cfg(feature = "utxo-consolidation")]
-            {
-                for (h_idx, h) in holder.iter().enumerate() {
-                    for (u_idx, utxo) in h.btc_utxos().iter().enumerate() {
-                        if selected_pairs
-                            .iter()
-                            .any(|&(h, u)| h == h_idx && u == u_idx)
-                        {
-                            continue;
-                        }
-
-                        match best {
-                            None => best = Some((h_idx, u_idx)),
-                            Some((bh, bu)) => {
-                                let best_utxo = &holder[bh].btc_utxos()[bu];
-
-                                // Prefer UTXOs that do NOT need consolidation. If both equal, pick larger value.
-                                let candidate_pref = utxo.needs_consolidation.is_some();
-                                let best_pref = best_utxo.needs_consolidation.is_some();
-
-                                if (!candidate_pref && best_pref)
-                                    || (candidate_pref == best_pref && utxo.value > best_utxo.value)
-                                {
-                                    best = Some((h_idx, u_idx));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            #[cfg(not(feature = "utxo-consolidation"))]
-            {
-                for (h_idx, h) in holder.iter().enumerate() {
-                    for (u_idx, utxo) in h.btc_utxos().iter().enumerate() {
-                        if selected_pairs
-                            .iter()
-                            .any(|&(h, u)| h == h_idx && u == u_idx)
-                        {
-                            continue;
-                        }
-
-                        match best {
-                            None => best = Some((h_idx, u_idx)),
-                            Some((bh, bu)) => {
-                                let best_utxo = &holder[bh].btc_utxos()[bu];
-                                if utxo.value > best_utxo.value {
-                                    best = Some((h_idx, u_idx));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // No more candidates available.
-            let (best_h, best_u) = match best {
-                Some(pair) => pair,
-                None => return Err(BitcoinTxError::NotEnoughBtcInPool),
-            };
-
-            let utxo = &holder[best_h].btc_utxos()[best_u];
-
-            // Build a new UtxoInfo<RuneSet> from the data we need.
-            let utxo_clone: UtxoInfo<RuneSet> = {
-                #[cfg(feature = "runes")]
-                {
-                    let mut runes = RuneSet::default();
-                    for r in utxo.runes.as_slice() {
-                        let _ = runes.insert(*r);
-                    }
-
-                    {
-                        #[cfg(feature = "utxo-consolidation")]
-                        {
-                            UtxoInfo::new_with_runes_and_consolidation(
-                                utxo.meta,
-                                utxo.value,
-                                runes,
-                                utxo.needs_consolidation,
-                            )
-                        }
-                        #[cfg(not(feature = "utxo-consolidation"))]
-                        {
-                            UtxoInfo::new_with_runes(utxo.meta, utxo.value, runes)
-                        }
-                    }
-                }
-
-                #[cfg(not(feature = "runes"))]
-                {
-                    #[cfg(feature = "utxo-consolidation")]
-                    {
-                        UtxoInfo::new_with_consolidation(
-                            utxo.meta,
-                            utxo.value,
-                            utxo.needs_consolidation,
-                        )
-                    }
-                    #[cfg(not(feature = "utxo-consolidation"))]
-                    {
-                        UtxoInfo::new(utxo.meta, utxo.value)
-                    }
-                }
-            };
-
-            // Add the input – treat as confirmed.
-            self.add_tx_input(&utxo_clone, &TxStatus::Confirmed, Some(program_info_pubkey))?;
-
-            btc_amount += utxo_clone.value;
-
-            #[cfg(feature = "utxo-consolidation")]
-            {
-                if utxo_clone.needs_consolidation.is_some() {
-                    consolidation_inputs_count += 1;
-                    total_consolidation_input_amount += utxo_clone.value;
-                }
-            }
-            selected_pairs
-                .push((best_h, best_u))
-                .map_err(|_| BitcoinTxError::InputToSignListFull)?;
-        }
-
-        // Ensure at least one BTC UTXO from each holder is included, even if the
-        // requested amount has already been reached.
-        for (h_idx, h) in holder.iter().enumerate() {
-            if h.btc_utxos().is_empty() {
-                continue;
-            }
-
-            // If this holder already contributed an input, skip it
-            let holder_already_selected = selected_pairs.iter().any(|&(sh, _)| sh == h_idx);
-            if holder_already_selected {
-                continue;
-            }
-
-            // Pick a candidate UTXO from this holder to minimally involve them.
-            // Prefer a non-consolidation UTXO when the feature is enabled, otherwise pick the smallest by value.
-            let mut candidate_idx: Option<usize> = None;
-
-            #[cfg(feature = "utxo-consolidation")]
-            {
-                // First try the smallest UTXO that does NOT need consolidation
-                for (u_idx, utxo) in h.btc_utxos().iter().enumerate() {
-                    if utxo.needs_consolidation.is_none() {
-                        match candidate_idx {
-                            None => candidate_idx = Some(u_idx),
-                            Some(ci) => {
-                                if utxo.value < h.btc_utxos()[ci].value {
-                                    candidate_idx = Some(u_idx);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // If none found, pick the absolute smallest
-                if candidate_idx.is_none() {
-                    for (u_idx, utxo) in h.btc_utxos().iter().enumerate() {
-                        match candidate_idx {
-                            None => candidate_idx = Some(u_idx),
-                            Some(ci) => {
-                                if utxo.value < h.btc_utxos()[ci].value {
-                                    candidate_idx = Some(u_idx);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            #[cfg(not(feature = "utxo-consolidation"))]
-            {
-                // Pick the smallest UTXO by value
-                for (u_idx, utxo) in h.btc_utxos().iter().enumerate() {
-                    match candidate_idx {
-                        None => candidate_idx = Some(u_idx),
-                        Some(ci) => {
-                            if utxo.value < h.btc_utxos()[ci].value {
-                                candidate_idx = Some(u_idx);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if let Some(u_idx) = candidate_idx {
-                // Avoid duplicates just in case
-                if selected_pairs
-                    .iter()
-                    .any(|&(sh, su)| sh == h_idx && su == u_idx)
-                {
-                    continue;
-                }
-
-                let utxo = &h.btc_utxos()[u_idx];
-
-                // Build a new UtxoInfo<RuneSet> mirroring the logic above.
-                let utxo_clone: UtxoInfo<RuneSet> = {
-                    #[cfg(feature = "runes")]
-                    {
-                        let mut runes = RuneSet::default();
-                        for r in utxo.runes.as_slice() {
-                            let _ = runes.insert(*r);
-                        }
-
-                        {
-                            #[cfg(feature = "utxo-consolidation")]
-                            {
-                                UtxoInfo::new_with_runes_and_consolidation(
-                                    utxo.meta,
-                                    utxo.value,
-                                    runes,
-                                    utxo.needs_consolidation,
-                                )
-                            }
-                            #[cfg(not(feature = "utxo-consolidation"))]
-                            {
-                                UtxoInfo::new_with_runes(utxo.meta, utxo.value, runes)
-                            }
-                        }
-                    }
-
-                    #[cfg(not(feature = "runes"))]
-                    {
-                        #[cfg(feature = "utxo-consolidation")]
-                        {
-                            UtxoInfo::new_with_consolidation(
-                                utxo.meta,
-                                utxo.value,
-                                utxo.needs_consolidation,
-                            )
-                        }
-                        #[cfg(not(feature = "utxo-consolidation"))]
-                        {
-                            UtxoInfo::new(utxo.meta, utxo.value)
-                        }
-                    }
-                };
-
-                // Add the input – treat as confirmed.
-                self.add_tx_input(&utxo_clone, &TxStatus::Confirmed, Some(program_info_pubkey))?;
-
-                btc_amount += utxo_clone.value;
-
-                #[cfg(feature = "utxo-consolidation")]
-                {
-                    if utxo_clone.needs_consolidation.is_some() {
-                        consolidation_inputs_count += 1;
-                        total_consolidation_input_amount += utxo_clone.value;
-                    }
-                }
-
-                selected_pairs
-                    .push((h_idx, u_idx))
-                    .map_err(|_| BitcoinTxError::InputToSignListFull)?;
-            }
-        }
-
-        #[cfg(feature = "utxo-consolidation")]
-        self.set_consolidation_tracking(
-            total_consolidation_input_amount,
-            crate::input_calc::ARCH_INPUT_SIZE * consolidation_inputs_count as usize,
-        );
-
-        Ok(btc_amount)
-    }
+    /// find_btc_in_utxos_from_holder has been moved to the `find_btc` module for clarity.
 
     /// Automatically adjusts the transaction to meet the target fee rate.
     ///
@@ -1954,7 +1590,10 @@ impl<
         Ok(())
     }
 
-    fn add_tx_status(&mut self, utxo: &UtxoInfo<RuneSet>, status: &TxStatus) {
+    fn add_tx_status<RS>(&mut self, utxo: &UtxoInfo<RS>, status: &TxStatus)
+    where
+        RS: FixedCapacitySet<Item = RuneAmount>,
+    {
         // Check if we have not added this txid yet.
         for input in &self.transaction.input {
             let input_txid = txid_to_bytes_big_endian(&input.previous_output.txid);
@@ -2951,7 +2590,7 @@ mod tests {
             let amount = 10_000;
 
             let found_amount = builder
-                .find_btc_in_utxos_from_holder(&holders, &PUBKEY, amount)
+                .find_btc_in_utxos_from_holder(&holders, &PUBKEY, amount, false)
                 .unwrap();
 
             assert_eq!(found_amount, 17_000);
@@ -2980,7 +2619,7 @@ mod tests {
             let amount = 17_000;
 
             let found_amount = builder
-                .find_btc_in_utxos_from_holder(&holders, &PUBKEY, amount)
+                .find_btc_in_utxos_from_holder(&holders, &PUBKEY, amount, false)
                 .unwrap();
 
             // Selection: 9k (non-cons) + 5k (non-cons) + 12k (cons) = 26k
@@ -3012,7 +2651,7 @@ mod tests {
             let amount = 15_000;
 
             let found_amount = builder
-                .find_btc_in_utxos_from_holder(&holders, &PUBKEY, amount)
+                .find_btc_in_utxos_from_holder(&holders, &PUBKEY, amount, false)
                 .unwrap();
 
             // Selection: 4k (non-cons) + 7k (cons) + 6k (cons) = 17k

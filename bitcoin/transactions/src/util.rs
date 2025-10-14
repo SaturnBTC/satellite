@@ -1,22 +1,15 @@
 use arch_program::{account::AccountInfo, program::get_account_script_pubkey};
 use bitcoin::Transaction;
-use satellite_collections::generic::{
-    fixed_list::{FixedList, FixedListError},
-    fixed_set::{FixedSet, FixedSetError},
-};
+use satellite_collections::generic::fixed_list::{FixedList, FixedListError};
 
-/// Get the used shards in a transaction.
+/// Get the indexes of writable accounts ("used shards").
 ///
-/// This function will reorder the accounts in the transaction to match the order of the accounts in the accounts list.
-///
-/// # Arguments
-///
-/// * `transaction` - The transaction to get the used shards from.
-/// * `accounts` - The accounts to get the used shards from.
+/// Scans `accounts` and returns a fixed-capacity list of indexes for all
+/// accounts marked as writable.
 ///
 /// # Returns
 ///
-/// A list of the used shards in the transaction.
+/// A list of account indexes that are writable.
 ///
 /// # Example
 ///
@@ -24,19 +17,9 @@ use satellite_collections::generic::{
 /// use satellite_bitcoin_transactions::util::get_used_shards_in_transaction;
 /// use satellite_collections::generic::fixed_list::FixedList;
 /// use arch_program::account::AccountInfo;
-/// use bitcoin::{Transaction, transaction::Version, absolute::LockTime};
 ///
-/// // Minimal empty transaction for demonstration purposes
-/// # let transaction = Transaction {
-/// #     version: Version::TWO,
-/// #     lock_time: LockTime::ZERO,
-/// #     input: vec![],
-/// #     output: vec![],
-/// # };
-/// # // No accounts in this simple example
 /// # let accounts: Vec<AccountInfo> = Vec::new();
-/// let used_shards: FixedList<usize, 10> =
-///     get_used_shards_in_transaction::<10>(&transaction, &accounts);
+/// let used_shards: FixedList<usize, 10> = get_used_shards_in_transaction::<10>(&accounts);
 /// # assert!(used_shards.is_empty());
 /// ```
 pub fn get_used_shards_in_transaction<'a, const SIZE: usize>(
@@ -53,18 +36,17 @@ pub fn get_used_shards_in_transaction<'a, const SIZE: usize>(
     Ok(used_shards)
 }
 
-/// Validate that each index in `account_indexes` has a matching output in `transaction`.
+/// Reorder `account_indexes` to follow the output order in `transaction`.
 ///
 /// For every index in `account_indexes`, the corresponding `accounts[index]` is
-/// converted to a script pubkey and compared against all outputs in `transaction`.
-/// On success, `account_indexes` is overwritten in place with the same indices in
-/// their original order. This function is primarily a validation step; it does not
-/// sort indices by output position.
+/// converted to a script pubkey and compared against the outputs of `transaction`.
+/// On success, `account_indexes` is overwritten in place with the same indices
+/// reordered to reflect the order in which their scripts appear in the outputs.
 ///
 /// # Errors
 ///
-/// Returns a [`FixedSetError::Duplicate`] if `account_indexes` contains duplicate
-/// indices, or [`FixedSetError::Full`] if the number of indices exceeds `SIZE`.
+/// Returns a [`FixedListError::Full`] if the internal scratch list exceeds
+/// capacity (should not occur when capacities are consistent).
 ///
 /// # Panics
 ///
@@ -92,22 +74,28 @@ pub fn reorder_accounts_in_transaction<'a, const SIZE: usize>(
     transaction: &Transaction,
     account_indexes: &mut FixedList<usize, SIZE>,
     accounts: &[AccountInfo<'a>],
-) -> Result<(), FixedSetError> {
-    let mut reordered_account_indexes = FixedSet::<usize, SIZE>::new();
+) -> Result<(), FixedListError> {
+    let mut reordered_account_indexes = FixedList::<usize, SIZE>::new();
 
-    // Iterate over transaction outputs and find matching accounts
-    for account_index in account_indexes.iter() {
-        if *account_index >= accounts.len() {
-            continue;
+    for output in &transaction.output {
+        if reordered_account_indexes.len() == account_indexes.len() {
+            break;
         }
 
-        let account = &accounts[*account_index];
-        let account_script_pubkey = get_account_script_pubkey(&account.key);
+        for account_index in account_indexes.iter() {
+            if *account_index >= accounts.len() {
+                continue;
+            }
 
-        for output in &transaction.output {
-            // Compare script pubkeys directly without allocating ScriptBuf
+            if reordered_account_indexes.contains(account_index) {
+                continue;
+            }
+
+            let account = &accounts[*account_index];
+            let account_script_pubkey = get_account_script_pubkey(&account.key);
+
             if output.script_pubkey.as_bytes() == account_script_pubkey {
-                reordered_account_indexes.insert(*account_index)?;
+                reordered_account_indexes.push(*account_index)?;
                 break;
             }
         }
@@ -139,32 +127,42 @@ pub fn match_account_indexes_to_output_positions<'a, const SIZE: usize>(
     transaction: &Transaction,
     account_indexes: &FixedList<usize, SIZE>,
     accounts: &[AccountInfo<'a>],
-) -> Result<FixedSet<usize, SIZE>, FixedSetError> {
-    let mut matched_output_positions = FixedSet::<usize, SIZE>::new();
+) -> Result<(FixedList<usize, SIZE>, FixedList<usize, SIZE>), FixedListError> {
+    let mut matched_account_indexes = FixedList::<usize, SIZE>::new();
+    let mut matched_output_positions = FixedList::<usize, SIZE>::new();
 
-    for account_index in account_indexes.iter() {
-        if *account_index >= accounts.len() {
-            continue;
+    for (output_position, output) in transaction.output.iter().enumerate() {
+        if matched_account_indexes.len() == account_indexes.len() {
+            break;
         }
 
-        let account = &accounts[*account_index];
-        let account_script_pubkey = get_account_script_pubkey(&account.key);
+        for account_index in account_indexes.iter() {
+            if *account_index >= accounts.len() {
+                continue;
+            }
 
-        for (output_position, output) in transaction.output.iter().enumerate() {
+            if matched_account_indexes.contains(account_index) {
+                continue;
+            }
+
+            let account = &accounts[*account_index];
+            let account_script_pubkey = get_account_script_pubkey(&account.key);
+
             if output.script_pubkey.as_bytes() == account_script_pubkey {
-                matched_output_positions.insert(output_position)?;
+                matched_account_indexes.push(*account_index)?;
+                matched_output_positions.push(output_position)?;
                 break;
             }
         }
     }
 
     assert_eq!(
-        matched_output_positions.len(),
+        matched_account_indexes.len(),
         account_indexes.len(),
         "All accounts must be matched",
     );
 
-    Ok(matched_output_positions)
+    Ok((matched_account_indexes, matched_output_positions))
 }
 
 /// Assert that a given `account` appears as the script at `output_index`.
@@ -267,19 +265,16 @@ mod tests {
     }
 
     #[test]
-    fn reorder_err_on_duplicate_indices() {
-        // Duplicate indices should surface as a Duplicate error from FixedSet insertion.
+    #[should_panic(expected = "All accounts must be matched")]
+    fn reorder_panics_on_duplicate_indices() {
+        // Duplicate indices lead to fewer unique matches than provided indexes,
+        // triggering the final assertion.
         let tx = tx_with_outputs(vec![vec![0u8; 34]]);
         let accounts = leak_accounts_slice(make_accounts(1));
         let mut indexes: FixedList<usize, 4> = FixedList::new();
         indexes.push(0).unwrap();
         indexes.push(0).unwrap();
-
-        let res = reorder_accounts_in_transaction(&tx, &mut indexes, &accounts);
-        assert!(matches!(
-            res,
-            Err(satellite_collections::generic::fixed_set::FixedSetError::Duplicate)
-        ));
+        let _ = reorder_accounts_in_transaction(&tx, &mut indexes, &accounts);
     }
 
     #[test]
@@ -355,8 +350,10 @@ mod tests {
         let accounts = leak_accounts_slice(make_accounts(0));
         let indexes: FixedList<usize, 4> = FixedList::new();
 
-        let matched = match_account_indexes_to_output_positions(&tx, &indexes, &accounts).unwrap();
-        assert_eq!(matched.len(), 0);
+        let (matched_indexes, matched_positions) =
+            match_account_indexes_to_output_positions(&tx, &indexes, &accounts).unwrap();
+        assert_eq!(matched_indexes.len(), 0);
+        assert_eq!(matched_positions.len(), 0);
     }
 
     #[test]
@@ -366,9 +363,12 @@ mod tests {
         let mut indexes: FixedList<usize, 4> = FixedList::new();
         indexes.push(0).unwrap();
 
-        let matched = match_account_indexes_to_output_positions(&tx, &indexes, &accounts).unwrap();
-        assert_eq!(matched.len(), 1);
-        assert!(matched.contains(&0));
+        let (matched_indexes, matched_positions) =
+            match_account_indexes_to_output_positions(&tx, &indexes, &accounts).unwrap();
+        assert_eq!(matched_indexes.len(), 1);
+        assert_eq!(matched_positions.len(), 1);
+        assert!(matched_indexes.contains(&0));
+        assert!(matched_positions.contains(&0));
     }
 
     #[test]
@@ -394,19 +394,19 @@ mod tests {
     }
 
     #[test]
-    fn match_positions_error_on_duplicate_output_choice() {
-        // Two indices both match the first output position (0), leading to Duplicate error.
+    fn match_positions_ok_with_identical_output_scripts() {
+        // Two outputs have identical scripts; each index should match the first available
+        // output in order, yielding output positions [0, 1].
         let tx = tx_with_outputs(vec![vec![0u8; 34], vec![0u8; 34]]);
         let accounts = leak_accounts_slice(make_accounts(2));
         let mut indexes: FixedList<usize, 4> = FixedList::new();
         indexes.push(0).unwrap();
         indexes.push(1).unwrap();
 
-        let res = match_account_indexes_to_output_positions(&tx, &indexes, &accounts);
-        assert!(matches!(
-            res,
-            Err(satellite_collections::generic::fixed_set::FixedSetError::Duplicate)
-        ));
+        let (matched_indexes, matched_positions) =
+            match_account_indexes_to_output_positions(&tx, &indexes, &accounts).unwrap();
+        assert_eq!(matched_indexes.as_slice(), &[0, 1]);
+        assert_eq!(matched_positions.as_slice(), &[0, 1]);
     }
 
     #[test]
