@@ -1,6 +1,6 @@
 [package]
 name = "satellite-bitcoin-transactions"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2021"
 description = "Bitcoin transaction utilities and UTXO management for Satellite."
 license = "MIT OR Apache-2.0"
@@ -12,8 +12,8 @@ categories = ["cryptography::cryptocurrencies"]
 arch_program = { version = "0.5.13" }
 bitcoin = { version = "0.32.5", features = ["serde"] }
 hex = "0.4.3"
-satellite-collections = { version = "0.1", path = "../collections" }
-satellite-math = { version = "0.1", path = "../math" }
+satellite-collections = { version = "0.1.3", path = "../collections" }
+satellite-math = { version = "0.1.3", path = "../math" }
 thiserror = "1.0.61"
 num-derive = { version = "0.4.0" }
 num-traits = { version = "0.2" }
