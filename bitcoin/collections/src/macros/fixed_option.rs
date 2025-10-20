@@ -120,6 +120,16 @@ macro_rules! declare_fixed_option {
                 }
             }
         }
+
+        impl PartialEq for $Name
+        where
+            $T: PartialEq,
+        {
+            #[inline]
+            fn eq(&self, other: &Self) -> bool {
+                self.get() == other.get()
+            }
+        }
     };
 }
 

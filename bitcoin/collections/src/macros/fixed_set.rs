@@ -263,6 +263,16 @@ macro_rules! declare_fixed_set {
                 self.iter_mut()
             }
         }
+
+        impl PartialEq for $Name
+        where
+            $T: PartialEq,
+        {
+            #[inline]
+            fn eq(&self, other: &Self) -> bool {
+                self.iter().zip(other.iter()).all(|(a, b)| a == b)
+            }
+        }
     };
 }
 
