@@ -1,49 +1,7 @@
-use arch_program::{
-    account::AccountInfo,
-    program::{get_runes_from_output, invoke_signed},
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    rune::RuneAmount,
-    system_instruction::create_account_with_anchor as create_account_instruction,
-    utxo::UtxoMeta,
-};
+use arch_program::{program::get_runes_from_output, program_error::ProgramError, rune::RuneAmount, utxo::UtxoMeta};
 use satellite_collections::generic::fixed_set::FixedCapacitySet;
 
 use crate::error::BitcoinTxError;
-
-pub fn create_account<'a>(
-    utxo: &UtxoMeta,
-    account: &AccountInfo<'a>,
-    system_program_id: &AccountInfo<'a>,
-    fee_payer: &AccountInfo<'a>,
-    program_id: &Pubkey,
-    signer_seeds: &[&[u8]],
-    space: u64,
-) -> Result<(), ProgramError> {
-    let cpi_signer_seeds: &[&[&[u8]]] = &[signer_seeds];
-
-    let instruction = create_account_instruction(
-        fee_payer.key,
-        account.key,
-        arch_program::rent::minimum_rent(space as usize),
-        space,
-        program_id,
-        utxo.txid_big_endian(),
-        utxo.vout(),
-    );
-
-    invoke_signed(
-        &instruction,
-        &[
-            account.clone(),
-            fee_payer.clone(),
-            system_program_id.clone(),
-        ],
-        cpi_signer_seeds,
-    )?;
-
-    Ok(())
-}
 
 pub fn get_runes<RS>(utxo: &UtxoMeta) -> Result<RS, ProgramError>
 where

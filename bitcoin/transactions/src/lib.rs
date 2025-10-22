@@ -68,7 +68,6 @@ use satellite_collections::generic::{fixed_list::FixedList, fixed_set::FixedCapa
 use crate::btc_utxo_holder::BtcUtxoHolder;
 use crate::bytes::txid_to_bytes_big_endian;
 use crate::{
-    arch::create_account,
     calc_fee::{
         adjust_transaction_to_pay_fees, estimate_final_tx_vsize,
         estimate_tx_size_with_additional_inputs_outputs,
@@ -126,7 +125,7 @@ pub mod utxo_info_json;
 /// You typically don't create `ModifiedAccount` instances directly. Instead, they
 /// are created automatically by [`TransactionBuilder`] methods like
 /// [`TransactionBuilder::add_state_transition`] and
-/// [`TransactionBuilder::create_state_account`].
+/// related helpers.
 ///
 /// ## Memory Safety
 ///
@@ -140,7 +139,7 @@ impl<'info> ModifiedAccount<'info> {
     /// Creates a new [`ModifiedAccount`] from a borrowed [`AccountInfo`].
     ///
     /// This is a zero-cost helper used by
-    /// [`TransactionBuilder::create_state_account`] and friends.
+    /// `TransactionBuilder` internals.
     pub fn new(account: AccountInfo<'info>) -> Self {
         Self(Some(account))
     }
@@ -818,57 +817,6 @@ impl<
         })
     }
 
-    pub fn create_state_account<RS>(
-        &mut self,
-        utxo: &UtxoInfo<RS>,
-        system_program: &AccountInfo<'info>,
-        fee_payer: &AccountInfo<'info>,
-        account: &AccountInfo<'info>,
-        program_id: &Pubkey,
-        tx_status: &TxStatus,
-        seeds: &[&[u8]],
-        space: u64,
-    ) -> Result<(), ProgramError>
-    where
-        RS: FixedCapacitySet<Item = RuneAmount>,
-    {
-        self.inputs_to_sign
-            .push(InputToSign {
-                index: self.transaction.input.len() as u32,
-                signer: account.key.clone(),
-            })
-            .map_err(|_| BitcoinTxError::InputToSignListFull)?;
-
-        create_account(
-            &utxo.meta,
-            account,
-            system_program,
-            fee_payer,
-            program_id,
-            seeds,
-            space,
-        )?;
-
-        self.add_tx_status(utxo, tx_status);
-        add_state_transition(&mut self.transaction, account)
-            .map_err(|_| BitcoinTxError::FailedStateTransition)?;
-
-        self.modified_accounts
-            .push(ModifiedAccount::new(account.clone()))
-            .map_err(|_| BitcoinTxError::ModifiedAccountListFull)?;
-
-        self.total_btc_input += utxo.value;
-
-        #[cfg(feature = "runes")]
-        {
-            for rune in utxo.runes.as_slice() {
-                self.add_rune_input(*rune)?;
-            }
-        }
-
-        Ok(())
-    }
-
     /// Adds a state transition for an existing program account.
     ///
     /// This method handles the complete process of adding a state transition to the transaction,
@@ -921,7 +869,6 @@ impl<
     ///
     /// ## See Also
     ///
-    /// - [`Self::create_state_account`] for creating new accounts
     /// - [`Self::insert_state_transition_input`] for position-specific insertions
     pub fn add_state_transition(
         &mut self,
