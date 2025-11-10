@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("overf1owChecks11111111111111111111111111111");
+declare_id!("0c0561ec252fdb63887a6c71a6c8c031bc2141b3638819b523ade61680000000");
 
 #[program]
 pub mod overflow_checks {

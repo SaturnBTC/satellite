@@ -5,8 +5,12 @@ use quote::quote;
 pub fn generate(program: &Program) -> proc_macro2::TokenStream {
     let name: proc_macro2::TokenStream = program.name.to_string().to_camel_case().parse().unwrap();
     quote! {
-        #[cfg(not(feature = "no-entrypoint"))]
-        anchor_lang::solana_program::entrypoint!(entry);
+        #[cfg(all(not(feature = "no-entrypoint"), not(feature = "idl-build")))]
+        satellite_lang::arch_program::entrypoint!(entry);
+
+        #[cfg(all(feature = "idl-build", not(feature = "no-entrypoint")))]
+        #[global_allocator]
+        static ALLOC: std::alloc::System = std::alloc::System;
         /// The Anchor codegen exposes a programming model where a user defines
         /// a set of methods inside of a `#[program]` module in a way similar
         /// to writing RPC request handlers. The macro then generates a bunch of
@@ -36,20 +40,20 @@ pub fn generate(program: &Program) -> proc_macro2::TokenStream {
         ///
         /// The `entry` function here, defines the standard entry to a Solana
         /// program, where execution begins.
-        pub fn entry<'info>(program_id: &Pubkey, accounts: &'info [AccountInfo<'info>], data: &[u8]) -> anchor_lang::solana_program::entrypoint::ProgramResult {
+        pub fn entry<'info>(program_id: &Pubkey, accounts: &'info [AccountInfo<'info>], data: &[u8]) -> satellite_lang::arch_program::entrypoint::ProgramResult {
             try_entry(program_id, accounts, data).map_err(|e| {
                 e.log();
                 e.into()
             })
         }
 
-        fn try_entry<'info>(program_id: &Pubkey, accounts: &'info [AccountInfo<'info>], data: &[u8]) -> anchor_lang::Result<()> {
-            #[cfg(feature = "anchor-debug")]
+        fn try_entry<'info>(program_id: &Pubkey, accounts: &'info [AccountInfo<'info>], data: &[u8]) -> satellite_lang::Result<()> {
+            #[cfg(feature = "satellite-debug")]
             {
-                msg!("anchor-debug is active");
+                msg!("satellite-debug is active");
             }
             if *program_id != ID {
-                return Err(anchor_lang::error::ErrorCode::DeclaredProgramIdMismatch.into());
+                return Err(satellite_lang::error::ErrorCode::DeclaredProgramIdMismatch.into());
             }
 
             dispatch(program_id, accounts, data)
@@ -63,7 +67,7 @@ pub fn generate(program: &Program) -> proc_macro2::TokenStream {
             #[derive(Clone)]
             pub struct #name;
 
-            impl anchor_lang::Id for #name {
+            impl satellite_lang::Id for #name {
                 fn id() -> Pubkey {
                     ID
                 }

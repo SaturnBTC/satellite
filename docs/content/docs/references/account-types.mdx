@@ -98,7 +98,7 @@ Examples: [Github](https://github.com/solana-developers/anchor-examples/tree/mai
 
 ```rust title="snippet"
 // Token program or Token2022 program
-use anchor_spl::token_interface::TokenInterface;
+use satellite_apl::token_interface::TokenInterface;
 
 #[derive(Accounts)]
 pub struct InstructionAccounts<'info> {
@@ -117,7 +117,7 @@ Examples: [Github](https://github.com/solana-developers/anchor-examples/tree/mai
 
 ```rust title="snippet"
 // Token program or Token2022 program Mint/TokenAccount
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use satellite_apl::token_interface::{Mint, TokenAccount, TokenInterface};
 
 #[derive(Accounts)]
 pub struct InstructionAccounts<'info> {
@@ -153,7 +153,7 @@ Examples: [Github](https://github.com/solana-developers/anchor-examples/tree/mai
 [Solpg](https://beta.solpg.io/https://github.com/solana-developers/anchor-examples/tree/main/account-types/Program)
 
 ```rust title="snippet"
-use anchor_spl::token::Token;
+use satellite_apl::token::Token;
 
 #[derive(Accounts)]
 pub struct InstructionAccounts<'info> {

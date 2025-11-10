@@ -1,0 +1,14 @@
+[package]
+name = "satellite-math"
+version = "0.1.3"
+edition = "2021"
+description = "Mathematical primitives and utilities used by the Satellite Bitcoin project."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/saturnbtc/satellite"
+keywords = ["bitcoin", "math", "utilities"]
+categories = ["cryptography::cryptocurrencies", "mathematics"]
+
+[dependencies]
+num = { version = "0.4.3", features = ["serde"] }
+primitive-types = { version = "0.13.1", default-features = false }
+thiserror = "1.0.61"

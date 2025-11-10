@@ -6,6 +6,7 @@ codegen-units = 1
 
 [workspace]
 members = [
+    "borsh-derive-internal",
     "avm",
     "cli",
     "client",
@@ -15,6 +16,9 @@ members = [
     "lang/derive/*",
     "lang/syn",
     "spl",
+    "bitcoin",
+    "shard_set",
+    "serde",
 ]
 exclude = [
     "tests/swap/deps/openbook-dex",

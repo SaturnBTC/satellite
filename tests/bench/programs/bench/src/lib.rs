@@ -2,10 +2,10 @@
 //!
 //! If you are making a change to this program, run `anchor run sync`.
 
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use satellite_lang::prelude::*;
+use satellite_apl::token_interface::{Mint, TokenAccount, TokenInterface};
 
-declare_id!("Bench11111111111111111111111111111111111111");
+declare_id!("02ba888c41626fc822fc14c03809adec5af3fb9fe874a8a9bc12e08000000000");
 
 #[program]
 pub mod bench {

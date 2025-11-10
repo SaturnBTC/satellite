@@ -4,10 +4,9 @@ use crate::error::{Error, ErrorCode};
 use crate::{
     AccountDeserialize, Accounts, AccountsExit, Id, Key, Result, ToAccountInfos, ToAccountMetas,
 };
-use solana_program::account_info::AccountInfo;
-use solana_program::bpf_loader_upgradeable::{self, UpgradeableLoaderState};
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use arch_program::account::AccountInfo;
+use arch_program::account::AccountMeta;
+use arch_program::pubkey::Pubkey;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::marker::PhantomData;
@@ -16,8 +15,8 @@ use std::ops::Deref;
 /// Type validating that the account is the given Program
 ///
 /// The type has a `programdata_address` function that will return `Option::Some`
-/// if the program is owned by the [`BPFUpgradeableLoader`](https://docs.rs/solana-program/latest/solana_program/bpf_loader_upgradeable/index.html)
-/// which will contain the `programdata_address` property of the `Program` variant of the [`UpgradeableLoaderState`](https://docs.rs/solana-program/latest/solana_program/bpf_loader_upgradeable/enum.UpgradeableLoaderState.html) enum.
+/// if the program is owned by the [`BPFUpgradeableLoader`](https://docs.rs/solana-program/latest/arch_program/bpf_loader_upgradeable/index.html)
+/// which will contain the `programdata_address` property of the `Program` variant of the [`UpgradeableLoaderState`](https://docs.rs/solana-program/latest/arch_program/bpf_loader_upgradeable/enum.UpgradeableLoaderState.html) enum.
 ///
 /// # Table of Contents
 /// - [Basic Functionality](#basic-functionality)
@@ -67,12 +66,12 @@ use std::ops::Deref;
 ///
 /// # Out of the Box Types
 ///
-/// Between the [`anchor_lang`](https://docs.rs/anchor-lang/latest/anchor_lang) and [`anchor_spl`](https://docs.rs/anchor_spl/latest/anchor_spl) crates,
+/// Between the [`satellite_lang`](https://docs.rs/satellite-lang/latest/satellite_lang) and [`satellite_apl`](https://docs.rs/satellite_apl/latest/satellite_apl) crates,
 /// the following `Program` types are provided out of the box:
 ///
-/// - [`System`](https://docs.rs/anchor-lang/latest/anchor_lang/struct.System.html)
-/// - [`AssociatedToken`](https://docs.rs/anchor-spl/latest/anchor_spl/associated_token/struct.AssociatedToken.html)
-/// - [`Token`](https://docs.rs/anchor-spl/latest/anchor_spl/token/struct.Token.html)
+/// - [`System`](https://docs.rs/satellite-lang/latest/satellite_lang/struct.System.html)
+/// - [`AssociatedToken`](https://docs.rs/satellite-apl/latest/satellite_apl/associated_token/struct.AssociatedToken.html)
+/// - [`Token`](https://docs.rs/satellite-apl/latest/satellite_apl/token/struct.Token.html)
 ///
 #[derive(Clone)]
 pub struct Program<'info, T> {
@@ -93,35 +92,6 @@ impl<'a, T> Program<'a, T> {
             _phantom: PhantomData,
         }
     }
-
-    pub fn programdata_address(&self) -> Result<Option<Pubkey>> {
-        if *self.info.owner == bpf_loader_upgradeable::ID {
-            let mut data: &[u8] = &self.info.try_borrow_data()?;
-            let upgradable_loader_state =
-                UpgradeableLoaderState::try_deserialize_unchecked(&mut data)?;
-
-            match upgradable_loader_state {
-                UpgradeableLoaderState::Uninitialized
-                | UpgradeableLoaderState::Buffer {
-                    authority_address: _,
-                }
-                | UpgradeableLoaderState::ProgramData {
-                    slot: _,
-                    upgrade_authority_address: _,
-                } => {
-                    // Unreachable because check in try_from
-                    // ensures that program is executable
-                    // and therefore a program account.
-                    unreachable!()
-                }
-                UpgradeableLoaderState::Program {
-                    programdata_address,
-                } => Ok(Some(programdata_address)),
-            }
-        } else {
-            Ok(None)
-        }
-    }
 }
 
 impl<'a, T: Id> TryFrom<&'a AccountInfo<'a>> for Program<'a, T> {
@@ -131,7 +101,7 @@ impl<'a, T: Id> TryFrom<&'a AccountInfo<'a>> for Program<'a, T> {
         if info.key != &T::id() {
             return Err(Error::from(ErrorCode::InvalidProgramId).with_pubkeys((*info.key, T::id())));
         }
-        if !info.executable {
+        if !info.is_executable {
             return Err(ErrorCode::InvalidProgramExecutable.into());
         }
 

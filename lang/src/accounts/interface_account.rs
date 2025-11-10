@@ -6,15 +6,15 @@ use crate::{
     AccountDeserialize, AccountSerialize, Accounts, AccountsClose, AccountsExit, CheckOwner, Key,
     Owners, Result, ToAccountInfos, ToAccountMetas,
 };
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
-use solana_program::system_program;
+use arch_program::account::AccountInfo;
+use arch_program::account::AccountMeta;
+use arch_program::pubkey::Pubkey;
+use arch_program::system_program;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::ops::{Deref, DerefMut};
 
-/// Wrapper around [`AccountInfo`](crate::solana_program::account_info::AccountInfo)
+/// Wrapper around [`AccountInfo`](crate::arch_program::account_info::AccountInfo)
 /// that verifies program ownership and deserializes underlying data into a Rust type.
 ///
 /// # Table of Contents
@@ -39,10 +39,10 @@ use std::ops::{Deref, DerefMut};
 ///
 /// # Example
 /// ```ignore
-/// use anchor_lang::prelude::*;
+/// use satellite_lang::prelude::*;
 /// use other_program::Auth;
 ///
-/// declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+/// declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 ///
 /// #[program]
 /// mod hello_anchor {
@@ -71,7 +71,7 @@ use std::ops::{Deref, DerefMut};
 /// // In a different program
 ///
 /// ...
-/// declare_id!("FEZGUxNhZWpYPj9MJCrZJvUo1iF9ys34UHx52y4SzVW9");
+/// declare_id!("d37ca6ddc9b6350184bcbec820b71dd8d095090d4501f295d30e600d5013db62");
 /// #[account]
 /// #[derive(Default)]
 /// pub struct Auth {
@@ -96,8 +96,8 @@ use std::ops::{Deref, DerefMut};
 /// #[derive(Clone)]
 /// pub struct Mint(spl_token::state::Mint);
 ///
-/// // This is necessary so we can use "anchor_spl::token::Mint::LEN"
-/// // because rust does not resolve "anchor_spl::token::Mint::LEN" to
+/// // This is necessary so we can use "satellite_apl::token::Mint::LEN"
+/// // because rust does not resolve "satellite_apl::token::Mint::LEN" to
 /// // "spl_token::state::Mint::LEN" automatically
 /// impl Mint {
 ///     pub const LEN: usize = spl_token::state::Mint::LEN;
@@ -107,7 +107,7 @@ use std::ops::{Deref, DerefMut};
 /// // from this trait. It delegates to
 /// // "try_deserialize_unchecked" by default which is what we want here
 /// // because non-anchor accounts don't have a discriminator to check
-/// impl anchor_lang::AccountDeserialize for Mint {
+/// impl satellite_lang::AccountDeserialize for Mint {
 ///     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
 ///         spl_token::state::Mint::unpack(buf).map(Mint)
 ///     }
@@ -115,9 +115,9 @@ use std::ops::{Deref, DerefMut};
 /// // AccountSerialize defaults to a no-op which is what we want here
 /// // because it's a foreign program, so our program does not
 /// // have permission to write to the foreign program's accounts anyway
-/// impl anchor_lang::AccountSerialize for Mint {}
+/// impl satellite_lang::AccountSerialize for Mint {}
 ///
-/// impl anchor_lang::Owner for Mint {
+/// impl satellite_lang::Owner for Mint {
 ///     fn owner() -> Pubkey {
 ///         // pub use spl_token::ID is used at the top of the file
 ///         ID
@@ -140,7 +140,7 @@ use std::ops::{Deref, DerefMut};
 ///
 /// Anchor provides wrapper types to access accounts owned by the token programs. Use
 /// ```ignore
-/// use anchor_spl::token_interface::TokenAccount;
+/// use satellite_apl::token_interface::TokenAccount;
 ///
 /// #[derive(Accounts)]
 /// pub struct Example {
@@ -149,7 +149,7 @@ use std::ops::{Deref, DerefMut};
 /// ```
 /// to access token accounts and
 /// ```ignore
-/// use anchor_spl::token_interface::Mint;
+/// use satellite_apl::token_interface::Mint;
 ///
 /// #[derive(Accounts)]
 /// pub struct Example {
@@ -217,7 +217,7 @@ impl<'a, T: AccountSerialize + AccountDeserialize + CheckOwner + Clone> Interfac
     /// Deserializes the given `info` into a `InterfaceAccount`.
     #[inline(never)]
     pub fn try_from(info: &'a AccountInfo<'a>) -> Result<Self> {
-        if info.owner == &system_program::ID && info.lamports() == 0 {
+        if info.owner == &system_program::SYSTEM_PROGRAM_ID && info.lamports() == 0 {
             return Err(ErrorCode::AccountNotInitialized.into());
         }
         T::check_owner(info.owner)?;
@@ -230,7 +230,7 @@ impl<'a, T: AccountSerialize + AccountDeserialize + CheckOwner + Clone> Interfac
     /// possible.
     #[inline(never)]
     pub fn try_from_unchecked(info: &'a AccountInfo<'a>) -> Result<Self> {
-        if info.owner == &system_program::ID && info.lamports() == 0 {
+        if info.owner == &system_program::SYSTEM_PROGRAM_ID && info.lamports() == 0 {
             return Err(ErrorCode::AccountNotInitialized.into());
         }
         T::check_owner(info.owner)?;

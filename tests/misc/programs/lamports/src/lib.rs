@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("Lamports11111111111111111111111111111111111");
+declare_id!("050438f18b61c2fc84fe9d76def0c7394111f93969e77554641ae8a000000000");
 
 #[program]
 pub mod lamports {
@@ -16,10 +16,10 @@ pub mod lamports {
             let pda_balance_before = pda.get_lamports();
 
             // Transfer to the PDA
-            anchor_lang::system_program::transfer(
+            satellite_lang::system_program::transfer(
                 CpiContext::new(
                     ctx.accounts.system_program.to_account_info(),
-                    anchor_lang::system_program::Transfer {
+                    satellite_lang::system_program::Transfer {
                         from: signer.to_account_info(),
                         to: pda.to_account_info(),
                     },

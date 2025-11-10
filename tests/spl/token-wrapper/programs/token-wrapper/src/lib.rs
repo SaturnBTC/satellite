@@ -10,10 +10,10 @@
 //! 1. Users can call the wrap function to deposit X and mint Y wrapped tokens
 //! 2. Users can call the unwrap function to burn Y and withdraw X unwrapped tokens
 
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{self, Mint, TokenAccount, TokenInterface};
+use satellite_lang::prelude::*;
+use satellite_apl::token_interface::{self, Mint, TokenAccount, TokenInterface};
 
-declare_id!("4ZPcGU8MX8oL2u1EtErHzixAbgNBNeE9yoYq3kKMqnAy");
+declare_id!("34df35acdc3e47166de095fa980632e434048b12f37bf1f89d7de9df2314d356");
 
 #[program]
 pub mod token_wrapper {

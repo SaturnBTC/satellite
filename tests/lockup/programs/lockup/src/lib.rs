@@ -1,15 +1,15 @@
 //! A relatively advanced example of a lockup program. If you're new to Anchor,
 //! it's suggested to start with the other examples.
 
-use anchor_lang::accounts::state::ProgramState;
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program;
-use anchor_lang::solana_program::instruction::Instruction;
-use anchor_spl::token::{self, TokenAccount, Transfer};
+use satellite_lang::accounts::state::ProgramState;
+use satellite_lang::prelude::*;
+use satellite_lang::solana_program;
+use satellite_lang::solana_program::instruction::Instruction;
+use satellite_apl::token::{self, TokenAccount, Transfer};
 
 mod calculator;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 
 #[program]
 pub mod lockup {

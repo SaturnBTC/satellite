@@ -17,12 +17,12 @@
 //! the `execute_transaction`, once enough (i.e. `threshold`) of the owners have
 //! signed.
 
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program;
-use anchor_lang::solana_program::instruction::Instruction;
+use satellite_lang::prelude::*;
+use satellite_lang::solana_program;
+use satellite_lang::solana_program::instruction::Instruction;
 use std::convert::Into;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 
 #[program]
 pub mod multisig {

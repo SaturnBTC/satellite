@@ -6,15 +6,15 @@
 //! program create account instruction in the same transaction as the user's
 //! first trade. Then, the DEX will lazily initialize the open orders account.
 
-use anchor_lang::prelude::*;
-use anchor_spl::dex;
-use anchor_spl::token;
+use satellite_lang::prelude::*;
+use satellite_apl::dex;
+use satellite_apl::token;
 use serum_dex::instruction::SelfTradeBehavior;
 use serum_dex::matching::{OrderType, Side as SerumSide};
 use serum_dex::state::MarketState;
 use std::num::NonZeroU64;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 
 #[program]
 pub mod swap {

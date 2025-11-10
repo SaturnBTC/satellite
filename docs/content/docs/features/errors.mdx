@@ -44,7 +44,7 @@ The `Error` type in Anchor programs can be one of two variants:
 1. [`ProgramErrorWithOrigin`](https://github.com/coral-xyz/anchor/blob/0e5285aecdf410fa0779b7cd09a47f235882c156/lang/src/error.rs#L389-L394):
    Custom type that wraps a standard Solana
    [`ProgramError`](https://github.com/anza-xyz/agave/blob/v1.18.26/sdk/program/src/program_error.rs#L12-L66)
-   type. These errors come from the `solana_program` crate.
+   type. These errors come from the `arch_program` crate.
 
 ```rust
 #[derive(Debug)]
@@ -202,9 +202,9 @@ an acceptable range, showing how to:
 <Tab value="Program">
 
 ```rust title="lib.rs"
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("9oECKMeeyf1fWNPKzyrB2x1AbLjHDFjs139kEyFwBpoV");
+declare_id!("82b521e43a34804cd2b041ccce401045b3f5d66caddf0ac15682ba072b09b354");
 
 #[program]
 pub mod custom_error {

@@ -85,7 +85,7 @@ pub fn generate(accs: &AccountsStruct) -> proc_macro2::TokenStream {
             }
         }
 
-        impl<#combined_generics> anchor_lang::Bumps for #name<#struct_generics> #where_clause {
+        impl<#combined_generics> satellite_lang::Bumps for #name<#struct_generics> #where_clause {
             type Bumps = #bumps_name;
         }
     }

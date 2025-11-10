@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("CustomDiscriminator111111111111111111111111");
+declare_id!("030d2d7a21632dcac75b73f2e0a1a86176b45588365aa8af1812ea46c1000000");
 
 const CONST_DISC: &'static [u8] = &[55, 66, 77, 88];
 

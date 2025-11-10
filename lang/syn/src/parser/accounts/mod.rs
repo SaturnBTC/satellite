@@ -348,7 +348,7 @@ fn is_field_primitive(f: &syn::Field) -> ParseResult<bool> {
 fn parse_ty(f: &syn::Field) -> ParseResult<(Ty, bool)> {
     let (ident, optional, path) = ident_string(f)?;
     let ty = match ident.as_str() {
-        "Sysvar" => Ty::Sysvar(parse_sysvar(&path)?),
+        // "Sysvar" => Ty::Sysvar(parse_sysvar(&path)?),
         "AccountInfo" => Ty::AccountInfo,
         "UncheckedAccount" => Ty::UncheckedAccount,
         "AccountLoader" => Ty::AccountLoader(parse_program_account_loader(&path)?),
@@ -359,7 +359,7 @@ fn parse_ty(f: &syn::Field) -> ParseResult<(Ty, bool)> {
         "InterfaceAccount" => Ty::InterfaceAccount(parse_interface_account_ty(&path)?),
         "Signer" => Ty::Signer,
         "SystemAccount" => Ty::SystemAccount,
-        "ProgramData" => Ty::ProgramData,
+        // "ProgramData" => Ty::ProgramData,
         _ => return Err(ParseError::new(f.ty.span(), "invalid account type given")),
     };
 
@@ -532,61 +532,61 @@ fn parse_account(mut path: &syn::Path) -> ParseResult<syn::TypePath> {
     }
 }
 
-fn parse_sysvar(path: &syn::Path) -> ParseResult<SysvarTy> {
-    let segments = &path.segments[0];
-    let account_ident = match &segments.arguments {
-        syn::PathArguments::AngleBracketed(args) => {
-            // Expected: <'info, MyType>.
-            if args.args.len() != 2 {
-                return Err(ParseError::new(
-                    args.args.span(),
-                    "bracket arguments must be the lifetime and type",
-                ));
-            }
-            match &args.args[1] {
-                syn::GenericArgument::Type(syn::Type::Path(ty_path)) => {
-                    // TODO: allow segmented paths.
-                    if ty_path.path.segments.len() != 1 {
-                        return Err(ParseError::new(
-                            ty_path.path.span(),
-                            "segmented paths are not currently allowed",
-                        ));
-                    }
-                    let path_segment = &ty_path.path.segments[0];
-                    path_segment.ident.clone()
-                }
-                _ => {
-                    return Err(ParseError::new(
-                        args.args[1].span(),
-                        "first bracket argument must be a lifetime",
-                    ))
-                }
-            }
-        }
-        _ => {
-            return Err(ParseError::new(
-                segments.arguments.span(),
-                "expected angle brackets with a lifetime and type",
-            ))
-        }
-    };
-    let ty = match account_ident.to_string().as_str() {
-        "Clock" => SysvarTy::Clock,
-        "Rent" => SysvarTy::Rent,
-        "EpochSchedule" => SysvarTy::EpochSchedule,
-        "Fees" => SysvarTy::Fees,
-        "RecentBlockhashes" => SysvarTy::RecentBlockhashes,
-        "SlotHashes" => SysvarTy::SlotHashes,
-        "SlotHistory" => SysvarTy::SlotHistory,
-        "StakeHistory" => SysvarTy::StakeHistory,
-        "Instructions" => SysvarTy::Instructions,
-        "Rewards" => SysvarTy::Rewards,
-        _ => {
-            return Err(ParseError::new(
-                account_ident.span(),
-                "invalid sysvar provided",
-            ))
-        }
-    };
-    Ok(ty)
-}
+// fn parse_sysvar(path: &syn::Path) -> ParseResult<SysvarTy> {
+//     let segments = &path.segments[0];
+//     let account_ident = match &segments.arguments {
+//         syn::PathArguments::AngleBracketed(args) => {
+//             // Expected: <'info, MyType>.
+//             if args.args.len() != 2 {
+//                 return Err(ParseError::new(
+//                     args.args.span(),
+//                     "bracket arguments must be the lifetime and type",
+//                 ));
+//             }
+//             match &args.args[1] {
+//                 syn::GenericArgument::Type(syn::Type::Path(ty_path)) => {
+//                     // TODO: allow segmented paths.
+//                     if ty_path.path.segments.len() != 1 {
+//                         return Err(ParseError::new(
+//                             ty_path.path.span(),
+//                             "segmented paths are not currently allowed",
+//                         ));
+//                     }
+//                     let path_segment = &ty_path.path.segments[0];
+//                     path_segment.ident.clone()
+//                 }
+//                 _ => {
+//                     return Err(ParseError::new(
+//                         args.args[1].span(),
+//                         "first bracket argument must be a lifetime",
+//                     ))
+//                 }
+//             }
+//         }
+//         _ => {
+//             return Err(ParseError::new(
+//                 segments.arguments.span(),
+//                 "expected angle brackets with a lifetime and type",
+//             ))
+//         }
+//     };
+//     let ty = match account_ident.to_string().as_str() {
+//         "Clock" => SysvarTy::Clock,
+//         "Rent" => SysvarTy::Rent,
+//         "EpochSchedule" => SysvarTy::EpochSchedule,
+//         "Fees" => SysvarTy::Fees,
+//         "RecentBlockhashes" => SysvarTy::RecentBlockhashes,
+//         "SlotHashes" => SysvarTy::SlotHashes,
+//         "SlotHistory" => SysvarTy::SlotHistory,
+//         "StakeHistory" => SysvarTy::StakeHistory,
+//         "Instructions" => SysvarTy::Instructions,
+//         "Rewards" => SysvarTy::Rewards,
+//         _ => {
+//             return Err(ParseError::new(
+//                 account_ident.span(),
+//                 "invalid sysvar provided",
+//             ))
+//         }
+//     };
+//     Ok(ty)
+// }

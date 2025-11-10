@@ -3,11 +3,11 @@
 //! reside until they are "cashed" by the intended recipient. The creator of
 //! the check can cancel the check at any time to get back the funds.
 
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, TokenAccount, Transfer};
+use satellite_lang::prelude::*;
+use satellite_apl::token::{self, TokenAccount, Transfer};
 use std::convert::Into;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 
 #[program]
 pub mod cashiers_check {

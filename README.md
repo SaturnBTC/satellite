@@ -37,8 +37,8 @@ To jump straight to examples, go [here](https://github.com/coral-xyz/anchor/tree
 
 | Package                 | Description                                              | Version                                                                                                                          | Docs                                                                                                            |
 | :---------------------- | :------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------- |
-| `anchor-lang`           | Rust primitives for writing programs on Solana           | [![Crates.io](https://img.shields.io/crates/v/anchor-lang?color=blue)](https://crates.io/crates/anchor-lang)                     | [![Docs.rs](https://docs.rs/anchor-lang/badge.svg)](https://docs.rs/anchor-lang)                                |
-| `anchor-spl`            | CPI clients for SPL programs on Solana                   | [![crates](https://img.shields.io/crates/v/anchor-spl?color=blue)](https://crates.io/crates/anchor-spl)                          | [![Docs.rs](https://docs.rs/anchor-spl/badge.svg)](https://docs.rs/anchor-spl)                                  |
+| `satellite-lang`           | Rust primitives for writing programs on Solana           | [![Crates.io](https://img.shields.io/crates/v/anchor-lang?color=blue)](https://crates.io/crates/anchor-lang)                     | [![Docs.rs](https://docs.rs/anchor-lang/badge.svg)](https://docs.rs/anchor-lang)                                |
+| `satellite-apl`            | CPI clients for SPL programs on Solana                   | [![crates](https://img.shields.io/crates/v/satellite-apl?color=blue)](https://crates.io/crates/satellite-apl)                          | [![Docs.rs](https://docs.rs/satellite-apl/badge.svg)](https://docs.rs/satellite-apl)                                  |
 | `anchor-client`         | Rust client for Anchor programs                          | [![crates](https://img.shields.io/crates/v/anchor-client?color=blue)](https://crates.io/crates/anchor-client)                    | [![Docs.rs](https://docs.rs/anchor-client/badge.svg)](https://docs.rs/anchor-client)                            |
 | `@coral-xyz/anchor`     | TypeScript client for Anchor programs                    | [![npm](https://img.shields.io/npm/v/@coral-xyz/anchor.svg?color=blue)](https://www.npmjs.com/package/@coral-xyz/anchor)         | [![Docs](https://img.shields.io/badge/docs-typedoc-blue)](https://coral-xyz.github.io/anchor/ts/index.html)     |
 | `@coral-xyz/anchor-cli` | CLI to support building and managing an Anchor workspace | [![npm](https://img.shields.io/npm/v/@coral-xyz/anchor-cli.svg?color=blue)](https://www.npmjs.com/package/@coral-xyz/anchor-cli) | [![Docs](https://img.shields.io/badge/docs-typedoc-blue)](https://coral-xyz.github.io/anchor/cli/commands.html) |
@@ -54,9 +54,9 @@ Here's a counter program, where only the designated `authority`
 can increment the count.
 
 ```rust
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 
 #[program]
 mod counter {

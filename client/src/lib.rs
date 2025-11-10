@@ -1,6 +1,6 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
-//! An RPC client to interact with Solana programs written in [`anchor_lang`].
+//! An RPC client to interact with Solana programs written in [`satellite_lang`].
 //!
 //! # Examples
 //!
@@ -34,7 +34,7 @@
 //!         .accounts(accounts::Initialize {
 //!             my_account: my_account_kp.pubkey(),
 //!             payer: program.payer(),
-//!             system_program: system_program::ID,
+//!             system_program: system_program::SYSTEM_PROGRAM_ID,
 //!         })
 //!         .args(instruction::Initialize { field: 42 })
 //!         .signer(&my_account_kp)
@@ -69,11 +69,11 @@
 //!
 //! [`RpcClient::new_mock`]: https://docs.rs/solana-client/2.1.0/solana_client/rpc_client/struct.RpcClient.html#method.new_mock
 
-use anchor_lang::solana_program::program_error::ProgramError;
-use anchor_lang::solana_program::pubkey::Pubkey;
-use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use futures::{Future, StreamExt};
 use regex::Regex;
+use satellite_lang::arch_program::program_error::ProgramError;
+use satellite_lang::arch_program::pubkey::Pubkey;
+use satellite_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use solana_account_decoder::UiAccountEncoding;
 use solana_client::nonblocking::rpc_client::RpcClient as AsyncRpcClient;
 use solana_client::rpc_config::{
@@ -108,10 +108,10 @@ use tokio::{
     task::JoinHandle,
 };
 
-pub use anchor_lang;
 pub use cluster::Cluster;
 #[cfg(feature = "async")]
 pub use nonblocking::ThreadSafeSigner;
+pub use satellite_lang;
 pub use solana_account_decoder;
 pub use solana_client;
 pub use solana_sdk;
@@ -312,7 +312,7 @@ impl<C: Deref<Target = impl Signer> + Clone> Program<C> {
         Ok(())
     }
 
-    async fn on_internal<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
+    async fn on_internal<T: satellite_lang::Event + satellite_lang::AnchorDeserialize>(
         &self,
         f: impl Fn(&EventContext, T) + Send + 'static,
     ) -> Result<
@@ -383,13 +383,13 @@ impl<T> Iterator for ProgramAccountsIterator<T> {
     }
 }
 
-pub fn handle_program_log<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
+pub fn handle_program_log<T: satellite_lang::Event + satellite_lang::AnchorDeserialize>(
     self_program_str: &str,
     l: &str,
 ) -> Result<(Option<T>, Option<String>, bool), ClientError> {
-    use anchor_lang::__private::base64;
     use base64::engine::general_purpose::STANDARD;
     use base64::Engine;
+    use satellite_lang::__private::base64;
 
     // Log emitted from the current program.
     if let Some(log) = l
@@ -489,7 +489,7 @@ pub enum ClientError {
     #[error("Account not found")]
     AccountNotFound,
     #[error("{0}")]
-    AnchorError(#[from] anchor_lang::error::Error),
+    AnchorError(#[from] satellite_lang::error::Error),
     #[error("{0}")]
     ProgramError(#[from] ProgramError),
     #[error("{0}")]
@@ -574,7 +574,7 @@ impl<C: Deref<Target = impl Signer> + Clone, S: AsSigner> RequestBuilder<'_, C, 
     ///     .accounts(accounts::Initialize {
     ///         my_account: my_account_kp.pubkey(),
     ///         payer: program.payer(),
-    ///         system_program: system_program::ID,
+    ///         system_program: system_program::SYSTEM_PROGRAM_ID,
     ///     })
     ///     // Remaining accounts
     ///     .accounts(vec![AccountMeta {
@@ -689,7 +689,7 @@ impl<C: Deref<Target = impl Signer> + Clone, S: AsSigner> RequestBuilder<'_, C, 
     }
 }
 
-fn parse_logs_response<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
+fn parse_logs_response<T: satellite_lang::Event + satellite_lang::AnchorDeserialize>(
     logs: RpcResponse<RpcLogsResponse>,
     program_id_str: &str,
 ) -> Result<Vec<T>, ClientError> {
@@ -751,9 +751,9 @@ fn parse_logs_response<T: anchor_lang::Event + anchor_lang::AnchorDeserialize>(
 mod tests {
     use solana_client::rpc_response::RpcResponseContext;
 
-    // Creating a mock struct that implements `anchor_lang::events`
+    // Creating a mock struct that implements `satellite_lang::events`
     // for type inference in `test_logs`
-    use anchor_lang::prelude::*;
+    use satellite_lang::prelude::*;
     #[derive(Debug, Clone, Copy)]
     #[event]
     pub struct MockEvent {}

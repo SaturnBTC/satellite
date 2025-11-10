@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("Re1ationsDerivation111111111111111111111111");
+declare_id!("064fc96e880e59d5b1177621bf58079a860a90b9d03bd010a5fd8eb3a5000000");
 
 #[program]
 pub mod relations_derivation {

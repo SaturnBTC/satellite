@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 use callee::cpi::accounts::CpiReturn;
 use callee::program::Callee;
 use callee::{self, CpiReturnAccount};
 
-declare_id!("HmbTLCmaGvZhKnn1Zfa1JVnp7vkMV4DYVxPLWBVoN65L");
+declare_id!("f92780f032082341785fefc65f955f3c6d386c360c29f74c96fc5f95ead2c857");
 
 #[program]
 pub mod caller {
@@ -23,7 +23,7 @@ pub mod caller {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         let result = callee::cpi::return_u64(cpi_ctx)?;
         let solana_return = result.get();
-        anchor_lang::solana_program::log::sol_log_data(&[&solana_return.try_to_vec().unwrap()]);
+        satellite_lang::solana_program::log::sol_log_data(&[&solana_return.try_to_vec().unwrap()]);
         Ok(())
     }
 
@@ -35,7 +35,7 @@ pub mod caller {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         let result = callee::cpi::return_struct(cpi_ctx)?;
         let solana_return = result.get();
-        anchor_lang::solana_program::log::sol_log_data(&[&solana_return.try_to_vec().unwrap()]);
+        satellite_lang::solana_program::log::sol_log_data(&[&solana_return.try_to_vec().unwrap()]);
         Ok(())
     }
 
@@ -47,7 +47,7 @@ pub mod caller {
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
         let result = callee::cpi::return_vec(cpi_ctx)?;
         let solana_return = result.get();
-        anchor_lang::solana_program::log::sol_log_data(&[&solana_return.try_to_vec().unwrap()]);
+        satellite_lang::solana_program::log::sol_log_data(&[&solana_return.try_to_vec().unwrap()]);
         Ok(())
     }
 

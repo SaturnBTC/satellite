@@ -68,9 +68,9 @@ instructions.
 <Tabs items={["Callee Program", "IDL"]}>
 
 ```rust tab="Callee Program"
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("8HupNBr7SBhBLcBsLhbtes3tCarBm6Bvpqp5AfVjHuj8");
+declare_id!("6c56d24728713cf5075e32040ca4c6e4a32a3569ccf7695ca24688b1d134177b");
 
 #[program]
 pub mod example {
@@ -220,9 +220,9 @@ instructions defined in the callee program above.
 <Tabs items={["Caller Program", "Test"]}>
 
 ```rust tab="Caller Program"
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("GENmb1D59wqCKRwujq4PJ8461EccQ5srLHrXyXp4HMTH");
+declare_id!("e24c77e8a079b77f4b45ba7673aa81da07b66d163188ce28b446fcb9eec69654");
 
 // [!code word:declare_program]
 // [!code highlight:9]
@@ -465,9 +465,9 @@ module to build the program's instructions.
 <Tabs items={["Callee Program", "IDL"]}>
 
 ```rust tab="Callee Program"
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("6khKp4BeJpCjBY1Eh39ybiqbfRnrn2UzWeUARjQLXYRC");
+declare_id!("557c01192a0a62876fe9b24ec2abab7edfcdd2450aba68afa3f7398defaecc97");
 
 #[program]
 pub mod example {
@@ -597,7 +597,7 @@ use anchor_client::{
     },
     Client, Cluster,
 };
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 use std::rc::Rc;
 
 declare_program!(example);
@@ -641,7 +641,7 @@ async fn main() -> anyhow::Result<()> {
         .accounts(accounts::Initialize {
             counter: counter.pubkey(),
             payer: program.payer(),
-            system_program: system_program::ID,
+            system_program: system_program::SYSTEM_PROGRAM_ID,
         })
         .args(args::Initialize)
         .instructions()?
@@ -680,7 +680,7 @@ edition = "2021"
 
 [dependencies]
 anchor-client = { version = "0.31.1", features = ["async"] }
-anchor-lang = "0.31.1"
+satellite-lang = "0.31.1"
 anyhow = "1.0.93"
 tokio = { version = "1.0", features = ["full"] }
 ```
@@ -726,7 +726,7 @@ let initialize_ix = program
     .accounts(accounts::Initialize {
         counter: counter.pubkey(),
         payer: program.payer(),
-        system_program: system_program::ID,
+        system_program: system_program::SYSTEM_PROGRAM_ID,
     })
     // Arguments for initialize instruction (discriminator)
     .args(args::Initialize)

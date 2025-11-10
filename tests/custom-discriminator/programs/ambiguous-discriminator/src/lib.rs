@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("AmbiguousDiscriminator111111111111111111111");
+declare_id!("0280a7b33cb9d0abc42a8df9d500280512746f9b507acef2e8eb222a69a00000");
 
 #[program]
 pub mod ambiguous_discriminator {

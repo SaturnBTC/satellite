@@ -3,16 +3,17 @@ mod mods;
 
 use std::{env, fs, path::PathBuf};
 
-use anchor_lang_idl::{convert::convert_idl, types::Idl};
 use anyhow::anyhow;
 use quote::{quote, ToTokens};
+use satellite_lang_idl::{convert::convert_idl, types::Idl};
 use syn::parse::{Parse, ParseStream};
 
 use common::gen_docs;
 use mods::{
     accounts::gen_accounts_mod, client::gen_client_mod, constants::gen_constants_mod,
-    cpi::gen_cpi_mod, errors::gen_errors_mod, events::gen_events_mod, internal::gen_internal_mod,
-    program::gen_program_mod, types::gen_types_mod, utils::gen_utils_mod,
+    cpi::gen_cpi_mod, errors::gen_errors_mod,
+    /*events::gen_events_mod,*/ internal::gen_internal_mod, program::gen_program_mod,
+    types::gen_types_mod, utils::gen_utils_mod,
 };
 
 pub struct DeclareProgram {
@@ -59,7 +60,7 @@ fn gen_program(idl: &Idl, name: &syn::Ident) -> proc_macro2::TokenStream {
     // Defined
     let constants_mod = gen_constants_mod(idl);
     let accounts_mod = gen_accounts_mod(idl);
-    let events_mod = gen_events_mod(idl);
+    // let events_mod = gen_events_mod(idl);
     let types_mod = gen_types_mod(idl);
     let errors_mod = gen_errors_mod(idl);
 
@@ -74,7 +75,7 @@ fn gen_program(idl: &Idl, name: &syn::Ident) -> proc_macro2::TokenStream {
     quote! {
         #docs
         pub mod #name {
-            use anchor_lang::prelude::*;
+            use satellite_lang::prelude::*;
             use accounts::*;
             use events::*;
             use types::*;
@@ -84,7 +85,7 @@ fn gen_program(idl: &Idl, name: &syn::Ident) -> proc_macro2::TokenStream {
 
             #constants_mod
             #accounts_mod
-            #events_mod
+            // #events_mod
             #types_mod
             #errors_mod
 
@@ -110,9 +111,7 @@ fn gen_program_docs(idl: &Idl) -> proc_macro2::TokenStream {
 }
 
 fn gen_id(idl: &Idl) -> proc_macro2::TokenStream {
-    let address_bytes = bs58::decode(&idl.address)
-        .into_vec()
-        .expect("Invalid `idl.address`");
+    let address_bytes = hex::decode(&idl.address).expect("Invalid `idl.address`");
     let doc = format!("Program ID of program `{}`.", idl.metadata.name);
 
     quote! {

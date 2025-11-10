@@ -2,8 +2,8 @@
 
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::sysvar::instructions as tx_instructions;
-use anchor_spl::dex::{self, Dex};
-use anchor_spl::token::{self, Mint, Token, TokenAccount};
+use satellite_apl::dex::{self, Dex};
+use satellite_apl::token::{self, Mint, Token, TokenAccount};
 use lockup::program::Lockup;
 use registry::program::Registry;
 use registry::{Registrar, RewardVendorKind};
@@ -12,7 +12,7 @@ use std::convert::TryInto;
 use std::mem::size_of;
 use swap::program::Swap;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 
 /// CFO is the program representing the Serum chief financial officer. It is
 /// the program responsible for collecting and distributing fees from the Serum

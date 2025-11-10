@@ -1,12 +1,12 @@
 //! This example demonstrates the ability to use optional accounts in
 //! structs deriving `Accounts`.
 
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 pub use context::*;
 
 pub mod account;
 pub mod context;
-declare_id!("FNqz6pqLAwvMSds2FYjR4nKV3moVpPNtvkfGFrqLKrgG");
+declare_id!("d59c336e1eb3ebd15cd438d318f2db47e2ae839c31bf053469f877e286a85e09");
 
 #[program]
 mod optional {

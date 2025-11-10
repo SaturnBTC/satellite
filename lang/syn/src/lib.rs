@@ -308,9 +308,9 @@ impl Field {
             Ty::Signer => quote! {
                 Signer
             },
-            Ty::ProgramData => quote! {
-                ProgramData
-            },
+            // Ty::ProgramData => quote! {
+            //     ProgramData
+            // },
             Ty::SystemAccount => quote! {
                 SystemAccount
             },
@@ -326,23 +326,23 @@ impl Field {
                     }
                 }
             }
-            Ty::Sysvar(ty) => {
-                let account = match ty {
-                    SysvarTy::Clock => quote! {Clock},
-                    SysvarTy::Rent => quote! {Rent},
-                    SysvarTy::EpochSchedule => quote! {EpochSchedule},
-                    SysvarTy::Fees => quote! {Fees},
-                    SysvarTy::RecentBlockhashes => quote! {RecentBlockhashes},
-                    SysvarTy::SlotHashes => quote! {SlotHashes},
-                    SysvarTy::SlotHistory => quote! {SlotHistory},
-                    SysvarTy::StakeHistory => quote! {StakeHistory},
-                    SysvarTy::Instructions => quote! {Instructions},
-                    SysvarTy::Rewards => quote! {Rewards},
-                };
-                quote! {
-                    Sysvar<#account>
-                }
-            }
+            // Ty::Sysvar(ty) => {
+            //     let account = match ty {
+            //         SysvarTy::Clock => quote! {Clock},
+            //         SysvarTy::Rent => quote! {Rent},
+            //         SysvarTy::EpochSchedule => quote! {EpochSchedule},
+            //         SysvarTy::Fees => quote! {Fees},
+            //         SysvarTy::RecentBlockhashes => quote! {RecentBlockhashes},
+            //         SysvarTy::SlotHashes => quote! {SlotHashes},
+            //         SysvarTy::SlotHistory => quote! {SlotHistory},
+            //         SysvarTy::StakeHistory => quote! {StakeHistory},
+            //         SysvarTy::Instructions => quote! {Instructions},
+            //         SysvarTy::Rewards => quote! {Rewards},
+            //     };
+            //     quote! {
+            //         Sysvar<#account>
+            //     }
+            // }
             _ => quote! {
                 #container_ty<#account_ty>
             },
@@ -374,7 +374,7 @@ impl Field {
                 __program_id
             },
             _ => quote! {
-                &anchor_spl::token::ID
+                &satellite_apl::token::ID
             },
         };
         match &self.ty {
@@ -434,7 +434,7 @@ impl Field {
                     }
                 } else {
                     quote! {
-                        match #container_ty::try_from_unchecked(#owner_addr, &#field) {
+                        match #container_ty::try_from_unchecked(&#field) {
                             Ok(val) => val,
                             Err(e) => return Err(e.with_account_name(#field_str))
                         }
@@ -451,7 +451,7 @@ impl Field {
                     }
                 } else {
                     quote! {
-                        match #container_ty::try_from_unchecked(#owner_addr, &#field) {
+                        match #container_ty::try_from_unchecked(&#field) {
                             Ok(val) => val,
                             Err(e) => return Err(e.with_account_name(#field_str))
                         }
@@ -464,25 +464,25 @@ impl Field {
     pub fn container_ty(&self) -> proc_macro2::TokenStream {
         match &self.ty {
             Ty::Account(_) => quote! {
-                anchor_lang::accounts::account::Account
+                satellite_lang::accounts::account::Account
             },
             Ty::LazyAccount(_) => quote! {
-                anchor_lang::accounts::lazy_account::LazyAccount
+                satellite_lang::accounts::lazy_account::LazyAccount
             },
             Ty::AccountLoader(_) => quote! {
-                anchor_lang::accounts::account_loader::AccountLoader
+                satellite_lang::accounts::account_loader::AccountLoader
             },
-            Ty::Sysvar(_) => quote! { anchor_lang::accounts::sysvar::Sysvar },
-            Ty::Program(_) => quote! { anchor_lang::accounts::program::Program },
-            Ty::Interface(_) => quote! { anchor_lang::accounts::interface::Interface },
+            // Ty::Sysvar(_) => quote! { satellite_lang::accounts::sysvar::Sysvar },
+            Ty::Program(_) => quote! { satellite_lang::accounts::program::Program },
+            Ty::Interface(_) => quote! { satellite_lang::accounts::interface::Interface },
             Ty::InterfaceAccount(_) => {
-                quote! { anchor_lang::accounts::interface_account::InterfaceAccount }
+                quote! { satellite_lang::accounts::interface_account::InterfaceAccount }
             }
             Ty::AccountInfo => quote! {},
             Ty::UncheckedAccount => quote! {},
             Ty::Signer => quote! {},
             Ty::SystemAccount => quote! {},
-            Ty::ProgramData => quote! {},
+            // Ty::ProgramData => quote! {},
         }
     }
 
@@ -501,9 +501,9 @@ impl Field {
             Ty::SystemAccount => quote! {
                 SystemAccount
             },
-            Ty::ProgramData => quote! {
-                ProgramData
-            },
+            // Ty::ProgramData => quote! {
+            //     ProgramData
+            // },
             Ty::Account(ty) => {
                 let ident = &ty.account_type_path;
                 quote! {
@@ -528,18 +528,18 @@ impl Field {
                     #ident
                 }
             }
-            Ty::Sysvar(ty) => match ty {
-                SysvarTy::Clock => quote! {Clock},
-                SysvarTy::Rent => quote! {Rent},
-                SysvarTy::EpochSchedule => quote! {EpochSchedule},
-                SysvarTy::Fees => quote! {Fees},
-                SysvarTy::RecentBlockhashes => quote! {RecentBlockhashes},
-                SysvarTy::SlotHashes => quote! {SlotHashes},
-                SysvarTy::SlotHistory => quote! {SlotHistory},
-                SysvarTy::StakeHistory => quote! {StakeHistory},
-                SysvarTy::Instructions => quote! {Instructions},
-                SysvarTy::Rewards => quote! {Rewards},
-            },
+            // Ty::Sysvar(ty) => match ty {
+            //     SysvarTy::Clock => quote! {Clock},
+            //     SysvarTy::Rent => quote! {Rent},
+            //     SysvarTy::EpochSchedule => quote! {EpochSchedule},
+            //     SysvarTy::Fees => quote! {Fees},
+            //     SysvarTy::RecentBlockhashes => quote! {RecentBlockhashes},
+            //     SysvarTy::SlotHashes => quote! {SlotHashes},
+            //     SysvarTy::SlotHistory => quote! {SlotHistory},
+            //     SysvarTy::StakeHistory => quote! {StakeHistory},
+            //     SysvarTy::Instructions => quote! {Instructions},
+            //     SysvarTy::Rewards => quote! {Rewards},
+            // },
             Ty::Program(ty) => {
                 let program = &ty.account_type_path;
                 quote! {
@@ -572,7 +572,7 @@ pub enum Ty {
     AccountInfo,
     UncheckedAccount,
     AccountLoader(AccountLoaderTy),
-    Sysvar(SysvarTy),
+    // Sysvar(SysvarTy),
     Account(AccountTy),
     LazyAccount(LazyAccountTy),
     Program(ProgramTy),
@@ -580,22 +580,22 @@ pub enum Ty {
     InterfaceAccount(InterfaceAccountTy),
     Signer,
     SystemAccount,
-    ProgramData,
+    // ProgramData,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum SysvarTy {
-    Clock,
-    Rent,
-    EpochSchedule,
-    Fees,
-    RecentBlockhashes,
-    SlotHashes,
-    SlotHistory,
-    StakeHistory,
-    Instructions,
-    Rewards,
-}
+// #[derive(Debug, PartialEq, Eq)]
+// pub enum SysvarTy {
+//     Clock,
+//     Rent,
+//     EpochSchedule,
+//     Fees,
+//     RecentBlockhashes,
+//     SlotHashes,
+//     SlotHistory,
+//     StakeHistory,
+//     Instructions,
+//     Rewards,
+// }
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct AccountLoaderTy {
@@ -690,6 +690,7 @@ pub struct ConstraintGroup {
     pub associated_token: Option<ConstraintAssociatedToken>,
     pub token_account: Option<ConstraintTokenAccountGroup>,
     pub mint: Option<ConstraintTokenMintGroup>,
+    pub metadata: Option<ConstraintMetadataGroup>,
     pub realloc: Option<ConstraintReallocGroup>,
 }
 
@@ -732,6 +733,7 @@ pub enum Constraint {
     Address(ConstraintAddress),
     TokenAccount(ConstraintTokenAccountGroup),
     Mint(ConstraintTokenMintGroup),
+    Metadata(ConstraintMetadataGroup),
     Realloc(ConstraintReallocGroup),
 }
 
@@ -768,21 +770,23 @@ pub enum ConstraintToken {
     Realloc(Context<ConstraintRealloc>),
     ReallocPayer(Context<ConstraintReallocPayer>),
     ReallocZero(Context<ConstraintReallocZero>),
+    MetadataMint(Context<ConstraintMetadataMint>),
+    MetadataUpdateAuthority(Context<ConstraintMetadataUpdateAuthority>),
     // extensions
-    ExtensionGroupPointerAuthority(Context<ConstraintExtensionAuthority>),
-    ExtensionGroupPointerGroupAddress(Context<ConstraintExtensionGroupPointerGroupAddress>),
-    ExtensionGroupMemberPointerAuthority(Context<ConstraintExtensionAuthority>),
-    ExtensionGroupMemberPointerMemberAddress(
-        Context<ConstraintExtensionGroupMemberPointerMemberAddress>,
-    ),
-    ExtensionMetadataPointerAuthority(Context<ConstraintExtensionAuthority>),
-    ExtensionMetadataPointerMetadataAddress(
-        Context<ConstraintExtensionMetadataPointerMetadataAddress>,
-    ),
-    ExtensionCloseAuthority(Context<ConstraintExtensionAuthority>),
-    ExtensionTokenHookAuthority(Context<ConstraintExtensionAuthority>),
-    ExtensionTokenHookProgramId(Context<ConstraintExtensionTokenHookProgramId>),
-    ExtensionPermanentDelegate(Context<ConstraintExtensionPermanentDelegate>),
+    // ExtensionGroupPointerAuthority(Context<ConstraintExtensionAuthority>),
+    // ExtensionGroupPointerGroupAddress(Context<ConstraintExtensionGroupPointerGroupAddress>),
+    // ExtensionGroupMemberPointerAuthority(Context<ConstraintExtensionAuthority>),
+    // ExtensionGroupMemberPointerMemberAddress(
+    //     Context<ConstraintExtensionGroupMemberPointerMemberAddress>,
+    // ),
+    // ExtensionMetadataPointerAuthority(Context<ConstraintExtensionAuthority>),
+    // ExtensionMetadataPointerMetadataAddress(
+    //     Context<ConstraintExtensionMetadataPointerMetadataAddress>,
+    // ),
+    // ExtensionCloseAuthority(Context<ConstraintExtensionAuthority>),
+    // ExtensionTokenHookAuthority(Context<ConstraintExtensionAuthority>),
+    // ExtensionTokenHookProgramId(Context<ConstraintExtensionTokenHookProgramId>),
+    // ExtensionPermanentDelegate(Context<ConstraintExtensionPermanentDelegate>),
 }
 
 impl Parse for ConstraintToken {
@@ -899,36 +903,36 @@ pub struct ConstraintSpace {
     pub space: Expr,
 }
 
-// extension constraints
-#[derive(Debug, Clone)]
-pub struct ConstraintExtensionAuthority {
-    pub authority: Expr,
-}
+// // extension constraints
+// #[derive(Debug, Clone)]
+// pub struct ConstraintExtensionAuthority {
+//     pub authority: Expr,
+// }
 
-#[derive(Debug, Clone)]
-pub struct ConstraintExtensionGroupPointerGroupAddress {
-    pub group_address: Expr,
-}
+// #[derive(Debug, Clone)]
+// pub struct ConstraintExtensionGroupPointerGroupAddress {
+//     pub group_address: Expr,
+// }
 
-#[derive(Debug, Clone)]
-pub struct ConstraintExtensionGroupMemberPointerMemberAddress {
-    pub member_address: Expr,
-}
+// #[derive(Debug, Clone)]
+// pub struct ConstraintExtensionGroupMemberPointerMemberAddress {
+//     pub member_address: Expr,
+// }
 
-#[derive(Debug, Clone)]
-pub struct ConstraintExtensionMetadataPointerMetadataAddress {
-    pub metadata_address: Expr,
-}
+// #[derive(Debug, Clone)]
+// pub struct ConstraintExtensionMetadataPointerMetadataAddress {
+//     pub metadata_address: Expr,
+// }
 
-#[derive(Debug, Clone)]
-pub struct ConstraintExtensionTokenHookProgramId {
-    pub program_id: Expr,
-}
+// #[derive(Debug, Clone)]
+// pub struct ConstraintExtensionTokenHookProgramId {
+//     pub program_id: Expr,
+// }
 
-#[derive(Debug, Clone)]
-pub struct ConstraintExtensionPermanentDelegate {
-    pub permanent_delegate: Expr,
-}
+// #[derive(Debug, Clone)]
+// pub struct ConstraintExtensionPermanentDelegate {
+//     pub permanent_delegate: Expr,
+// }
 
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
@@ -957,16 +961,16 @@ pub enum InitKind {
         decimals: Expr,
         token_program: Option<Expr>,
         // extensions
-        group_pointer_authority: Option<Expr>,
-        group_pointer_group_address: Option<Expr>,
-        group_member_pointer_authority: Option<Expr>,
-        group_member_pointer_member_address: Option<Expr>,
-        metadata_pointer_authority: Option<Expr>,
-        metadata_pointer_metadata_address: Option<Expr>,
-        close_authority: Option<Expr>,
-        permanent_delegate: Option<Expr>,
-        transfer_hook_authority: Option<Expr>,
-        transfer_hook_program_id: Option<Expr>,
+        // group_pointer_authority: Option<Expr>,
+        // group_pointer_group_address: Option<Expr>,
+        // group_member_pointer_authority: Option<Expr>,
+        // group_member_pointer_member_address: Option<Expr>,
+        // metadata_pointer_authority: Option<Expr>,
+        // metadata_pointer_metadata_address: Option<Expr>,
+        // close_authority: Option<Expr>,
+        // permanent_delegate: Option<Expr>,
+        // transfer_hook_authority: Option<Expr>,
+        // transfer_hook_program_id: Option<Expr>,
     },
 }
 
@@ -1075,16 +1079,32 @@ pub struct ConstraintTokenMintGroup {
     pub mint_authority: Option<Expr>,
     pub freeze_authority: Option<Expr>,
     pub token_program: Option<Expr>,
-    pub group_pointer_authority: Option<Expr>,
-    pub group_pointer_group_address: Option<Expr>,
-    pub group_member_pointer_authority: Option<Expr>,
-    pub group_member_pointer_member_address: Option<Expr>,
-    pub metadata_pointer_authority: Option<Expr>,
-    pub metadata_pointer_metadata_address: Option<Expr>,
-    pub close_authority: Option<Expr>,
-    pub permanent_delegate: Option<Expr>,
-    pub transfer_hook_authority: Option<Expr>,
-    pub transfer_hook_program_id: Option<Expr>,
+    // pub group_pointer_authority: Option<Expr>,
+    // pub group_pointer_group_address: Option<Expr>,
+    // pub group_member_pointer_authority: Option<Expr>,
+    // pub group_member_pointer_member_address: Option<Expr>,
+    // pub metadata_pointer_authority: Option<Expr>,
+    // pub metadata_pointer_metadata_address: Option<Expr>,
+    // pub close_authority: Option<Expr>,
+    // pub permanent_delegate: Option<Expr>,
+    // pub transfer_hook_authority: Option<Expr>,
+    // pub transfer_hook_program_id: Option<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMetadataMint {
+    pub mint: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMetadataUpdateAuthority {
+    pub update_authority: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMetadataGroup {
+    pub mint: Option<Expr>,
+    pub update_authority: Option<Expr>,
 }
 
 // Syntaxt context object for preserving metadata about the inner item.

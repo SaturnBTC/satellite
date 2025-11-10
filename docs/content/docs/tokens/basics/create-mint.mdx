@@ -51,14 +51,14 @@ details about this mint account on
 
 ## Usage
 
-Use the `token_interface` module from the `anchor-spl` crate to interact with
+Use the `token_interface` module from the `satellite-apl` crate to interact with
 both the Token Program and Token Extension Program. This module provides types
 for working with both token programs, allowing you to write code that's
 compatible with either program.
 
 ```rust title="snippet"
 // [!code highlight]
-use anchor_spl::token_interface::{Mint, TokenInterface};
+use satellite_apl::token_interface::{Mint, TokenInterface};
 
 // --snip--
 
@@ -172,10 +172,10 @@ Create a new mint account in using a generated Keypair.
 <Tab value="Program">
 
 ```rust title="lib.rs"
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface};
+use satellite_lang::prelude::*;
+use satellite_apl::token_interface::{Mint, TokenInterface};
 
-declare_id!("3pX5NKLru1UBDVckynWQxsgnJeUN3N1viy36Gk9TSn8d");
+declare_id!("29e3ad9a0a6b4b587ca7df4b189ffdbe8438457aad232be607fa121b57f75ad6");
 
 #[program]
 pub mod token_example {
@@ -256,10 +256,10 @@ of the mint account.
 <Tab value="Program">
 
 ```rust title="lib.rs"
-use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenInterface};
+use satellite_lang::prelude::*;
+use satellite_apl::token_interface::{Mint, TokenInterface};
 
-declare_id!("3pX5NKLru1UBDVckynWQxsgnJeUN3N1viy36Gk9TSn8d");
+declare_id!("29e3ad9a0a6b4b587ca7df4b189ffdbe8438457aad232be607fa121b57f75ad6");
 
 #[program]
 pub mod token_example {

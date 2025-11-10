@@ -1,20 +1,20 @@
 [package]
-name = "anchor-attribute-access-control"
+name = "satellite-attribute-access-control"
 version = "0.31.1"
-authors = ["Anchor Maintainers <accounts@200ms.io>"]
-repository = "https://github.com/coral-xyz/anchor"
+authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
+repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
-description = "Anchor attribute macro for instruction access control"
+description = "Satellite attribute macro for instruction access control"
 edition = "2021"
 
 [lib]
 proc-macro = true
 
 [features]
-anchor-debug = ["anchor-syn/anchor-debug"]
+satellite-debug = ["satellite-syn/satellite-debug"]
 
 [dependencies]
-anchor-syn = { path = "../../syn", version = "0.31.1" }
+satellite-syn = { path = "../../syn", version = "0.31.1" }
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "1", features = ["full"] }

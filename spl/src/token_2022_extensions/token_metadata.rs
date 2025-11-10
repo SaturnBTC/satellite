@@ -1,7 +1,7 @@
-use anchor_lang::solana_program::account_info::AccountInfo;
-use anchor_lang::solana_program::pubkey::Pubkey;
-use anchor_lang::Result;
-use anchor_lang::{context::CpiContext, Accounts};
+use satellite_lang::arch_program::account::AccountInfo;
+use satellite_lang::arch_program::pubkey::Pubkey;
+use satellite_lang::Result;
+use satellite_lang::{context::CpiContext, Accounts};
 
 use spl_pod::optional_keys::OptionalNonZeroPubkey;
 use spl_token_metadata_interface::state::Field;
@@ -22,7 +22,7 @@ pub fn token_metadata_initialize<'info>(
         symbol,
         uri,
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.program_id,
@@ -55,7 +55,7 @@ pub fn token_metadata_update_authority<'info>(
         ctx.accounts.current_authority.key,
         new_authority,
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.program_id,
@@ -87,7 +87,7 @@ pub fn token_metadata_update_field<'info>(
         field,
         value,
     );
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.program_id,

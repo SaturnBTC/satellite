@@ -2,7 +2,7 @@
 //! It's not too instructive/coherent by itself, so please see other examples.
 
 use account::*;
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 use context::*;
 use event::*;
 
@@ -10,7 +10,7 @@ mod account;
 mod context;
 mod event;
 
-declare_id!("FNqz6pqLAwvMSds2FYjR4nKV3moVpPNtvkfGFrqLKrgG");
+declare_id!("d59c336e1eb3ebd15cd438d318f2db47e2ae839c31bf053469f877e286a85e09");
 
 #[constant]
 pub const BASE: u128 = 1_000_000;

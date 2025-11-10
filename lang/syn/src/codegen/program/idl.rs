@@ -2,7 +2,7 @@ use quote::quote;
 
 pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
     quote! {
-        use anchor_lang::idl::ERASED_AUTHORITY;
+        use satellite_lang::idl::ERASED_AUTHORITY;
 
         #[account("internal")]
         #[derive(Debug)]
@@ -27,7 +27,7 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
 
         // Hacky workaround because of some internals to how account attribute
         // works. Namespaces are the root of most of the problem.
-        impl anchor_lang::Owner for IdlAccount {
+        impl satellite_lang::Owner for IdlAccount {
             fn owner() -> Pubkey {
                 crate::ID
             }
@@ -133,12 +133,12 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
             program_id: &Pubkey,
             accounts: &mut IdlCreateAccounts,
             data_len: u64,
-        ) -> anchor_lang::Result<()> {
+        ) -> satellite_lang::Result<()> {
             #[cfg(not(feature = "no-log-ix-name"))]
-            anchor_lang::prelude::msg!("Instruction: IdlCreateAccount");
+            satellite_lang::prelude::msg!("Instruction: IdlCreateAccount");
 
             if program_id != accounts.program.key {
-                return Err(anchor_lang::error::ErrorCode::IdlInstructionInvalidProgram.into());
+                return Err(satellite_lang::error::ErrorCode::IdlInstructionInvalidProgram.into());
             }
             // Create the IDL's account.
             let from = accounts.from.key;
@@ -151,10 +151,9 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
                 IdlAccount::DISCRIMINATOR.len() + 32 + 4 + data_len as usize,
                 10_000
             );
-            let rent = Rent::get()?;
-            let lamports = rent.minimum_balance(space);
+            let lamports = satellite_lang::arch_program::rent::minimum_rent(space);
             let seeds = &[&[nonce][..]];
-            let ix = anchor_lang::solana_program::system_instruction::create_account_with_seed(
+            let ix = satellite_lang::arch_program::system_instruction::create_account_with_seed(
                 from,
                 &to,
                 &base,
@@ -163,7 +162,7 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
                 space as u64,
                 owner,
             );
-            anchor_lang::solana_program::program::invoke_signed(
+            satellite_lang::arch_program::program::invoke_signed(
                 &ix,
                 &[
                     accounts.from.clone(),
@@ -200,16 +199,16 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
             program_id: &Pubkey,
             accounts: &mut IdlResizeAccount,
             data_len: u64,
-        ) -> anchor_lang::Result<()> {
+        ) -> satellite_lang::Result<()> {
             #[cfg(not(feature = "no-log-ix-name"))]
-            anchor_lang::prelude::msg!("Instruction: IdlResizeAccount");
+            satellite_lang::prelude::msg!("Instruction: IdlResizeAccount");
 
             let data_len: usize = data_len as usize;
 
             // We're not going to support increasing the size of accounts that already contain data
             // because that would be messy and possibly dangerous
             if accounts.idl.data_len != 0 {
-                return Err(anchor_lang::error::ErrorCode::IdlAccountNotEmpty.into());
+                return Err(satellite_lang::error::ErrorCode::IdlAccountNotEmpty.into());
             }
 
             let idl_ref = AsRef::<AccountInfo>::as_ref(&accounts.idl);
@@ -222,12 +221,11 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
             .unwrap();
 
             if new_account_space > idl_ref.data_len() {
-                let sysvar_rent = Rent::get()?;
-                let new_rent_minimum = sysvar_rent.minimum_balance(new_account_space);
-                anchor_lang::system_program::transfer(
-                    anchor_lang::context::CpiContext::new(
+                let new_rent_minimum = satellite_lang::arch_program::rent::minimum_rent(new_account_space);
+                satellite_lang::system_program::transfer(
+                    satellite_lang::context::CpiContext::new(
                         accounts.system_program.to_account_info(),
-                        anchor_lang::system_program::Transfer {
+                        satellite_lang::system_program::Transfer {
                             from: accounts.authority.to_account_info(),
                             to: accounts.idl.to_account_info(),
                         },
@@ -247,9 +245,9 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
         pub fn __idl_close_account(
             program_id: &Pubkey,
             accounts: &mut IdlCloseAccount,
-        ) -> anchor_lang::Result<()> {
+        ) -> satellite_lang::Result<()> {
             #[cfg(not(feature = "no-log-ix-name"))]
-            anchor_lang::prelude::msg!("Instruction: IdlCloseAccount");
+            satellite_lang::prelude::msg!("Instruction: IdlCloseAccount");
 
             Ok(())
         }
@@ -258,9 +256,9 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
         pub fn __idl_create_buffer(
             program_id: &Pubkey,
             accounts: &mut IdlCreateBuffer,
-        ) -> anchor_lang::Result<()> {
+        ) -> satellite_lang::Result<()> {
             #[cfg(not(feature = "no-log-ix-name"))]
-            anchor_lang::prelude::msg!("Instruction: IdlCreateBuffer");
+            satellite_lang::prelude::msg!("Instruction: IdlCreateBuffer");
 
             let mut buffer = &mut accounts.buffer;
             buffer.authority = *accounts.authority.key;
@@ -272,9 +270,9 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
             program_id: &Pubkey,
             accounts: &mut IdlAccounts,
             idl_data: Vec<u8>,
-        ) -> anchor_lang::Result<()> {
+        ) -> satellite_lang::Result<()> {
             #[cfg(not(feature = "no-log-ix-name"))]
-            anchor_lang::prelude::msg!("Instruction: IdlWrite");
+            satellite_lang::prelude::msg!("Instruction: IdlWrite");
 
             let prev_len: usize = ::std::convert::TryInto::<usize>::try_into(accounts.idl.data_len).unwrap();
             let new_len: usize = prev_len.checked_add(idl_data.len()).unwrap() as usize;
@@ -294,9 +292,9 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
             program_id: &Pubkey,
             accounts: &mut IdlAccounts,
             new_authority: Pubkey,
-        ) -> anchor_lang::Result<()> {
+        ) -> satellite_lang::Result<()> {
             #[cfg(not(feature = "no-log-ix-name"))]
-            anchor_lang::prelude::msg!("Instruction: IdlSetAuthority");
+            satellite_lang::prelude::msg!("Instruction: IdlSetAuthority");
 
             accounts.idl.authority = new_authority;
             Ok(())
@@ -306,9 +304,9 @@ pub fn idl_accounts_and_functions() -> proc_macro2::TokenStream {
         pub fn __idl_set_buffer(
             program_id: &Pubkey,
             accounts: &mut IdlSetBuffer,
-        ) -> anchor_lang::Result<()> {
+        ) -> satellite_lang::Result<()> {
             #[cfg(not(feature = "no-log-ix-name"))]
-            anchor_lang::prelude::msg!("Instruction: IdlSetBuffer");
+            satellite_lang::prelude::msg!("Instruction: IdlSetBuffer");
 
             accounts.idl.data_len = accounts.buffer.data_len;
 

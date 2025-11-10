@@ -15,8 +15,8 @@ pub struct Idl {
     pub instructions: Vec<IdlInstruction>,
     #[serde(default, skip_serializing_if = "is_default")]
     pub accounts: Vec<IdlAccount>,
-    #[serde(default, skip_serializing_if = "is_default")]
-    pub events: Vec<IdlEvent>,
+    // #[serde(default, skip_serializing_if = "is_default")]
+    // pub events: Vec<IdlEvent>,
     #[serde(default, skip_serializing_if = "is_default")]
     pub errors: Vec<IdlErrorCode>,
     #[serde(default, skip_serializing_if = "is_default")]
@@ -138,11 +138,11 @@ pub struct IdlAccount {
     pub discriminator: IdlDiscriminator,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct IdlEvent {
-    pub name: String,
-    pub discriminator: IdlDiscriminator,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+// pub struct IdlEvent {
+//     pub name: String,
+//     pub discriminator: IdlDiscriminator,
+// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct IdlConst {

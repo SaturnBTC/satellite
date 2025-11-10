@@ -1,7 +1,7 @@
-//! This example demonstrates the use of the `anchor_spl::token` CPI client.
+//! This example demonstrates the use of the `satellite_apl::token` CPI client.
 
-use anchor_lang::prelude::*;
-use anchor_spl::{
+use satellite_lang::prelude::*;
+use satellite_apl::{
     associated_token::AssociatedToken,
     token_2022::spl_token_2022,
     token_interface::{
@@ -10,7 +10,7 @@ use anchor_spl::{
     },
 };
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 
 #[program]
 mod token_proxy {

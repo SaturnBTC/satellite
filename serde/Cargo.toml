@@ -1,0 +1,19 @@
+[package]
+name = "satellite-serde"
+version = "0.1.0"
+edition = "2021"
+description = "Serde utilities for the Satellite project."
+license = "MIT"
+repository = "https://github.com/saturnbtc/satellite"
+keywords = ["satellite", "serde"]
+categories = ["cryptography::cryptocurrencies"]
+
+[dependencies]
+arch_program = { version = "0.5.13" }
+serde = { version = "1", features = ["derive"] }
+primitive-types = { version = "0.13.1" }
+bitcoin = { version = "0.32.5" }
+hex = { version = "0.4.3" }
+
+[dev-dependencies]
+serde_json = { version = "1.0.116" }

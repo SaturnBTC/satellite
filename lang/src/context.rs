@@ -1,9 +1,9 @@
 //! Data structures that are used to provide non-argument inputs to program endpoints
 
 use crate::{Accounts, Bumps, ToAccountInfos, ToAccountMetas};
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use arch_program::account::AccountInfo;
+use arch_program::account::AccountMeta;
+use arch_program::pubkey::Pubkey;
 use std::fmt;
 
 /// Provides non-argument inputs to the program.
@@ -75,9 +75,9 @@ where
 /// ```ignore
 /// // Callee Program
 ///
-/// use anchor_lang::prelude::*;
+/// use satellite_lang::prelude::*;
 ///
-/// declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+/// declare_id!("da075cb2ff5ec6817613de530b692a8735477769da47430cbd8154335c4a8327");
 ///
 /// #[program]
 /// pub mod callee {
@@ -118,10 +118,10 @@ where
 ///
 /// // Caller Program
 ///
-/// use anchor_lang::prelude::*;
+/// use satellite_lang::prelude::*;
 /// use callee::{self, program::Callee};
 ///
-/// declare_id!("Sxg7dBh5VLT8S1o6BqncZCPq9nhHHukjfVd6ohQJeAk");
+/// declare_id!("06a678b1181d2f79fd9d249178cb1afbedf05d3f8a012f5f9a1e8f2a469fba81");
 ///
 /// #[program]
 /// pub mod caller {

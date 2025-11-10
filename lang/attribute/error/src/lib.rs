@@ -3,9 +3,9 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use quote::quote;
 
-use anchor_syn::codegen;
-use anchor_syn::parser::error::{self as error_parser, ErrorInput};
-use anchor_syn::ErrorArgs;
+use satellite_syn::codegen;
+use satellite_syn::parser::error::{self as error_parser, ErrorInput};
+use satellite_syn::ErrorArgs;
 use syn::{parse_macro_input, Expr};
 
 /// Generates `Error` and `type Result<T> = Result<T, Error>` types to be
@@ -18,7 +18,7 @@ use syn::{parse_macro_input, Expr};
 /// # Example
 ///
 /// ```ignore
-/// use anchor_lang::prelude::*;
+/// use satellite_lang::prelude::*;
 ///
 /// #[program]
 /// mod errors {
@@ -40,7 +40,7 @@ use syn::{parse_macro_input, Expr};
 ///
 /// Note that we generate a new `Error` type so that we can return either the
 /// user defined error enum *or* a
-/// [`ProgramError`](../solana_program/enum.ProgramError.html), which is used
+/// [`ProgramError`](../arch_program/enum.ProgramError.html), which is used
 /// pervasively, throughout solana program crates. The generated `Error` type
 /// should almost never be used directly, as the user defined error is
 /// preferred. In the example above, `error!(MyError::Hello)`.
@@ -63,7 +63,7 @@ pub fn error_code(
     proc_macro::TokenStream::from(error)
 }
 
-/// Generates an [`Error::AnchorError`](../../anchor_lang/error/enum.Error.html) that includes file and line information.
+/// Generates an [`Error::AnchorError`](../../satellite_lang/error/enum.Error.html) that includes file and line information.
 ///
 /// # Example
 /// ```rust,ignore
@@ -92,10 +92,10 @@ fn create_error(error_code: Expr, source: bool, account_name: Option<Expr>) -> T
     let error_origin = match (source, account_name) {
         (false, None) => quote! { None },
         (false, Some(account_name)) => quote! {
-            Some(anchor_lang::error::ErrorOrigin::AccountName(#account_name.to_string()))
+            Some(satellite_lang::error::ErrorOrigin::AccountName(#account_name.to_string()))
         },
         (true, _) => quote! {
-            Some(anchor_lang::error::ErrorOrigin::Source(anchor_lang::error::Source {
+            Some(satellite_lang::error::ErrorOrigin::Source(satellite_lang::error::Source {
                 filename: file!(),
                 line: line!()
             }))
@@ -103,8 +103,8 @@ fn create_error(error_code: Expr, source: bool, account_name: Option<Expr>) -> T
     };
 
     TokenStream::from(quote! {
-        anchor_lang::error::Error::from(
-            anchor_lang::error::AnchorError {
+        satellite_lang::error::Error::from(
+            satellite_lang::error::AnchorError {
                 error_name: #error_code.name(),
                 error_code_number: #error_code.into(),
                 error_msg: #error_code.to_string(),

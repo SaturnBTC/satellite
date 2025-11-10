@@ -1,20 +1,20 @@
 [package]
-name = "anchor-attribute-error"
+name = "satellite-attribute-error"
 version = "0.31.1"
-authors = ["Anchor Maintainers <accounts@200ms.io>"]
-repository = "https://github.com/coral-xyz/anchor"
+authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
+repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
-description = "Anchor attribute macro for creating error types"
+description = "Satellite attribute macro for creating error types"
 edition = "2021"
 
 [lib]
 proc-macro = true
 
 [features]
-anchor-debug = ["anchor-syn/anchor-debug"]
-idl-build = ["anchor-syn/idl-build"]
+satellite-debug = ["satellite-syn/satellite-debug"]
+idl-build = ["satellite-syn/idl-build"]
 
 [dependencies]
-anchor-syn = { path = "../../syn", version = "0.31.1" }
+satellite-syn = { path = "../../syn", version = "0.31.1" }
 quote = "1"
 syn = { version = "1", features = ["full"] }

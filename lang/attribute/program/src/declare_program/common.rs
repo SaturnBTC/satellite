@@ -1,9 +1,9 @@
-use anchor_lang_idl::types::{
+use proc_macro2::Literal;
+use quote::{format_ident, quote};
+use satellite_lang_idl::types::{
     Idl, IdlArrayLen, IdlDefinedFields, IdlField, IdlGenericArg, IdlRepr, IdlSerialization,
     IdlType, IdlTypeDef, IdlTypeDefGeneric, IdlTypeDefTy,
 };
-use proc_macro2::Literal;
-use quote::{format_ident, quote};
 
 /// This function should ideally return the absolute path to the declared program's id but because
 /// `proc_macro2::Span::call_site().source_file().path()` is behind an unstable feature flag, we

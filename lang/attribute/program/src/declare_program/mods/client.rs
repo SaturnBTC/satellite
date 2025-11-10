@@ -1,5 +1,5 @@
-use anchor_lang_idl::types::Idl;
 use quote::quote;
+use satellite_lang_idl::types::Idl;
 
 use super::common::gen_accounts_common;
 

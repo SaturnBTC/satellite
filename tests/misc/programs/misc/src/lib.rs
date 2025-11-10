@@ -2,7 +2,7 @@
 //! It's not too instructive/coherent by itself, so please see other examples.
 
 use account::*;
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 use context::*;
 use event::*;
 
@@ -10,7 +10,7 @@ mod account;
 mod context;
 mod event;
 
-declare_id!("3TEqcc8xhrhdspwbvoamUJe2borm4Nr72JxL66k6rgrh");
+declare_id!("24701f2b8866e347e13e675f447c12bf34a961bc97a56b2f4ae56d25618f5956");
 
 #[program]
 pub mod misc {

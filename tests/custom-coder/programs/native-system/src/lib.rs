@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
+use satellite_lang::prelude::*;
 
-declare_id!("9NxAd91hhJ3ZBTHytYP894y4ESRKG7n8VbLgdyYGJFLB");
+declare_id!("7c7d119658f6c131616d2d5dbd52dd37458928e20cfc996ea9cfe343b8e4a048");
 
 #[program]
 pub mod native_system {

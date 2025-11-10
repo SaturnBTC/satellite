@@ -1,17 +1,16 @@
-use anchor_lang::{
-    context::CpiContext,
-    solana_program::{
-        account_info::AccountInfo,
+use satellite_lang::{
+    arch_program::{
+        account::AccountInfo,
         pubkey::Pubkey,
         stake::{
             self,
-            program::ID,
+            program::STAKE_PROGRAM_ID,
             state::{StakeAuthorize, StakeState},
         },
     },
+    context::CpiContext,
     Accounts, Result,
 };
-use borsh::BorshDeserialize;
 use std::ops::Deref;
 
 // CPI functions
@@ -19,50 +18,50 @@ use std::ops::Deref;
 pub fn authorize<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, Authorize<'info>>,
     stake_authorize: StakeAuthorize,
-    custodian: Option<AccountInfo<'info>>,
+    // custodian: Option<AccountInfo<'info>>,
 ) -> Result<()> {
     let ix = stake::instruction::authorize(
         ctx.accounts.stake.key,
         ctx.accounts.authorized.key,
         ctx.accounts.new_authorized.key,
         stake_authorize,
-        custodian.as_ref().map(|c| c.key),
+        // custodian.as_ref().map(|c| c.key),
     );
-    let mut account_infos = vec![
+    let account_infos = vec![
         ctx.accounts.stake,
-        ctx.accounts.clock,
+        // ctx.accounts.clock,
         ctx.accounts.authorized,
     ];
-    if let Some(c) = custodian {
-        account_infos.push(c);
-    }
-    anchor_lang::solana_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
+    // if let Some(c) = custodian {
+    //     account_infos.push(c);
+    // }
+    satellite_lang::arch_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
         .map_err(Into::into)
 }
 
 pub fn withdraw<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, Withdraw<'info>>,
     amount: u64,
-    custodian: Option<AccountInfo<'info>>,
+    // custodian: Option<AccountInfo<'info>>,
 ) -> Result<()> {
     let ix = stake::instruction::withdraw(
         ctx.accounts.stake.key,
         ctx.accounts.withdrawer.key,
         ctx.accounts.to.key,
         amount,
-        custodian.as_ref().map(|c| c.key),
+        // custodian.as_ref().map(|c| c.key),
     );
-    let mut account_infos = vec![
+    let account_infos = vec![
         ctx.accounts.stake,
         ctx.accounts.to,
-        ctx.accounts.clock,
-        ctx.accounts.stake_history,
+        // ctx.accounts.clock,
+        // ctx.accounts.stake_history,
         ctx.accounts.withdrawer,
     ];
-    if let Some(c) = custodian {
-        account_infos.push(c);
-    }
-    anchor_lang::solana_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
+    // if let Some(c) = custodian {
+    //     account_infos.push(c);
+    // }
+    satellite_lang::arch_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
         .map_err(Into::into)
 }
 
@@ -70,9 +69,9 @@ pub fn deactivate_stake<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, DeactivateStake<'info>>,
 ) -> Result<()> {
     let ix = stake::instruction::deactivate_stake(ctx.accounts.stake.key, ctx.accounts.staker.key);
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
-        &[ctx.accounts.stake, ctx.accounts.clock, ctx.accounts.staker],
+        &[ctx.accounts.stake, ctx.accounts.staker],
         ctx.signer_seeds,
     )
     .map_err(Into::into)
@@ -90,9 +89,8 @@ pub struct Authorize<'info> {
 
     /// The new authority to replace the existing authority
     pub new_authorized: AccountInfo<'info>,
-
-    /// Clock sysvar
-    pub clock: AccountInfo<'info>,
+    // /// Clock sysvar
+    // pub clock: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -105,12 +103,11 @@ pub struct Withdraw<'info> {
 
     /// Account to send withdrawn lamports to
     pub to: AccountInfo<'info>,
+    // /// Clock sysvar
+    // pub clock: AccountInfo<'info>,
 
-    /// Clock sysvar
-    pub clock: AccountInfo<'info>,
-
-    /// StakeHistory sysvar
-    pub stake_history: AccountInfo<'info>,
+    // /// StakeHistory sysvar
+    // pub stake_history: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -120,9 +117,8 @@ pub struct DeactivateStake<'info> {
 
     /// The stake account's stake authority
     pub staker: AccountInfo<'info>,
-
-    /// Clock sysvar
-    pub clock: AccountInfo<'info>,
+    // /// Clock sysvar
+    // pub clock: AccountInfo<'info>,
 }
 
 // State
@@ -130,21 +126,30 @@ pub struct DeactivateStake<'info> {
 #[derive(Clone)]
 pub struct StakeAccount(StakeState);
 
-impl anchor_lang::AccountDeserialize for StakeAccount {
-    fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+impl satellite_lang::AccountDeserialize for StakeAccount {
+    fn try_deserialize(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
         Self::try_deserialize_unchecked(buf)
     }
 
-    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
-        StakeState::deserialize(buf).map(Self).map_err(Into::into)
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
+        let needed = StakeState::size_of();
+        if buf.len() < needed {
+            return Err(satellite_lang::error::ErrorCode::AccountDidNotDeserialize.into());
+        }
+        let head = &buf[..needed];
+        // SAFETY: We rely on the stake program using a fixed, on-chain binary
+        // layout identical to `StakeState` with `size_of()` bytes. Read an
+        // unaligned copy from the account data into a local value.
+        let value = unsafe { core::ptr::read_unaligned(head.as_ptr() as *const StakeState) };
+        Ok(Self(value))
     }
 }
 
-impl anchor_lang::AccountSerialize for StakeAccount {}
+impl satellite_lang::AccountSerialize for StakeAccount {}
 
-impl anchor_lang::Owner for StakeAccount {
+impl satellite_lang::Owner for StakeAccount {
     fn owner() -> Pubkey {
-        ID
+        STAKE_PROGRAM_ID
     }
 }
 
@@ -159,8 +164,8 @@ impl Deref for StakeAccount {
 #[derive(Clone)]
 pub struct Stake;
 
-impl anchor_lang::Id for Stake {
+impl satellite_lang::Id for Stake {
     fn id() -> Pubkey {
-        ID
+        STAKE_PROGRAM_ID
     }
 }

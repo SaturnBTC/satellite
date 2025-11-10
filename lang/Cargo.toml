@@ -1,60 +1,61 @@
 [package]
-name = "anchor-lang"
-version = "0.31.1"
-authors = ["Anchor Maintainers <accounts@200ms.io>"]
-repository = "https://github.com/coral-xyz/anchor"
+name = "satellite-lang"
+version = "0.31.3"
+authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
+repository = "https://github.com/saturnbtc/satellite"
 edition = "2021"
 license = "Apache-2.0"
-description = "Solana Sealevel eDSL"
+description = "Arch Network eDSL"
 
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-allow-missing-optionals = ["anchor-derive-accounts/allow-missing-optionals"]
-anchor-debug = [
-    "anchor-attribute-access-control/anchor-debug",
-    "anchor-attribute-account/anchor-debug",
-    "anchor-attribute-constant/anchor-debug",
-    "anchor-attribute-error/anchor-debug",
-    "anchor-attribute-event/anchor-debug",
-    "anchor-attribute-program/anchor-debug",
-    "anchor-derive-accounts/anchor-debug"
+allow-missing-optionals = ["satellite-derive-accounts/allow-missing-optionals"]
+satellite-debug = [
+	"satellite-attribute-access-control/satellite-debug",
+	"satellite-attribute-account/satellite-debug",
+	"satellite-attribute-constant/satellite-debug",
+	"satellite-attribute-error/satellite-debug",
+	"satellite-attribute-program/satellite-debug",
+	"satellite-derive-accounts/satellite-debug",
 ]
 derive = []
-event-cpi = ["anchor-attribute-event/event-cpi"]
+event-cpi = ["satellite-attribute-event/event-cpi"]
 idl-build = [
-    "anchor-attribute-account/idl-build",
-    "anchor-attribute-constant/idl-build",
-    "anchor-attribute-event/idl-build",
-    "anchor-attribute-error/idl-build",
-    "anchor-attribute-program/idl-build",
-    "anchor-derive-accounts/idl-build",
-    "anchor-derive-serde/idl-build",
-    "anchor-lang-idl/build",
+	"satellite-attribute-account/idl-build",
+	"satellite-attribute-constant/idl-build",
+	"satellite-attribute-error/idl-build",
+	"satellite-attribute-program/idl-build",
+	"satellite-derive-accounts/idl-build",
+	"satellite-derive-serde/idl-build",
+	"satellite-lang-idl/build",
 ]
-init-if-needed = ["anchor-derive-accounts/init-if-needed"]
-interface-instructions = ["anchor-attribute-program/interface-instructions"]
-lazy-account = ["anchor-attribute-account/lazy-account", "anchor-derive-serde/lazy-account"]
+init-if-needed = ["satellite-derive-accounts/init-if-needed"]
+interface-instructions = ["satellite-attribute-program/interface-instructions"]
+lazy-account = [
+	"satellite-attribute-account/lazy-account",
+	"satellite-derive-serde/lazy-account",
+]
 
 [dependencies]
-anchor-attribute-access-control = { path = "./attribute/access-control", version = "0.31.1" }
-anchor-attribute-account = { path = "./attribute/account", version = "0.31.1" }
-anchor-attribute-constant = { path = "./attribute/constant", version = "0.31.1" }
-anchor-attribute-error = { path = "./attribute/error", version = "0.31.1" }
-anchor-attribute-event = { path = "./attribute/event", version = "0.31.1" }
-anchor-attribute-program = { path = "./attribute/program", version = "0.31.1" }
-anchor-derive-accounts = { path = "./derive/accounts", version = "0.31.1" }
-anchor-derive-serde = { path = "./derive/serde", version = "0.31.1" }
-anchor-derive-space = { path = "./derive/space", version = "0.31.1" }
+satellite-attribute-event = { path = "./attribute/event", version = "0.31.2" }
+satellite-attribute-access-control = { path = "./attribute/access-control", version = "0.31.1" }
+satellite-attribute-account = { path = "./attribute/account", version = "0.31.1" }
+satellite-attribute-constant = { path = "./attribute/constant", version = "0.31.1" }
+satellite-attribute-error = { path = "./attribute/error", version = "0.31.1" }
+satellite-attribute-program = { path = "./attribute/program", version = "0.31.1" }
+satellite-derive-accounts = { path = "./derive/accounts", version = "0.31.1" }
+satellite-derive-serde = { path = "./derive/serde", version = "0.31.1" }
+satellite-derive-space = { path = "./derive/space", version = "0.31.1" }
 
-# `anchor-lang-idl` should only be included with `idl-build` feature
-anchor-lang-idl = { path = "../idl", version = "0.1.2", optional = true }
+# `satellite-lang-idl` should only be included with `idl-build` feature
+satellite-lang-idl = { path = "../idl", version = "0.1.2", optional = true }
 
 base64 = "0.21"
 bincode = "1"
-borsh = "0.10.3"
-bytemuck = "1"
-solana-program = "2"
-thiserror = "1"
+borsh = { version = "1.4.0" }
+bytemuck = "1.14"
+arch_program = { version = "0.5.13" }
+thiserror = "1.0.61"

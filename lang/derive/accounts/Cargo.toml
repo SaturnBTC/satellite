@@ -1,22 +1,22 @@
 [package]
-name = "anchor-derive-accounts"
+name = "satellite-derive-accounts"
 version = "0.31.1"
-authors = ["Anchor Maintainers <accounts@200ms.io>"]
-repository = "https://github.com/coral-xyz/anchor"
+authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
+repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
-description = "Anchor Derive macro for accounts"
+description = "Satellite Derive macro for accounts"
 edition = "2021"
 
 [lib]
 proc-macro = true
 
 [features]
-allow-missing-optionals = ["anchor-syn/allow-missing-optionals"]
-anchor-debug = ["anchor-syn/anchor-debug"]
-idl-build = ["anchor-syn/idl-build"]
-init-if-needed = ["anchor-syn/init-if-needed"]
+allow-missing-optionals = ["satellite-syn/allow-missing-optionals"]
+satellite-debug = ["satellite-syn/satellite-debug"]
+idl-build = ["satellite-syn/idl-build"]
+init-if-needed = ["satellite-syn/init-if-needed"]
 
 [dependencies]
-anchor-syn = { path = "../../syn", version = "0.31.1" }
+satellite-syn = { path = "../../syn", version = "0.31.1" }
 quote = "1"
 syn = { version = "1", features = ["full"] }

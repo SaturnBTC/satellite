@@ -1,26 +1,26 @@
-use anchor_lang::solana_program::account_info::AccountInfo;
-use anchor_lang::solana_program::program_pack::Pack;
-use anchor_lang::solana_program::pubkey::Pubkey;
-use anchor_lang::Result;
-use anchor_lang::{context::CpiContext, Accounts};
+use satellite_lang::arch_program::account::AccountInfo;
+use satellite_lang::arch_program::program_pack::Pack;
+use satellite_lang::arch_program::pubkey::Pubkey;
+use satellite_lang::Result;
+use satellite_lang::{context::CpiContext, Accounts};
 use std::ops::Deref;
 
-pub use spl_token;
-pub use spl_token::ID;
+pub use apl_token;
+pub use apl_token::ID;
 
 pub fn transfer<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, Transfer<'info>>,
     amount: u64,
 ) -> Result<()> {
-    let ix = spl_token::instruction::transfer(
-        &spl_token::ID,
+    let ix = apl_token::instruction::transfer(
+        &apl_token::id(),
         ctx.accounts.from.key,
         ctx.accounts.to.key,
         ctx.accounts.authority.key,
         &[],
         amount,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[ctx.accounts.from, ctx.accounts.to, ctx.accounts.authority],
         ctx.signer_seeds,
@@ -33,8 +33,8 @@ pub fn transfer_checked<'info>(
     amount: u64,
     decimals: u8,
 ) -> Result<()> {
-    let ix = spl_token::instruction::transfer_checked(
-        &spl_token::ID,
+    let ix = apl_token::instruction::transfer_checked(
+        &apl_token::id(),
         ctx.accounts.from.key,
         ctx.accounts.mint.key,
         ctx.accounts.to.key,
@@ -43,7 +43,7 @@ pub fn transfer_checked<'info>(
         amount,
         decimals,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.from,
@@ -60,15 +60,15 @@ pub fn mint_to<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, MintTo<'info>>,
     amount: u64,
 ) -> Result<()> {
-    let ix = spl_token::instruction::mint_to(
-        &spl_token::ID,
+    let ix = apl_token::instruction::mint_to(
+        &apl_token::id(),
         ctx.accounts.mint.key,
         ctx.accounts.to.key,
         ctx.accounts.authority.key,
         &[],
         amount,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[ctx.accounts.to, ctx.accounts.mint, ctx.accounts.authority],
         ctx.signer_seeds,
@@ -77,15 +77,15 @@ pub fn mint_to<'info>(
 }
 
 pub fn burn<'info>(ctx: CpiContext<'_, '_, '_, 'info, Burn<'info>>, amount: u64) -> Result<()> {
-    let ix = spl_token::instruction::burn(
-        &spl_token::ID,
+    let ix = apl_token::instruction::burn(
+        &apl_token::id(),
         ctx.accounts.from.key,
         ctx.accounts.mint.key,
         ctx.accounts.authority.key,
         &[],
         amount,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[ctx.accounts.from, ctx.accounts.mint, ctx.accounts.authority],
         ctx.signer_seeds,
@@ -97,15 +97,15 @@ pub fn approve<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, Approve<'info>>,
     amount: u64,
 ) -> Result<()> {
-    let ix = spl_token::instruction::approve(
-        &spl_token::ID,
+    let ix = apl_token::instruction::approve(
+        &apl_token::id(),
         ctx.accounts.to.key,
         ctx.accounts.delegate.key,
         ctx.accounts.authority.key,
         &[],
         amount,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.to,
@@ -122,8 +122,8 @@ pub fn approve_checked<'info>(
     amount: u64,
     decimals: u8,
 ) -> Result<()> {
-    let ix = spl_token::instruction::approve_checked(
-        &spl_token::ID,
+    let ix = apl_token::instruction::approve_checked(
+        &apl_token::id(),
         ctx.accounts.to.key,
         ctx.accounts.mint.key,
         ctx.accounts.delegate.key,
@@ -132,7 +132,7 @@ pub fn approve_checked<'info>(
         amount,
         decimals,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.to,
@@ -146,13 +146,13 @@ pub fn approve_checked<'info>(
 }
 
 pub fn revoke<'info>(ctx: CpiContext<'_, '_, '_, 'info, Revoke<'info>>) -> Result<()> {
-    let ix = spl_token::instruction::revoke(
-        &spl_token::ID,
+    let ix = apl_token::instruction::revoke(
+        &apl_token::id(),
         ctx.accounts.source.key,
         ctx.accounts.authority.key,
         &[],
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[ctx.accounts.source, ctx.accounts.authority],
         ctx.signer_seeds,
@@ -163,13 +163,13 @@ pub fn revoke<'info>(ctx: CpiContext<'_, '_, '_, 'info, Revoke<'info>>) -> Resul
 pub fn initialize_account<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, InitializeAccount<'info>>,
 ) -> Result<()> {
-    let ix = spl_token::instruction::initialize_account(
-        &spl_token::ID,
+    let ix = apl_token::instruction::initialize_account(
+        &apl_token::id(),
         ctx.accounts.account.key,
         ctx.accounts.mint.key,
         ctx.accounts.authority.key,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.account,
@@ -185,13 +185,13 @@ pub fn initialize_account<'info>(
 pub fn initialize_account3<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, InitializeAccount3<'info>>,
 ) -> Result<()> {
-    let ix = spl_token::instruction::initialize_account3(
-        &spl_token::ID,
+    let ix = apl_token::instruction::initialize_account3(
+        &apl_token::id(),
         ctx.accounts.account.key,
         ctx.accounts.mint.key,
         ctx.accounts.authority.key,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[ctx.accounts.account, ctx.accounts.mint],
         ctx.signer_seeds,
@@ -200,14 +200,14 @@ pub fn initialize_account3<'info>(
 }
 
 pub fn close_account<'info>(ctx: CpiContext<'_, '_, '_, 'info, CloseAccount<'info>>) -> Result<()> {
-    let ix = spl_token::instruction::close_account(
-        &spl_token::ID,
+    let ix = apl_token::instruction::close_account(
+        &apl_token::id(),
         ctx.accounts.account.key,
         ctx.accounts.destination.key,
         ctx.accounts.authority.key,
         &[], // TODO: support multisig
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.account,
@@ -222,14 +222,14 @@ pub fn close_account<'info>(ctx: CpiContext<'_, '_, '_, 'info, CloseAccount<'inf
 pub fn freeze_account<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, FreezeAccount<'info>>,
 ) -> Result<()> {
-    let ix = spl_token::instruction::freeze_account(
-        &spl_token::ID,
+    let ix = apl_token::instruction::freeze_account(
+        &apl_token::id(),
         ctx.accounts.account.key,
         ctx.accounts.mint.key,
         ctx.accounts.authority.key,
         &[], // TODO: Support multisig signers.
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.account,
@@ -242,14 +242,14 @@ pub fn freeze_account<'info>(
 }
 
 pub fn thaw_account<'info>(ctx: CpiContext<'_, '_, '_, 'info, ThawAccount<'info>>) -> Result<()> {
-    let ix = spl_token::instruction::thaw_account(
-        &spl_token::ID,
+    let ix = apl_token::instruction::thaw_account(
+        &apl_token::id(),
         ctx.accounts.account.key,
         ctx.accounts.mint.key,
         ctx.accounts.authority.key,
         &[], // TODO: Support multisig signers.
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[
             ctx.accounts.account,
@@ -267,14 +267,14 @@ pub fn initialize_mint<'info>(
     authority: &Pubkey,
     freeze_authority: Option<&Pubkey>,
 ) -> Result<()> {
-    let ix = spl_token::instruction::initialize_mint(
-        &spl_token::ID,
+    let ix = apl_token::instruction::initialize_mint(
+        &apl_token::id(),
         ctx.accounts.mint.key,
         authority,
         freeze_authority,
         decimals,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[ctx.accounts.mint, ctx.accounts.rent],
         ctx.signer_seeds,
@@ -288,31 +288,35 @@ pub fn initialize_mint2<'info>(
     authority: &Pubkey,
     freeze_authority: Option<&Pubkey>,
 ) -> Result<()> {
-    let ix = spl_token::instruction::initialize_mint2(
-        &spl_token::ID,
+    let ix = apl_token::instruction::initialize_mint2(
+        &apl_token::id(),
         ctx.accounts.mint.key,
         authority,
         freeze_authority,
         decimals,
     )?;
-    anchor_lang::solana_program::program::invoke_signed(&ix, &[ctx.accounts.mint], ctx.signer_seeds)
-        .map_err(Into::into)
+    satellite_lang::arch_program::program::invoke_signed(
+        &ix,
+        &[ctx.accounts.mint],
+        ctx.signer_seeds,
+    )
+    .map_err(Into::into)
 }
 
 pub fn set_authority<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, SetAuthority<'info>>,
-    authority_type: spl_token::instruction::AuthorityType,
+    authority_type: apl_token::instruction::AuthorityType,
     new_authority: Option<Pubkey>,
 ) -> Result<()> {
-    let ix = spl_token::instruction::set_authority(
-        &spl_token::ID,
+    let ix = apl_token::instruction::set_authority(
+        &apl_token::id(),
         ctx.accounts.account_or_mint.key,
         new_authority.as_ref(),
         authority_type,
         ctx.accounts.current_authority.key,
         &[], // TODO: Support multisig signers.
     )?;
-    anchor_lang::solana_program::program::invoke_signed(
+    satellite_lang::arch_program::program::invoke_signed(
         &ix,
         &[ctx.accounts.account_or_mint, ctx.accounts.current_authority],
         ctx.signer_seeds,
@@ -320,15 +324,15 @@ pub fn set_authority<'info>(
     .map_err(Into::into)
 }
 
-pub fn sync_native<'info>(ctx: CpiContext<'_, '_, '_, 'info, SyncNative<'info>>) -> Result<()> {
-    let ix = spl_token::instruction::sync_native(&spl_token::ID, ctx.accounts.account.key)?;
-    anchor_lang::solana_program::program::invoke_signed(
-        &ix,
-        &[ctx.accounts.account],
-        ctx.signer_seeds,
-    )
-    .map_err(Into::into)
-}
+// pub fn sync_native<'info>(ctx: CpiContext<'_, '_, '_, 'info, SyncNative<'info>>) -> Result<()> {
+//     let ix = apl_token::instruction::sync_native(&apl_token::id(), ctx.accounts.account.key)?;
+//     satellite_lang::arch_program::program::invoke_signed(
+//         &ix,
+//         &[ctx.accounts.account],
+//         ctx.signer_seeds,
+//     )
+//     .map_err(Into::into)
+// }
 
 #[derive(Accounts)]
 pub struct Transfer<'info> {
@@ -439,30 +443,38 @@ pub struct SyncNative<'info> {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Copy)]
-pub struct TokenAccount(spl_token::state::Account);
+pub struct TokenAccount(apl_token::state::Account);
 
 impl TokenAccount {
-    pub const LEN: usize = spl_token::state::Account::LEN;
+    pub const LEN: usize = apl_token::state::Account::LEN;
 }
 
-impl anchor_lang::AccountDeserialize for TokenAccount {
-    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
-        spl_token::state::Account::unpack(buf)
+impl satellite_lang::AccountDeserialize for TokenAccount {
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
+        apl_token::state::Account::unpack(buf)
             .map(TokenAccount)
             .map_err(Into::into)
     }
 }
 
-impl anchor_lang::AccountSerialize for TokenAccount {}
+impl satellite_lang::AccountSerialize for TokenAccount {}
 
-impl anchor_lang::Owner for TokenAccount {
+impl satellite_lang::Owner for TokenAccount {
     fn owner() -> Pubkey {
-        ID
+        apl_token::id()
+    }
+}
+
+static TOKEN_ACCOUNT_OWNERS: [Pubkey; 1] = [apl_token::ID];
+
+impl satellite_lang::Owners for TokenAccount {
+    fn owners() -> &'static [Pubkey] {
+        &TOKEN_ACCOUNT_OWNERS
     }
 }
 
 impl Deref for TokenAccount {
-    type Target = spl_token::state::Account;
+    type Target = apl_token::state::Account;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -470,42 +482,58 @@ impl Deref for TokenAccount {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Copy)]
-pub struct Mint(spl_token::state::Mint);
+pub struct Mint(apl_token::state::Mint);
 
 impl Mint {
-    pub const LEN: usize = spl_token::state::Mint::LEN;
+    pub const LEN: usize = apl_token::state::Mint::LEN;
 }
 
-impl anchor_lang::AccountDeserialize for Mint {
-    fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
-        spl_token::state::Mint::unpack(buf)
+impl satellite_lang::AccountDeserialize for Mint {
+    fn try_deserialize_unchecked(buf: &mut &[u8]) -> satellite_lang::Result<Self> {
+        apl_token::state::Mint::unpack(buf)
             .map(Mint)
             .map_err(Into::into)
     }
 }
 
-impl anchor_lang::AccountSerialize for Mint {}
+impl satellite_lang::AccountSerialize for Mint {}
 
-impl anchor_lang::Owner for Mint {
+impl satellite_lang::Owner for Mint {
     fn owner() -> Pubkey {
-        ID
+        apl_token::id()
+    }
+}
+
+static MINT_OWNERS: [Pubkey; 1] = [apl_token::ID];
+
+impl satellite_lang::Owners for Mint {
+    fn owners() -> &'static [Pubkey] {
+        &MINT_OWNERS
     }
 }
 
 impl Deref for Mint {
-    type Target = spl_token::state::Mint;
+    type Target = apl_token::state::Mint;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
+static IDS: [Pubkey; 1] = [Pubkey::new_from_array(*b"apl-token00000000000000000000000")];
+
 #[derive(Clone)]
 pub struct Token;
 
-impl anchor_lang::Id for Token {
+impl satellite_lang::Id for Token {
     fn id() -> Pubkey {
-        ID
+        apl_token::id()
+    }
+}
+
+impl satellite_lang::Ids for Token {
+    fn ids() -> &'static [Pubkey] {
+        &IDS
     }
 }
 

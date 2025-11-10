@@ -1,5 +1,5 @@
-use anchor_lang_idl::types::Idl;
 use quote::quote;
+use satellite_lang_idl::types::Idl;
 
 use super::common::convert_idl_type_def_to_ts;
 
@@ -10,7 +10,7 @@ pub fn gen_types_mod(idl: &Idl) -> proc_macro2::TokenStream {
         .filter(|ty| {
             // Skip accounts and events
             !(idl.accounts.iter().any(|acc| acc.name == ty.name)
-                || idl.events.iter().any(|ev| ev.name == ty.name))
+                /*|| idl.events.iter().any(|ev| ev.name == ty.name)*/)
         })
         .map(|ty| convert_idl_type_def_to_ts(ty, &idl.types));
 

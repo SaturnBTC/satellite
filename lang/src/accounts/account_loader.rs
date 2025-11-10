@@ -6,9 +6,9 @@ use crate::{
     Accounts, AccountsClose, AccountsExit, Key, Owner, Result, ToAccountInfo, ToAccountInfos,
     ToAccountMetas, ZeroCopy,
 };
-use solana_program::account_info::AccountInfo;
-use solana_program::instruction::AccountMeta;
-use solana_program::pubkey::Pubkey;
+use arch_program::account::AccountInfo;
+use arch_program::account::AccountMeta;
+use arch_program::pubkey::Pubkey;
 use std::cell::{Ref, RefMut};
 use std::collections::BTreeSet;
 use std::fmt;
@@ -42,7 +42,7 @@ use std::ops::DerefMut;
 ///
 /// # Example
 /// ```ignore
-/// use anchor_lang::prelude::*;
+/// use satellite_lang::prelude::*;
 ///
 /// declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 ///
@@ -140,7 +140,6 @@ impl<'info, T: ZeroCopy + Owner> AccountLoader<'info, T> {
     /// Constructs a new `Loader` from an uninitialized account.
     #[inline(never)]
     pub fn try_from_unchecked(
-        _program_id: &Pubkey,
         acc_info: &'info AccountInfo<'info>,
     ) -> Result<AccountLoader<'info, T>> {
         if acc_info.owner != &T::owner() {
