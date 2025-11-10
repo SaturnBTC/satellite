@@ -5,8 +5,12 @@ use quote::quote;
 pub fn generate(program: &Program) -> proc_macro2::TokenStream {
     let name: proc_macro2::TokenStream = program.name.to_string().to_camel_case().parse().unwrap();
     quote! {
-        #[cfg(not(feature = "no-entrypoint"))]
+        #[cfg(all(not(feature = "no-entrypoint"), not(feature = "idl-build")))]
         satellite_lang::arch_program::entrypoint!(entry);
+
+        #[cfg(all(feature = "idl-build", not(feature = "no-entrypoint")))]
+        #[global_allocator]
+        static ALLOC: std::alloc::System = std::alloc::System;
         /// The Anchor codegen exposes a programming model where a user defines
         /// a set of methods inside of a `#[program]` module in a way similar
         /// to writing RPC request handlers. The macro then generates a bunch of
