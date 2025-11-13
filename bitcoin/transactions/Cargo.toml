@@ -9,7 +9,7 @@ keywords = ["bitcoin", "transactions", "utxo"]
 categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-arch_program = { version = "0.5.13" }
+arch_program = { version = "0.5.15" }
 bitcoin = { version = "0.32.5", features = ["serde"] }
 hex = "0.4.3"
 satellite-collections = { version = "0.1.3", path = "../collections" }
