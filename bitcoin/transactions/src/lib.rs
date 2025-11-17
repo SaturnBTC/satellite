@@ -325,7 +325,7 @@ pub struct NewPotentialInputsAndOutputs {
 /// # let mut builder: TransactionBuilder<8, 4, satellite_bitcoin_transactions::utxo_info::SingleRuneSet> = TransactionBuilder::new();
 /// # let account: AccountInfo<'static> = unsafe { std::mem::zeroed() };
 /// // Add a state transition for an existing account
-/// builder.add_state_transition(&account, SignPolicy::Program)?;
+/// builder.add_state_transition(&account, SignPolicy::Managed)?;
 ///
 /// // The builder automatically:
 /// // 1. Adds the account to modified_accounts list
@@ -568,10 +568,20 @@ pub struct TransactionBuilder<
 }
 
 /// Specifies how an added state-transition input should be signed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SignPolicy {
-    /// The program (via Arch) will provide the signature. An InputToSign is recorded.
-    Program,
-    /// A third-party (e.g., system program via CPI) will provide the signature. No InputToSign.
+    /// The program (via Arch) manages signing responsibility for this input.
+    ///
+    /// This applies when the signer has either:
+    /// - Already signed the transaction (e.g., fee payer or any other account that has signed)
+    /// - Will be signed by the program itself (e.g., program PDAs)
+    ///
+    /// An `InputToSign` entry is recorded for Arch to handle the signature.
+    Managed,
+    /// A third-party will provide the signature for this input.
+    ///
+    /// This applies to accounts owned by other programs (e.g., via CPI) or signers
+    /// which have not signed this transaction. No `InputToSign` entry is recorded.
     External,
 }
 
@@ -852,7 +862,7 @@ impl<
     /// # let mut builder: TransactionBuilder<8, 4, satellite_bitcoin_transactions::utxo_info::SingleRuneSet> = TransactionBuilder::new();
     /// # let account: AccountInfo<'static> = unsafe { std::mem::zeroed() };
     /// // Add a state transition for an existing liquidity pool account
-    /// builder.add_state_transition(&account, SignPolicy::Program)?;
+    /// builder.add_state_transition(&account, SignPolicy::Managed)?;
     ///
     /// // The builder now knows:
     /// // - This account will be modified
@@ -876,7 +886,7 @@ impl<
         policy: SignPolicy,
     ) -> Result<u32, BitcoinTxError> {
         let new_input_index = self.transaction.input.len() as u32;
-        if let SignPolicy::Program = policy {
+        if let SignPolicy::Managed = policy {
             self.inputs_to_sign
                 .push(InputToSign {
                     index: new_input_index,
@@ -932,7 +942,7 @@ impl<
             }
         }
 
-        if let SignPolicy::Program = policy {
+        if let SignPolicy::Managed = policy {
             self.inputs_to_sign
                 .push(InputToSign {
                     index: tx_index_u32,
