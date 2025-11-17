@@ -1,7 +1,7 @@
 [package]
 name = "satellite-bitcoin"
-version = "0.1.3"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 description = "High-level Bitcoin utilities and re-exports for the Satellite project."
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/saturnbtc/satellite"
@@ -10,9 +10,9 @@ keywords = ["bitcoin", "satellite"]
 categories = ["cryptography::cryptocurrencies"]
 
 [dependencies]
-satellite-math = { version = "0.1.3", path = "./math" }
-satellite-collections = { version = "0.1.3", path = "./collections" }
-satellite-bitcoin-transactions = { version = "0.1.3", path = "./transactions" } 
+satellite-math = { workspace = true }
+satellite-collections = { workspace = true }
+satellite-bitcoin-transactions = { workspace = true } 
 borsh = { version = "1", default-features = false }
 serde = { version = "1", features = ["derive"], optional = true }
 bitcoin = { version = "0.32.5" }

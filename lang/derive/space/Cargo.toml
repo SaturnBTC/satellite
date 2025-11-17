@@ -1,11 +1,11 @@
 [package]
 name = "satellite-derive-space"
-version = "0.31.1"
+version.workspace = true
 authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
 repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
 description = "Satellite Derive macro to automatically calculate the size of a structure or an enum"
-edition = "2021"
+edition.workspace = true
 
 [lib]
 proc-macro = true

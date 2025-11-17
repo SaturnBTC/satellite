@@ -1,11 +1,11 @@
 [package]
 name = "satellite-derive-serde"
-version = "0.31.1"
+version.workspace = true
 authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
 repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
 description = "Satellite Derive macro for serialization and deserialization"
-edition = "2021"
+edition.workspace = true
 
 [lib]
 proc-macro = true
@@ -15,8 +15,8 @@ idl-build = ["satellite-syn/idl-build"]
 lazy-account = []
 
 [dependencies]
-satellite-syn = { path = "../../syn", version = "0.31.1" }
-borsh-derive-internal-satellite = { path = "../../../borsh-derive-internal", version = "0.11.0" }
+satellite-syn = { workspace = true }
+borsh-derive-internal-satellite = { path = "../../../borsh-derive-internal" }
 proc-macro2 = "1"
 syn = { version = "1", features = ["full"] }
 quote = "1"

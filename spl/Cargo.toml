@@ -1,8 +1,8 @@
 [package]
 name = "satellite-apl"
-version = "0.31.4"
+version.workspace = true
 authors = ["Anchor Maintainers <accounts@200ms.io>"]
-edition = "2021"
+edition.workspace = true
 license = "Apache-2.0"
 description = "CPI clients for SPL programs"
 
@@ -20,7 +20,7 @@ token = ["apl-token"]
 metadata = ["apl-token-metadata"]
 
 [dependencies]
-satellite-lang = { path = "../lang", version = "0.31.3", features = ["derive"] }
+satellite-lang = { workspace = true, features = ["derive"] }
 borsh = { version = "0.10.3", optional = true }
 apl-associated-token-account = { version = "0.5.13", features = ["no-entrypoint"], optional = true }
 apl-token = { version = "0.5.13", features = ["no-entrypoint"], optional = true }

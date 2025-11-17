@@ -1,9 +1,9 @@
 [package]
 name = "satellite-lang"
-version = "0.31.3"
+version.workspace = true
 authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
 repository = "https://github.com/saturnbtc/satellite"
-edition = "2021"
+edition.workspace = true
 license = "Apache-2.0"
 description = "Arch Network eDSL"
 
@@ -40,18 +40,18 @@ lazy-account = [
 ]
 
 [dependencies]
-satellite-attribute-event = { path = "./attribute/event", version = "0.31.2" }
-satellite-attribute-access-control = { path = "./attribute/access-control", version = "0.31.1" }
-satellite-attribute-account = { path = "./attribute/account", version = "0.31.1" }
-satellite-attribute-constant = { path = "./attribute/constant", version = "0.31.1" }
-satellite-attribute-error = { path = "./attribute/error", version = "0.31.1" }
-satellite-attribute-program = { path = "./attribute/program", version = "0.31.1" }
-satellite-derive-accounts = { path = "./derive/accounts", version = "0.31.1" }
-satellite-derive-serde = { path = "./derive/serde", version = "0.31.1" }
-satellite-derive-space = { path = "./derive/space", version = "0.31.1" }
+satellite-attribute-event = { workspace = true }
+satellite-attribute-access-control = { workspace = true }
+satellite-attribute-account = { workspace = true }
+satellite-attribute-constant = { workspace = true }
+satellite-attribute-error = { workspace = true }
+satellite-attribute-program = { workspace = true }
+satellite-derive-accounts = { workspace = true }
+satellite-derive-serde = { workspace = true }
+satellite-derive-space = { workspace = true }
 
 # `satellite-lang-idl` should only be included with `idl-build` feature
-satellite-lang-idl = { path = "../idl", version = "0.1.2", optional = true }
+satellite-lang-idl = { workspace = true, optional = true }
 
 base64 = "0.21"
 bincode = "1"

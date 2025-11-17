@@ -1,11 +1,11 @@
 [package]
 name = "satellite-attribute-program"
-version = "0.31.1"
+version.workspace = true
 authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
 repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
 description = "Satellite attribute macro for defining a program"
-edition = "2021"
+edition.workspace = true
 
 [lib]
 proc-macro = true
@@ -16,8 +16,8 @@ idl-build = ["satellite-syn/idl-build"]
 interface-instructions = ["satellite-syn/interface-instructions"]
 
 [dependencies]
-satellite-lang-idl = { path = "../../../idl", version = "0.1.2", features = ["convert"] }
-satellite-syn = { path = "../../syn", version = "0.31.1" }
+satellite-lang-idl = { workspace = true, features = ["convert"] }
+satellite-syn = { workspace = true }
 anyhow = "1"
 hex = "0.4.3"
 heck = "0.3"

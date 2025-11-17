@@ -1,11 +1,11 @@
 [package]
 name = "satellite-attribute-error"
-version = "0.31.1"
+version.workspace = true
 authors = ["Satellite Maintainers <contact@saturnbtc.io>"]
 repository = "https://github.com/saturnbtc/satellite"
 license = "Apache-2.0"
 description = "Satellite attribute macro for creating error types"
-edition = "2021"
+edition.workspace = true
 
 [lib]
 proc-macro = true
@@ -15,6 +15,6 @@ satellite-debug = ["satellite-syn/satellite-debug"]
 idl-build = ["satellite-syn/idl-build"]
 
 [dependencies]
-satellite-syn = { path = "../../syn", version = "0.31.1" }
+satellite-syn = { workspace = true }
 quote = "1"
 syn = { version = "1", features = ["full"] }

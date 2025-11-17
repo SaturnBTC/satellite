@@ -25,3 +25,37 @@ exclude = [
     "tests/cfo/deps/openbook-dex",
 ]
 resolver = "2"
+
+[workspace.package]
+version = "0.31.5"
+edition = "2021"
+
+[workspace.dependencies]
+# Bitcoin crates
+satellite-math = { path = "bitcoin/math", version = "0.31.5" }
+satellite-collections = { path = "bitcoin/collections", version = "0.31.5" }
+satellite-bitcoin-transactions = { path = "bitcoin/transactions", version = "0.31.5" }
+satellite-bitcoin = { path = "bitcoin", version = "0.31.5" }
+
+# Lang crates
+satellite-syn = { path = "lang/syn", version = "0.31.5" }
+satellite-attribute-access-control = { path = "lang/attribute/access-control", version = "0.31.5" }
+satellite-attribute-account = { path = "lang/attribute/account", version = "0.31.5" }
+satellite-attribute-constant = { path = "lang/attribute/constant", version = "0.31.5" }
+satellite-attribute-error = { path = "lang/attribute/error", version = "0.31.5" }
+satellite-attribute-event = { path = "lang/attribute/event", version = "0.31.5" }
+satellite-attribute-program = { path = "lang/attribute/program", version = "0.31.5" }
+satellite-derive-accounts = { path = "lang/derive/accounts", version = "0.31.5" }
+satellite-derive-serde = { path = "lang/derive/serde", version = "0.31.5" }
+satellite-derive-space = { path = "lang/derive/space", version = "0.31.5" }
+satellite-lang = { path = "lang", version = "0.31.5" }
+
+# IDL crates
+satellite-lang-idl-spec = { path = "idl/spec", version = "0.31.5" }
+satellite-lang-idl = { path = "idl", version = "0.31.5" }
+
+# Other crates
+satellite-serde = { path = "serde", version = "0.31.5" }
+satellite-shard = { path = "shard_set", version = "0.31.5" }
+satellite-apl = { path = "spl", version = "0.31.5" }
+anchor-client = { path = "client", version = "0.31.5" }
