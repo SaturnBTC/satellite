@@ -49,7 +49,6 @@ use arch_program::{
 };
 use bitcoin::{Amount, ScriptBuf, TxOut};
 use satellite_bitcoin::generic::fixed_set::FixedCapacitySet;
-use satellite_bitcoin::generic::fixed_set::FixedSet;
 use satellite_bitcoin::{
     constants::DUST_LIMIT, fee_rate::FeeRate, utxo_info::UtxoInfoTrait, TransactionBuilder,
 };
@@ -222,10 +221,15 @@ where
     // ---------------------------------------------------------------------
     let mut total_btc_amount: u64 = 0;
 
+    // Only consider non–state-transition inputs when tracking unsettled BTC.
+    // State-transition inputs correspond to program accounts, not shard-owned
+    // liquidity, and always appear at the beginning of the transaction.
+    let non_state_inputs = tx_builder.get_non_state_transition_inputs();
+
     for shard in selected_shards.iter() {
         let mut sum: u64 = 0;
         for utxo in shard.btc_utxos().iter() {
-            for input in tx_builder.transaction.input.iter() {
+            for input in non_state_inputs.iter() {
                 let spent_meta =
                     UtxoMeta::from_outpoint(input.previous_output.txid, input.previous_output.vout);
                 if spent_meta == *utxo.meta() {
@@ -408,14 +412,16 @@ where
     let mut total_current_amount: u128 = 0;
 
     // --------------------------------------------------
-    // Pre-compute the set of metas already used by the tx
+    // Pre-compute a helper over non–state-transition inputs.
     // --------------------------------------------------
-    type InputMetaSet<const CAP: usize> = FixedSet<UtxoMeta, CAP>;
-    let mut used_metas: InputMetaSet<MAX_INPUTS_TO_SIGN> = InputMetaSet::default();
-    for input in tx_builder.transaction.input.iter() {
-        let meta = UtxoMeta::from_outpoint(input.previous_output.txid, input.previous_output.vout);
-        let _ = used_metas.insert(meta);
-    }
+    let non_state_inputs = tx_builder.get_non_state_transition_inputs();
+    let is_meta_spent = |meta: &UtxoMeta| {
+        non_state_inputs.iter().any(|input| {
+            let spent_meta =
+                UtxoMeta::from_outpoint(input.previous_output.txid, input.previous_output.vout);
+            spent_meta == *meta
+        })
+    };
 
     // 1. Determine the current amount per shard and overall.
     for shard in selected_shards.iter() {
@@ -424,7 +430,7 @@ where
                 .btc_utxos()
                 .iter()
                 .filter_map(|u| {
-                    if used_metas.contains(u.meta()) {
+                    if is_meta_spent(u.meta()) {
                         None
                     } else {
                         Some(u.value() as u128)
@@ -436,6 +442,7 @@ where
                 {
                     shard
                         .rune_utxo()
+                        .filter(|u| !is_meta_spent(u.meta()))
                         .and_then(|u| u.runes().find(&rune_amount.id).map(|r| r.amount))
                         .unwrap_or(0)
                 }

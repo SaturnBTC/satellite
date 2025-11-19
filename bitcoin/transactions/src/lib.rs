@@ -1495,6 +1495,35 @@ impl<
         Ok(())
     }
 
+    /// Returns a slice of transaction inputs that are not state transitions.
+    ///
+    /// State transitions are always at the beginning of the transaction and correspond
+    /// to entries in `modified_accounts`. This method returns all inputs after the
+    /// state transition inputs.
+    ///
+    /// ## Returns
+    ///
+    /// A slice of [`TxIn`] containing only non-state-transition inputs. Returns an
+    /// empty slice if all inputs are state transitions or if there are no inputs.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust,no_run
+    /// # use satellite_bitcoin_transactions::TransactionBuilder;
+    /// # let mut builder: TransactionBuilder<8, 4, satellite_bitcoin_transactions::utxo_info::SingleRuneSet> = TransactionBuilder::new();
+    /// // After adding state transitions and regular inputs...
+    /// let non_state_transition_inputs = builder.get_non_state_transition_inputs();
+    ///
+    /// // Process only non-state-transition inputs
+    /// for input in non_state_transition_inputs {
+    ///     // Handle regular UTXO inputs
+    /// }
+    /// ```
+    pub fn get_non_state_transition_inputs(&self) -> &[TxIn] {
+        let state_transition_count = self.modified_accounts.len();
+        &self.transaction.input[state_transition_count..]
+    }
+
     /// Finalizes the transaction and prepares it for signing by the Arch runtime.
     ///
     /// This method completes the transaction building process by transferring the constructed
