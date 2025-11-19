@@ -552,6 +552,14 @@ pub struct TransactionBuilder<
 
     pub total_btc_input: u64,
 
+    /// Tracks whether any **non–state-transition** inputs or *any* outputs
+    /// have been added to the transaction via builder helpers.
+    ///
+    /// Once this becomes `true`, no further state transitions may be added
+    /// through [`TransactionBuilder::add_state_transition`] or
+    /// [`TransactionBuilder::insert_state_transition_input`].
+    has_seen_non_state_io_or_output: bool,
+
     _phantom: std::marker::PhantomData<RuneSet>,
 
     #[cfg(feature = "runes")]
@@ -653,6 +661,7 @@ impl<
             modified_accounts: FixedList::new(),
             inputs_to_sign: FixedRefList::new(),
             total_btc_input: 0,
+            has_seen_non_state_io_or_output: false,
 
             #[cfg(feature = "utxo-consolidation")]
             total_btc_consolidation_input: 0,
@@ -688,6 +697,7 @@ impl<
             modified_accounts: FixedList::new(),
             inputs_to_sign: FixedRefList::new(),
             total_btc_input,
+            has_seen_non_state_io_or_output: false,
 
             #[cfg(feature = "utxo-consolidation")]
             total_btc_consolidation_input: 0,
@@ -762,6 +772,7 @@ impl<
             modified_accounts: FixedList::new(),
             inputs_to_sign: FixedRefList::new(),
             total_btc_input: 0,
+            has_seen_non_state_io_or_output: false,
 
             total_rune_inputs: RuneSet::default(),
             runestone: Runestone::default(),
@@ -815,6 +826,7 @@ impl<
             modified_accounts: FixedList::new(),
             inputs_to_sign: FixedRefList::new(),
             total_btc_input,
+            has_seen_non_state_io_or_output: false,
 
             total_rune_inputs,
             runestone,
@@ -885,6 +897,10 @@ impl<
         account: &AccountInfo<'info>,
         policy: SignPolicy,
     ) -> Result<u32, BitcoinTxError> {
+        if self.has_seen_non_state_io_or_output {
+            return Err(BitcoinTxError::InvalidStateTransitionOrdering);
+        }
+
         let new_input_index = self.transaction.input.len() as u32;
         if let SignPolicy::Managed = policy {
             self.inputs_to_sign
@@ -919,6 +935,10 @@ impl<
         account: &AccountInfo<'info>,
         policy: SignPolicy,
     ) -> Result<(), BitcoinTxError> {
+        if self.has_seen_non_state_io_or_output {
+            return Err(BitcoinTxError::InvalidStateTransitionOrdering);
+        }
+
         let txid = account.utxo.to_txid();
         let utxo_outpoint = OutPoint {
             txid,
@@ -976,6 +996,8 @@ impl<
     where
         RS: FixedCapacitySet<Item = RuneAmount>,
     {
+        self.has_seen_non_state_io_or_output = true;
+
         if let Some(signer) = signer {
             self.inputs_to_sign
                 .push(InputToSign {
@@ -1019,6 +1041,8 @@ impl<
     where
         RS: FixedCapacitySet<Item = RuneAmount>,
     {
+        self.has_seen_non_state_io_or_output = true;
+
         self.add_tx_status(utxo, status);
 
         self.transaction.input.push(tx_in);
@@ -1067,6 +1091,8 @@ impl<
     where
         RS: FixedCapacitySet<Item = RuneAmount>,
     {
+        self.has_seen_non_state_io_or_output = true;
+
         let outpoint = utxo.meta.to_outpoint();
 
         self.add_tx_status(utxo, status);
@@ -1139,6 +1165,8 @@ impl<
     where
         RS: FixedCapacitySet<Item = RuneAmount>,
     {
+        self.has_seen_non_state_io_or_output = true;
+
         self.add_tx_status(utxo, status);
 
         self.transaction.input.insert(tx_index, tx_in.clone());
@@ -1285,6 +1313,10 @@ impl<
         fee_rate: &FeeRate,
         address_to_send_remaining_btc: Option<ScriptBuf>,
     ) -> Result<(), BitcoinTxError> {
+        // This helper may create or adjust outputs; once called we are
+        // definitively past the state-transition-only phase.
+        self.has_seen_non_state_io_or_output = true;
+
         adjust_transaction_to_pay_fees(
             &mut self.transaction,
             &self.tx_statuses,
@@ -1326,6 +1358,9 @@ impl<
         pool_shard_btc_utxos: &[BtcHolder],
         new_potential_inputs_and_outputs: &NewPotentialInputsAndOutputs,
     ) {
+        // Consolidation always introduces additional non-state inputs.
+        self.has_seen_non_state_io_or_output = true;
+
         let (total_consolidation_input_amount, extra_tx_size) = add_consolidation_utxos(
             &mut self.transaction,
             &mut self.tx_statuses,

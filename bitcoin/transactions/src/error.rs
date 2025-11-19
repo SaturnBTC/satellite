@@ -62,6 +62,9 @@ pub enum BitcoinTxError {
 
     #[error("Failed state transition")]
     FailedStateTransition,
+
+    #[error("State transitions must be added before any other inputs or outputs")]
+    InvalidStateTransitionOrdering,
 }
 
 // === Conversions ============================================================
