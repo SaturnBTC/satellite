@@ -16,7 +16,7 @@ lazy-account = []
 
 [dependencies]
 satellite-syn = { workspace = true }
-borsh-derive-internal-satellite = { path = "../../../borsh-derive-internal" }
+borsh-derive-internal-satellite = { path = "../../../borsh-derive-internal", version = "0.11.0" }
 proc-macro2 = "1"
 syn = { version = "1", features = ["full"] }
 quote = "1"
